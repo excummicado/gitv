@@ -48,8 +48,8 @@ def suggest_nickname(discord_username: str) -> str:
 
 
 def issue_access_token(user: User) -> str:
-    minutes = settings.admin_access_token_expire_minutes if user.role == Role.admin else settings.access_token_expire_minutes
-    # The role is recorded so a long-lived player token stops working if that user becomes an admin.
+    minutes = settings.admin_access_token_expire_minutes if user.role.is_staff else settings.access_token_expire_minutes
+    # The role is recorded so a token stops working once that user's role changes.
     return create_access_token(
         data={"sub": str(user.id), "role": user.role.value},
         expires_delta=timedelta(minutes=minutes),
@@ -65,7 +65,7 @@ async def discord_login(prompt: Literal["none", "consent"] = "none"):
         "scope": "identify email",
         "state": state,
         "redirect_uri": settings.discord_redirect_uri,
-        # "none" skips Discord's approval screen for players who already authorized GITV.
+        # "none" skips Discord's approval screen for members who already authorized GITV.
         "prompt": prompt,
     }
     # Discord separates scopes with %20, so quote (not quote_plus) the query.
@@ -124,7 +124,7 @@ async def discord_callback(
         )
         return back_to_frontend(urlencode({"signup_token": signup_token, "nickname": suggest_nickname(profile["username"])}))
     if user.disabled:
-        return back_to_frontend("error=disabled")
+        return back_to_frontend("error=banned")
     if user.discord_username != profile["username"]:
         user.discord_username = profile["username"]
         session.add(user)

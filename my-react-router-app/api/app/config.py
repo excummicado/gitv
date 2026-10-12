@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     # openssl rand -hex 32
     secret_key: str
     algorithm: str = "HS256"
-    # Players stay signed in for 30 days; admin tokens are short-lived because they can do more damage if stolen.
+    # Members stay signed in for 30 days; admin and super admin tokens are short-lived because they can do more damage if stolen.
     access_token_expire_minutes: int = 60 * 24 * 30
     admin_access_token_expire_minutes: int = 60
     # Discord OAuth2 (Developer Portal > OAuth2); the redirect must match a registered one exactly.

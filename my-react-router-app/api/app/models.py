@@ -12,7 +12,17 @@ NICKNAME_PATTERN = r"^[A-Za-z0-9_.]+$"
 
 class Role(str, Enum):
     user = "user"
+    # Will write news; no extra permissions yet.
+    writer = "writer"
+    # Will run tournaments and events; no extra permissions yet.
+    event_organizer = "event_organizer"
     admin = "admin"
+    # Can make other users admins; can't be changed from the site, only with app.cli.
+    super_admin = "super_admin"
+
+    @property
+    def is_staff(self) -> bool:
+        return self in (Role.admin, Role.super_admin)
 
 
 class UserBase(SQLModel):
@@ -28,6 +38,7 @@ class User(UserBase, table=True):
     # Refreshed on every Discord sign-in, since people can rename themselves on Discord.
     discord_username: str | None = None
     role: Role = Role.user
+    # Banned by an admin: can't sign in, and existing sessions stop working.
     disabled: bool = False
 
 

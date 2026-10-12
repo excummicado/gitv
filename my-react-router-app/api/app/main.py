@@ -6,7 +6,7 @@ from fastapi import FastAPI
 
 from .config import settings
 from .database import create_db_and_tables
-from .routers import discord, health, users
+from .routers import admin, discord, health, users
 
 
 @asynccontextmanager
@@ -21,3 +21,4 @@ app = FastAPI(title=settings.app_name, lifespan=lifespan)
 app.include_router(health.router, prefix=settings.api_prefix)
 app.include_router(users.router, prefix=settings.api_prefix)
 app.include_router(discord.router, prefix=settings.api_prefix)
+app.include_router(admin.router, prefix=settings.api_prefix)

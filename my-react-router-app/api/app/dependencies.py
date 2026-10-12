@@ -33,8 +33,9 @@ async def get_current_user(
     user = session.get(User, user_id)
     if user is None:
         raise credentials_exception
-    # Admins must hold a short-lived admin token; a long player token issued before the promotion is refused.
-    if user.role == Role.admin and payload.get("role") != Role.admin.value:
+    # The token's role must match the current one: after a promotion or demotion the user signs in again,
+    # so staff always hold short-lived tokens and a demoted admin loses access at once.
+    if payload.get("role") != user.role.value:
         raise credentials_exception
     return user
 
@@ -43,5 +44,21 @@ async def get_current_active_user(
     current_user: Annotated[User, Depends(get_current_user)],
 ):
     if current_user.disabled:
-        raise HTTPException(status_code=400, detail="Inactive user")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This account is banned.")
+    return current_user
+
+
+async def get_current_staff(
+    current_user: Annotated[User, Depends(get_current_active_user)],
+):
+    if not current_user.role.is_staff:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only an admin can do this.")
+    return current_user
+
+
+async def get_current_super_admin(
+    current_user: Annotated[User, Depends(get_current_active_user)],
+):
+    if current_user.role != Role.super_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only a super admin can do this.")
     return current_user
