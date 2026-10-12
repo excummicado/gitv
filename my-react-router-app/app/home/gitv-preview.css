@@ -1,0 +1,457 @@
+@import url('https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:wght@400;700&family=STIX+Two+Text:wght@400;500&family=Spectral:wght@400;500&display=swap');
+
+.gitv-page {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  background: #0b1220;
+}
+.gitv-frame { width: 100%; min-height: 100vh; border: 0; }
+
+.gitv-intro {
+  margin-bottom: 26px;
+}
+
+.gitv-kicker {
+  margin: 0 0 10px;
+  color: #667085;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .16em;
+}
+
+.gitv-intro h1 {
+  margin: 0;
+  font-size: clamp(30px, 4vw, 48px);
+  line-height: 1.05;
+  letter-spacing: -.045em;
+  font-weight: 600;
+}
+
+.gitv-description {
+  margin: 12px 0 0;
+  color: var(--page-muted);
+  font-size: 14px;
+}
+
+.gitv-specimens {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.gitv-specimen {
+  min-width: 0;
+  padding: 13px 16px 15px;
+  background: #f5f6f8;
+  border: 1px solid #e4e7ec;
+}
+
+.gitv-specimen>span {
+  color: #667085;
+  font: 600 10px/1.2 Inter, ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.gitv-specimen p {
+  margin: 9px 0 0;
+  overflow-wrap: anywhere;
+  font-size: clamp(15px, 1.45vw, 20px);
+  line-height: 1.45;
+}
+
+.gitv-specimen p b {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.gitv-specimen.stix p {
+  font-family: "STIX Two Text", Georgia, serif;
+}
+
+.gitv-specimen.spectral p {
+  font-family: Spectral, Georgia, serif;
+}
+
+.gitv-frame {
+  width: 100%;
+  min-height: 100vh;
+  overflow: hidden;
+  color: #e2e8f0;
+  background: #0b1220;
+  border: 0;
+  font: 13px/1.4 "STIX Two Text", "Times New Roman", serif;
+}
+
+.gitv-content {
+  max-width: 1040px;
+  margin: 0 auto;
+  background: #0F172A;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+  min-height: calc(100vh - 38px);
+}
+
+.gitv-nav { width: 100%; }
+.gitv-brand { background: #0F172A; }
+.gitv-columns {
+  min-height: calc(100vh - 96px);
+  padding-right: clamp(22px, 3vw, 48px);
+  padding-left: clamp(22px, 3vw, 48px);
+  background: #0F172A;
+}
+
+.gitv-frame * {
+  box-sizing: border-box;
+  border-radius: 0;
+}
+
+.gitv-nav {
+  min-height: 38px;
+  border-bottom: 1px solid #2a3548;
+  background: #162033;
+  color: #cbd5e1;
+  white-space: nowrap;
+  font-size: 12px;
+  font-family: "Libre Caslon Text", Georgia, serif;
+}
+
+.gitv-nav-content {
+  max-width: 1040px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 1vw, 14px);
+  padding: 0 12px;
+  height: 100%;
+  min-height: 38px;
+}
+
+.gitv-nav-content a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.gitv-nav-content > span,
+.gitv-nav-content a > span {
+  text-transform: capitalize;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.gitv-search {
+  margin-left: auto;
+  width: 100px;
+  padding: 2px 10px;
+  font-size: 11px;
+  line-height: 1.2;
+  border: 1px solid #2a3548;
+  background: #1e293b;
+  color: #64748b;
+  text-transform: none;
+  font-weight: 400;
+  letter-spacing: normal;
+}
+
+.gitv-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 10px 6px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: bold;
+  font-size: 48px;
+  letter-spacing: 1px;
+}
+
+.gitv-brand a {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.gitv-mark {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+}
+
+.gitv-columns {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) minmax(280px, 2.15fr) minmax(150px, 1.15fr);
+  gap: 10px;
+  padding: 10px;
+}
+
+.gitv-columns>* {
+  min-width: 0;
+}
+
+.gitv-card {
+  margin-bottom: 10px;
+  border: 1px solid #2a3548;
+  background: #1e293b;
+}
+
+.gitv-image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #243049;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.gitv-promo {
+  height: 130px;
+}
+
+.gitv-highlight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+}
+
+.gitv-highlight small,
+.gitv-card-title,
+.gitv-row small {
+  color: #94a3b8;
+}
+
+.gitv-highlight strong {
+  display: block;
+  color: #60a5fa;
+  font-size: 17px;
+  font-weight: 400;
+}
+
+.gitv-thumb {
+  flex: none;
+  width: 48px;
+  height: 56px;
+}
+
+.gitv-card-title {
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.gitv-card-title.tinted {
+  background: #243049;
+  color: #e2e8f0;
+}
+
+.gitv-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border-top: 1px solid #2a3548;
+}
+
+.gitv-square {
+  display: inline-block;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  background: #334155;
+}
+
+.gitv-foot {
+  padding: 7px;
+  background: #243049;
+  color: #94a3b8;
+  text-align: center;
+  font-size: 12px;
+}
+
+.gitv-push {
+  margin-left: auto;
+}
+
+.gitv-badge {
+  padding: 1px 6px;
+  background: #60a5fa;
+  color: #0b1220;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.gitv-banner {
+  position: relative;
+  height: 96px;
+  border: 1px solid #2a3548;
+}
+
+.gitv-badge.live {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #ef4444;
+  color: white;
+}
+
+.gitv-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin-bottom: 10px;
+  background: #243049;
+  border: 1px solid #2a3548;
+  border-top: 0;
+  text-align: center;
+}
+
+.gitv-tabs span {
+  padding: 8px;
+}
+
+.gitv-tabs span+span {
+  border-left: 1px solid #1e293b;
+}
+
+.gitv-feature {
+  height: 120px;
+}
+
+.gitv-section-label {
+  padding: 2px 2px 6px;
+  color: #94a3b8;
+}
+
+.gitv-line {
+  display: inline-block;
+  flex: none;
+  width: 16px;
+  height: 11px;
+  background: #334155;
+}
+
+.gitv-headline {
+  min-height: 38px;
+}
+
+.gitv-headline small {
+  text-align: right;
+  font-size: 12px;
+}
+
+.gitv-match {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.gitv-matchline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+
+.gitv-matchline span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gitv-matchline b {
+  color: #60a5fa;
+  font-weight: 400;
+}
+
+.gitv-card-title.bare {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px 6px;
+}
+
+.gitv-list {
+  margin-bottom: 10px;
+}
+
+.gitv-list-row {
+  min-height: 31px;
+  margin-bottom: 1px;
+  border-left: 3px solid #60a5fa;
+  background: #1e293b;
+  border-top: 0;
+}
+
+.gitv-outline {
+  padding: 2px 8px;
+  border: 1px solid #60a5fa;
+  color: #60a5fa;
+  font-size: 12px;
+}
+
+.gitv-pair {
+  min-height: 34px;
+}
+
+.gitv-square.large {
+  width: 26px;
+  height: 26px;
+}
+
+@media (max-width: 760px) {
+
+  .gitv-nav span:nth-child(4),
+  .gitv-nav span:nth-child(5),
+  .gitv-nav span:nth-last-child(2) {
+    display: none;
+  }
+
+  .gitv-columns {
+    grid-template-columns: minmax(112px, .8fr) minmax(0, 1.5fr);
+  }
+
+  .gitv-columns>aside:last-child {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    align-items: start;
+  }
+
+  .gitv-columns>aside:last-child>* {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  .gitv-specimens {
+    grid-template-columns: 1fr;
+  }
+
+  .gitv-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gitv-columns>aside:first-child {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    align-items: start;
+  }
+
+  .gitv-columns>aside:last-child {
+    grid-column: auto;
+  }
+
+  .gitv-card {
+    margin-bottom: 8px;
+  }
+
+  .gitv-nav {
+    gap: 8px;
+    font-size: 11px;
+  }
+}

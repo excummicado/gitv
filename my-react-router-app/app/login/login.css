@@ -1,0 +1,260 @@
+/* Inherits same font & page/frame/nav/brand/mark variables from gitv-preview.css */
+@import url('https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:wght@400;700&family=STIX+Two+Text:wght@400;500&display=swap');
+
+/* ── Page shell (identical to main page) ── */
+.gitv-page {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  background: #0b1220;
+}
+
+.gitv-frame {
+  width: 100%;
+  min-height: 100vh;
+  overflow: hidden;
+  color: #e2e8f0;
+  background: #0b1220;
+  border: 0;
+  font: 13px/1.4 "STIX Two Text", "Times New Roman", serif;
+}
+
+/* ── Centered stripe (same as main page) ── */
+.gitv-content {
+  max-width: 1040px;
+  margin: 0 auto;
+  background: #0F172A;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+  min-height: calc(100vh - 38px);
+}
+
+/* ── Navbar (full-width, same as main page) ── */
+.gitv-nav {
+  width: 100%;
+  min-height: 38px;
+  border-bottom: 1px solid #2a3548;
+  background: #162033;
+  color: #cbd5e1;
+  white-space: nowrap;
+  font-size: 12px;
+  font-family: "Libre Caslon Text", Georgia, serif;
+}
+
+.gitv-nav-content {
+  max-width: 1040px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 1vw, 14px);
+  padding: 0 12px;
+  height: 100%;
+  min-height: 38px;
+}
+
+.gitv-nav-content > span {
+  text-transform: capitalize;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.gitv-search {
+  margin-left: auto;
+  width: 100px;
+  padding: 2px 10px;
+  font-size: 11px;
+  line-height: 1.2;
+  border: 1px solid #2a3548;
+  background: #1e293b;
+  color: #64748b;
+  text-transform: none;
+  font-weight: 400;
+  letter-spacing: normal;
+}
+
+/* ── Brand header (same as main page) ── */
+.gitv-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 10px 6px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: bold;
+  font-size: 48px;
+  letter-spacing: 1px;
+  background: #0F172A;
+}
+
+.gitv-brand a {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.gitv-mark {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+}
+
+/* ── Login layout ── */
+.login-wrapper {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 48px 24px 64px;
+  min-height: calc(100vh - 140px);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  border: 1px solid #2a3548;
+  background: #1e293b;
+}
+
+/* ── Card header ── */
+.login-header {
+  padding: 24px 24px 16px;
+  border-bottom: 1px solid #2a3548;
+}
+
+.login-title {
+  font-size: 18px;
+  font-weight: 500;
+  color: #e2e8f0;
+  margin-bottom: 4px;
+  font-family: "Libre Caslon Text", Georgia, serif;
+}
+
+.login-subtitle {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* ── Form fields ── */
+.login-field {
+  padding: 14px 24px 0;
+}
+
+.login-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+
+.login-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #2a3548;
+  background: #0F172A;
+  color: #64748b;
+  font: 13px/1.4 "STIX Two Text", "Times New Roman", serif;
+  box-sizing: border-box;
+}
+
+.login-input--password {
+  letter-spacing: 2px;
+  color: #475569;
+}
+
+/* ── Remember / forgot row ── */
+.login-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px 0;
+}
+
+.login-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.login-check-box {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 1px solid #2a3548;
+  background: #0F172A;
+  flex: none;
+}
+
+.login-check-label {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.login-link {
+  font-size: 12px;
+  color: #60a5fa;
+  text-decoration: none;
+}
+
+/* ── Sign-in button ── */
+.login-btn {
+  margin: 20px 24px 0;
+  padding: 10px;
+  text-align: center;
+  background: #1d4ed8;
+  color: #e2e8f0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-family: "Libre Caslon Text", Georgia, serif;
+}
+
+/* ── Divider ── */
+.login-divider {
+  margin: 20px 24px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #475569;
+  font-size: 11px;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #2a3548;
+}
+
+/* ── Social buttons ── */
+.login-socials {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin: 12px 24px 0;
+}
+
+.login-social-btn {
+  padding: 7px;
+  text-align: center;
+  border: 1px solid #2a3548;
+  background: #0F172A;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+/* ── Footer ── */
+.login-footer {
+  margin: 20px 24px 24px;
+  text-align: center;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.login-footer .login-link {
+  color: #60a5fa;
+}
