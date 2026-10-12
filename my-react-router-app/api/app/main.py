@@ -1,15 +1,23 @@
-"""FastAPI application factory and ASGI entry point."""
+"""FastAPI application and ASGI entry point."""
+
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.core.config import settings
-from app.routes.router import api_router
+from .config import settings
+from .database import create_db_and_tables
+from .routers import discord, health, users
 
 
-def create_app() -> FastAPI:
-    application = FastAPI(title=settings.app_name, debug=settings.debug)
-    application.include_router(api_router, prefix=settings.api_prefix)
-    return application
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # SQLite tables are created on startup only for the time being (no migrations yet).
+    create_db_and_tables()
+    yield
 
 
-app = create_app()
+app = FastAPI(title=settings.app_name, lifespan=lifespan)
+
+app.include_router(health.router, prefix=settings.api_prefix)
+app.include_router(users.router, prefix=settings.api_prefix)
+app.include_router(discord.router, prefix=settings.api_prefix)
