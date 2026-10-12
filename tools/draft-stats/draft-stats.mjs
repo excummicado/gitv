@@ -3,6 +3,9 @@
 //
 // Использование:
 //   node draft-stats.mjs <файлы или папки с .json ...> [--names names.json] [--out ./out]
+//   node draft-stats.mjs --urls tournaments-url.txt [--data ./data] [--header "Authorization: ..."]
+//
+// --urls скачивает каждую ссылку из файла (limit=100000000000) в --data и сразу строит отчёт.
 //
 // Каждый входной файл — ответ API вида { items: [...], count } (или просто массив матчей).
 // Матчи с одинаковым _id из разных файлов учитываются один раз.
@@ -15,18 +18,75 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 // ---------- аргументы ----------
+const LIMIT = '100000000000';
 const argv = process.argv.slice(2);
 const inputs = [];
 let namesFile = null;
 let outDir = './out';
+let urlsFile = null;
+let dataDir = './data';
+const headers = {};
 for (let i = 0; i < argv.length; i++) {
   if (argv[i] === '--names') namesFile = argv[++i];
   else if (argv[i] === '--out') outDir = argv[++i];
-  else inputs.push(argv[i]);
+  else if (argv[i] === '--urls') urlsFile = argv[++i];
+  else if (argv[i] === '--data') dataDir = argv[++i];
+  else if (argv[i] === '--header') {
+    const h = argv[++i];
+    const k = h.indexOf(':');
+    headers[h.slice(0, k).trim()] = h.slice(k + 1).trim();
+  } else inputs.push(argv[i]);
+}
+if (urlsFile) {
+  await downloadAll(urlsFile, dataDir);
+  inputs.push(dataDir);
 }
 if (!inputs.length) {
-  console.error('Usage: node draft-stats.mjs <files|dirs...> [--names names.json] [--out dir]');
+  console.error('Usage: node draft-stats.mjs <files|dirs...> [--urls urls.txt] [--data dir] [--header "K: V"] [--names names.json] [--out dir]');
   process.exit(1);
+}
+
+// ---------- загрузка по ссылкам ----------
+// Каждая строка файла — ссылка на API матчей. limit заменяется на огромный, чтобы забрать всё одним запросом;
+// если сервер всё равно отдал меньше, чем count, докачиваем страницами через skip/offset/page, если они есть в ссылке.
+async function fetchJson(url) {
+  const res = await fetch(url, { headers: { Accept: 'application/json', ...headers } });
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText} — ${url}`);
+  return res.json();
+}
+
+async function downloadAll(file, dir) {
+  const urls = fs.readFileSync(file, 'utf8').split(/\r?\n/).map(s => s.trim()).filter(s => s && !s.startsWith('#'));
+  fs.mkdirSync(dir, { recursive: true });
+  for (const [n, raw] of urls.entries()) {
+    const url = new URL(raw);
+    url.searchParams.set('limit', LIMIT);
+    const tag = `[${n + 1}/${urls.length}]`;
+    try {
+      const first = await fetchJson(url);
+      const items = Array.isArray(first) ? first : [...(first.items ?? [])];
+      const count = first.count ?? items.length;
+
+      const pageKey = ['skip', 'offset', 'page'].find(k => url.searchParams.has(k));
+      while (items.length < count && pageKey) {
+        const before = items.length;
+        const next = new URL(url);
+        if (pageKey === 'page') next.searchParams.set('page', String(Number(url.searchParams.get('page') || 1) + 1));
+        else next.searchParams.set(pageKey, String(Number(url.searchParams.get(pageKey) || 0) + items.length));
+        if (pageKey === 'page') url.searchParams.set('page', next.searchParams.get('page'));
+        const page = await fetchJson(next);
+        items.push(...(Array.isArray(page) ? page : page.items ?? []));
+        if (items.length === before) break;
+      }
+      if (items.length < count) console.warn(`${tag} получено ${items.length} из ${count} матчей — сервер урезал лимит`);
+
+      const out = path.join(dir, `${String(n + 1).padStart(3, '0')}.json`);
+      fs.writeFileSync(out, JSON.stringify({ source: raw, items, count }));
+      console.log(`${tag} ${items.length}/${count} матчей → ${out}`);
+    } catch (e) {
+      console.error(`${tag} ошибка: ${e.message}`);
+    }
+  }
 }
 
 // ---------- загрузка ----------
