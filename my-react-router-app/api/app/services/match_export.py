@@ -4,6 +4,10 @@ A game is won by the lower adjusted time: clear_time plus penalties for restarts
 ones (paid_restarts[k] seconds for the k-th extra restart, the last value repeating). A match is won
 by the lower total adjusted time over its games. This mirrors the site's rules as far as the API
 shows them; the raw clear times are exported too.
+
+A game where either player's clear time is 0 has no result ("—"): no winner, and it is left out of
+times, winrates and the match total. Those games and other suspicious data are listed on the
+"Аномалии" sheet.
 """
 
 import json
@@ -16,6 +20,9 @@ from openpyxl.utils import get_column_letter
 from sqlmodel import Session, select
 
 from ..models import Match, MatchDraft, MatchPick, MatchPlayer, Tournament
+from .match_checks import find_anomalies, has_result
+
+NO_RESULT = "—"
 
 
 def adjusted_time(clear_time: int, restarts: int, free: int | None, paid: list[int]) -> int:
@@ -74,12 +81,15 @@ def export_xlsx(session: Session, path: str) -> dict[str, int]:
         return " | ".join(f"{pk.agent_id} M{pk.agent_mindscape} + {pk.engine_id} R{pk.engine_refinement}"
                           for pk in picks_by_player[p.id])
 
-    # Result of every player in every game.
+    # Result of every player in every game; no result when a clear time is missing.
     result: dict[int, str] = {}
     for draft_players in players_by_draft.values():
         if len(draft_players) != 2:
             continue
         a, b = draft_players
+        if not (has_result(a.clear_time) and has_result(b.clear_time)):
+            result[a.id] = result[b.id] = NO_RESULT
+            continue
         ta, tb = adj(a), adj(b)
         result[a.id] = "D" if ta == tb else ("W" if ta < tb else "L")
         result[b.id] = "D" if ta == tb else ("W" if tb < ta else "L")
@@ -95,7 +105,8 @@ def export_xlsx(session: Session, path: str) -> dict[str, int]:
         for p in dp:
             latest_name[key(p)] = p.full_name
         first = dp[d.first_pick_slot].full_name if d.first_pick_slot in (0, 1) else None
-        winner = next((p.full_name for p in dp if result.get(p.id) == "W"), "draw")
+        winner = next((p.full_name for p in dp if result.get(p.id) == "W"),
+                      "нет результата" if result.get(dp[0].id) == NO_RESULT else "ничья")
         game_rows.append([
             m.created_at, tournaments[m.tournament_id].title, m.id, d.id, d.game_no, first,
             dp[0].full_name, dp[0].clear_time, dp[0].restarts, adj(dp[0]),
@@ -110,27 +121,31 @@ def export_xlsx(session: Session, path: str) -> dict[str, int]:
             ])
 
     # Matches: total adjusted time over the games.
-    match_rows, match_result = [], {}
+    match_rows, match_result, match_decided = [], {}, {}
     for m in matches.values():
         totals: dict[str, int] = defaultdict(int)
         names: dict[str, str] = {}
+        complete = True
         for p in players:
             if p.match_id == m.id:
                 totals[key(p)] += adj(p)
                 names[key(p)] = p.full_name
+                complete = complete and result.get(p.id) not in (None, NO_RESULT)
         if len(totals) != 2:
             continue
         (k1, t1), (k2, t2) = totals.items()
-        winner = None if t1 == t2 else (k1 if t1 < t2 else k2)
+        winner = None if not complete or t1 == t2 else (k1 if t1 < t2 else k2)
         match_result[m.id] = winner
+        match_decided[m.id] = complete
+        label = names[winner] if winner else ("ничья" if complete else "нет результата")
         match_rows.append([
-            m.created_at, tournaments[m.tournament_id].title, m.id, names[k1], t1, names[k2], t2,
-            names[winner] if winner else "draw", m.system_title, m.mode, m.is_official,
+            m.created_at, tournaments[m.tournament_id].title, m.id, names[k1], t1 if complete else None,
+            names[k2], t2 if complete else None, label, m.system_title, m.mode, m.is_official,
         ])
 
     # Per-player summary.
     stats: dict[str, dict] = defaultdict(lambda: {
-        "matches": set(), "match_wins": set(), "games": 0, "W": 0, "L": 0, "D": 0, "times": [],
+        "matches": set(), "match_wins": set(), "games": 0, "W": 0, "L": 0, "D": 0, NO_RESULT: 0, "times": [],
         "adj": [], "restarts": 0, "agents": Counter(), "tournaments": set(), "opponents": Counter(),
     })
     for p in players:
@@ -140,9 +155,10 @@ def export_xlsx(session: Session, path: str) -> dict[str, int]:
         if match_result.get(m.id) == key(p):
             s["match_wins"].add(m.id)
         s["games"] += 1
-        s[result.get(p.id, "D")] += 1
-        s["times"].append(p.clear_time)
-        s["adj"].append(adj(p))
+        s[result.get(p.id, NO_RESULT)] += 1
+        if result.get(p.id, NO_RESULT) != NO_RESULT:
+            s["times"].append(p.clear_time)
+            s["adj"].append(adj(p))
         s["restarts"] += p.restarts
         s["tournaments"].add(m.tournament_id)
         s["agents"].update(pk.agent_id for pk in picks_by_player[p.id])
@@ -152,15 +168,19 @@ def export_xlsx(session: Session, path: str) -> dict[str, int]:
     player_rows = []
     for k, s in stats.items():
         n = s["games"]
+        played = s["W"] + s["L"] + s["D"]
+        decided_matches = [mid for mid in s["matches"] if match_decided.get(mid)]
         player_rows.append([
             latest_name.get(k, k), k, len(s["tournaments"]), len(s["matches"]), len(s["match_wins"]),
-            pct(len(s["match_wins"]), len(s["matches"])), n, s["W"], s["L"], s["D"], pct(s["W"], n),
-            round(sum(s["times"]) / n, 1), min(s["times"]), round(sum(s["adj"]) / n, 1),
+            pct(len(s["match_wins"]), len(decided_matches)), n, s["W"], s["L"], s["D"], s[NO_RESULT],
+            pct(s["W"], played),
+            round(sum(s["times"]) / played, 1) if played else None, min(s["times"], default=None),
+            round(sum(s["adj"]) / played, 1) if played else None,
             s["restarts"], round(s["restarts"] / n, 2),
             ", ".join(f"{a} ({c})" for a, c in s["agents"].most_common(5)),
             ", ".join(f"{o} ({c})" for o, c in s["opponents"].most_common(5)),
         ])
-    player_rows.sort(key=lambda r: (-(r[5] or 0), -(r[10] or 0), -r[6]))
+    player_rows.sort(key=lambda r: (-(r[5] or 0), -(r[11] or 0), -r[6]))
 
     # Agents and engines across everyone.
     teams_total = len(result)
@@ -180,9 +200,12 @@ def export_xlsx(session: Session, path: str) -> dict[str, int]:
             e["players"].add(key(p))
             e["agents"][pk.agent_id] += 1
 
+    def winrate(teams: set[int]) -> float | None:
+        decided = [t for t in teams if result.get(t) not in (None, NO_RESULT)]
+        return pct(sum(result[t] == "W" for t in decided), len(decided))
+
     def rates(teams: set[int]) -> tuple[int, float | None, float | None]:
-        wins = sum(result.get(t) == "W" for t in teams)
-        return len(teams), pct(len(teams), teams_total), pct(wins, len(teams))
+        return len(teams), pct(len(teams), teams_total), winrate(teams)
 
     agent_rows = sorted(([aid, *rates(a["teams"]), len(a["players"]), round(sum(a["ms"]) / len(a["ms"]), 2)]
                          for aid, a in agent_stats.items()), key=lambda r: -r[1])
@@ -198,7 +221,7 @@ def export_xlsx(session: Session, path: str) -> dict[str, int]:
         x["teams"].add(p.id)
         x["ms"].append(pk.agent_mindscape)
     player_agent_rows = sorted(([latest_name.get(k, k), aid, len(x["teams"]), pct(len(x["teams"]), stats[k]["games"]),
-                                 pct(sum(result.get(t) == "W" for t in x["teams"]), len(x["teams"])),
+                                 winrate(x["teams"]),
                                  round(sum(x["ms"]) / len(x["ms"]), 2)]
                                 for (k, aid), x in pa.items()), key=lambda r: (r[0].lower(), -r[2]))
 
@@ -206,6 +229,8 @@ def export_xlsx(session: Session, path: str) -> dict[str, int]:
     h2h: dict[tuple[str, str], list[int]] = defaultdict(lambda: [0, 0, 0])
     for draft_players in players_by_draft.values():
         if len(draft_players) != 2:
+            continue
+        if result.get(draft_players[0].id) == NO_RESULT:
             continue
         for me in draft_players:
             opp = next(x for x in draft_players if x is not me)
@@ -234,10 +259,17 @@ def export_xlsx(session: Session, path: str) -> dict[str, int]:
                                 max((m.created_at for m in ms), default=None)])
     tournament_rows.sort(key=lambda r: str(r[3]))
 
+    anomaly_rows = []
+    for a in find_anomalies(session):
+        m = matches[a.match_id]
+        anomaly_rows.append([a.label, m.created_at, tournaments[m.tournament_id].title, a.match_id,
+                             a.draft_id, a.player, str(a.value), a.details])
+    anomaly_rows.sort(key=lambda r: (r[0], str(r[1])))
+
     wb = Workbook()
     wb.remove(wb.active)
     add_sheet(wb, "Игроки", ["Игрок", "ID", "Турниров", "Матчей", "Побед в матчах", "Винрейт матчей %",
-                             "Игр", "Побед", "Поражений", "Ничьих", "Винрейт игр %", "Ср. время", "Лучшее время",
+                             "Игр", "Побед", "Поражений", "Ничьих", "Без результата", "Винрейт игр %", "Ср. время", "Лучшее время",
                              "Ср. время со штрафом", "Рестартов всего", "Рестартов за игру",
                              "Топ-5 агентов", "Частые соперники"], player_rows)
     add_sheet(wb, "Все игры игроков", ["Игрок", "ID", "Дата", "Турнир", "Матч", "Драфт", "Игра", "Соперник",
@@ -257,5 +289,8 @@ def export_xlsx(session: Session, path: str) -> dict[str, int]:
     add_sheet(wb, "Пики", ["Дата", "Турнир", "Матч", "Драфт", "Игра", "Игрок", "ID", "Позиция", "Агент",
                            "Уровень", "M", "Движок", "Уровень движка", "R", "Итог игры"], pick_rows)
     add_sheet(wb, "Турниры", ["Турнир", "ID", "Матчей", "Первый матч", "Последний матч"], tournament_rows)
+    add_sheet(wb, "Аномалии", ["Тип", "Дата", "Турнир", "Матч", "Драфт", "Игрок", "Значение", "Подробности"],
+              anomaly_rows)
     wb.save(path)
-    return {"matches": len(match_rows), "games": len(game_rows), "players": len(player_rows)}
+    return {"matches": len(match_rows), "games": len(game_rows), "players": len(player_rows),
+            "anomalies": len(anomaly_rows)}

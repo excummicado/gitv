@@ -120,3 +120,15 @@ One workbook, a sheet per view: players (winrates, times, restarts, favourite ag
 every player in order, games, matches, head-to-head, each player's agents, agents, engines, every
 pick, and tournaments. A game goes to the lower time after restart penalties (restarts beyond
 `free_restarts` cost `paid_restarts[k]` seconds), a match to the lower total; raw times are there too.
+
+### Checking the data
+
+```bash
+venv/bin/python -m app.cli check-matches            # --examples 20 for more per kind
+```
+
+Lists suspicious data: clear time 0, times far below or above the tournament's median, clearPoints
+filled in, ties, unusual pick or game counts, an agent twice in one team, a player against themselves,
+players changing between games, out-of-range values and matches that look like duplicates. A game
+where either clear time is 0 has no result: no winner, and it is left out of times, winrates and the
+match total in the export. Everything found is also on the export's "Аномалии" sheet.

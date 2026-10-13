@@ -4,6 +4,7 @@
     venv/bin/python -m app.cli set-role <nickname> user
     venv/bin/python -m app.cli import-matches ../references/tournament_urls_limit.txt
     venv/bin/python -m app.cli export-xlsx matches.xlsx
+    venv/bin/python -m app.cli check-matches
 """
 
 import argparse
@@ -14,6 +15,7 @@ from sqlmodel import Session, select
 
 from .database import create_db_and_tables, engine
 from .models import Role, User
+from .services.match_checks import find_anomalies, print_report
 from .services.match_export import export_xlsx
 from .services.match_import import import_from_files, import_from_urls
 
@@ -51,7 +53,14 @@ def export_matches(path: str) -> None:
     create_db_and_tables()
     with Session(engine) as session:
         counts = export_xlsx(session, path)
-    print(f"Saved {path}: {counts['matches']} matches, {counts['games']} games, {counts['players']} players.")
+    print(f"Saved {path}: {counts['matches']} matches, {counts['games']} games, {counts['players']} players, "
+          f"{counts['anomalies']} anomalies (see the Аномалии sheet).")
+
+
+def check_matches(examples: int) -> None:
+    create_db_and_tables()
+    with Session(engine) as session:
+        print_report(find_anomalies(session), examples)
 
 
 def main() -> None:
@@ -66,6 +75,8 @@ def main() -> None:
                             help="Import saved API responses instead of downloading")
     export_cmd = commands.add_parser("export-xlsx", help="Export imported matches to an Excel workbook")
     export_cmd.add_argument("path", nargs="?", default="matches.xlsx")
+    check_cmd = commands.add_parser("check-matches", help="List suspicious data in the imported matches")
+    check_cmd.add_argument("--examples", type=int, default=5, help="Examples to print per kind")
     args = parser.parse_args()
     if args.command == "set-role":
         set_role(args.nickname, Role(args.role))
@@ -75,6 +86,8 @@ def main() -> None:
         import_matches(args.urls_file, args.json)
     elif args.command == "export-xlsx":
         export_matches(args.path)
+    elif args.command == "check-matches":
+        check_matches(args.examples)
 
 
 if __name__ == "__main__":
