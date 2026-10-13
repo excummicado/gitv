@@ -83,7 +83,9 @@ venv/bin/python -m app.cli import-matches ../references/tournament_urls_limit.tx
 ```
 
 It asks for the site's `Cookie` header (DevTools > Network > a request to the API > Request Headers),
-hidden as you type, or reads it from `ABYSS_COOKIE`. The cookie is never saved. Saved API responses
+hidden as you type, or reads it from `ABYSS_COOKIE`. On macOS a pasted value longer than about
+1000 characters doesn't fit in the prompt (Enter is swallowed and it seems to hang), so copy the cookie
+and run `ABYSS_COOKIE="$(pbpaste)" venv/bin/python -m app.cli import-matches ...` instead. The cookie is never saved. Saved API responses
 can be imported without downloading: `venv/bin/python -m app.cli import-matches --json page1.json page2.json`.
 
 Tables:

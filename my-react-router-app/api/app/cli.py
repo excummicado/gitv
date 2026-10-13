@@ -36,6 +36,8 @@ def import_matches(urls_file: str | None, files: list[str]) -> None:
             with open(urls_file, encoding="utf-8") as f:
                 urls = [line.strip() for line in f if line.strip() and not line.startswith("#")]
             # The site wants the signed-in browser's cookie; read it without echoing or saving it.
+            # macOS drops pasted input past ~1000 characters here, so long cookies go through ABYSS_COOKIE:
+            #   ABYSS_COOKIE="$(pbpaste)" python -m app.cli import-matches ...
             cookie = os.environ.get("ABYSS_COOKIE") or getpass.getpass("Cookie (hidden, Enter to skip): ").strip()
             result = import_from_urls(session, urls, cookie or None)
     print(f"Fetched {result.fetched} matches: saved {result.saved} finished, skipped {result.skipped_unfinished} unfinished.")

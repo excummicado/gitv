@@ -150,6 +150,7 @@ def import_from_urls(session: Session, urls: list[str], cookie: str | None) -> I
     seen: dict[str, dict] = {}
     with httpx.Client(headers=headers, timeout=120, follow_redirects=True) as client:
         for n, url in enumerate(urls, start=1):
+            print(f"[{n}/{len(urls)}] downloading...", flush=True)
             try:
                 items = fetch_matches(client, url)
                 for m in items:
