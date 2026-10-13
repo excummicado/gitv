@@ -1,2 +1,4 @@
-# FastAPI is the only application dependency in this starter.
-fastapi
+fastapi[standard]
+sqlmodel
+pyjwt
+pydantic-settings
