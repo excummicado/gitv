@@ -5,6 +5,8 @@
     venv/bin/python -m app.cli import-matches ../references/tournament_urls_limit.txt
     venv/bin/python -m app.cli export-xlsx matches.xlsx
     venv/bin/python -m app.cli check-matches
+    venv/bin/python -m app.cli list-tournaments
+    venv/bin/python -m app.cli delete-tournaments --first 2
 """
 
 import argparse
@@ -18,6 +20,7 @@ from .models import Role, User
 from .services.match_checks import find_anomalies, print_report
 from .services.match_export import export_xlsx
 from .services.match_import import import_from_files, import_from_urls
+from .services.tournament_admin import delete_tournaments, list_tournaments
 
 
 def set_role(nickname: str, role: Role) -> None:
@@ -63,6 +66,45 @@ def check_matches(examples: int) -> None:
         print_report(find_anomalies(session), examples)
 
 
+def fmt_date(value) -> str:
+    return value.strftime("%Y-%m-%d") if value else "—"
+
+
+def show_tournaments() -> None:
+    create_db_and_tables()
+    with Session(engine) as session:
+        infos = list_tournaments(session)
+    if not infos:
+        print("No tournaments imported.")
+    for n, t in enumerate(infos, start=1):
+        print(f"{n:>3}. {t.title}  ·  {t.matches} matches  ·  {fmt_date(t.first_match)} … {fmt_date(t.last_match)}"
+              f"  ·  id {t.id}")
+
+
+def remove_tournaments(ids: list[str], first: int | None, yes: bool) -> None:
+    create_db_and_tables()
+    with Session(engine) as session:
+        infos = list_tournaments(session)
+        if first:
+            chosen = infos[:first]
+        else:
+            by_id = {t.id: t for t in infos}
+            unknown = [i for i in ids if i not in by_id]
+            if unknown:
+                raise SystemExit(f"No tournament with id {', '.join(unknown)}. See list-tournaments.")
+            chosen = [by_id[i] for i in ids]
+        if not chosen:
+            raise SystemExit("Nothing to delete.")
+        print("Will delete these tournaments with all their matches, games, players and picks:")
+        for t in chosen:
+            print(f"  - {t.title}  ·  {t.matches} matches  ·  {fmt_date(t.first_match)} … {fmt_date(t.last_match)}")
+        if not yes and input("Delete? Type yes to confirm: ").strip().lower() != "yes":
+            raise SystemExit("Cancelled, nothing deleted.")
+        counts = delete_tournaments(session, [t.id for t in chosen])
+    print("Deleted: " + ", ".join(f"{v} {k}" for k, v in counts.items()) + ".")
+    print("They come back if you import their URLs again, so remove those lines from the URLs file.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -77,6 +119,11 @@ def main() -> None:
     export_cmd.add_argument("path", nargs="?", default="matches.xlsx")
     check_cmd = commands.add_parser("check-matches", help="List suspicious data in the imported matches")
     check_cmd.add_argument("--examples", type=int, default=5, help="Examples to print per kind")
+    commands.add_parser("list-tournaments", help="List imported tournaments, oldest first")
+    delete_cmd = commands.add_parser("delete-tournaments", help="Delete tournaments and everything in them")
+    delete_cmd.add_argument("ids", nargs="*", help="Tournament ids from list-tournaments")
+    delete_cmd.add_argument("--first", type=int, help="Delete the N oldest tournaments (by first match)")
+    delete_cmd.add_argument("--yes", action="store_true", help="Don't ask for confirmation")
     args = parser.parse_args()
     if args.command == "set-role":
         set_role(args.nickname, Role(args.role))
@@ -88,6 +135,12 @@ def main() -> None:
         export_matches(args.path)
     elif args.command == "check-matches":
         check_matches(args.examples)
+    elif args.command == "list-tournaments":
+        show_tournaments()
+    elif args.command == "delete-tournaments":
+        if not args.ids and not args.first:
+            parser.error("delete-tournaments needs tournament ids or --first N")
+        remove_tournaments(args.ids, args.first, args.yes)
 
 
 if __name__ == "__main__":

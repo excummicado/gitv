@@ -132,3 +132,14 @@ filled in, ties, unusual pick or game counts, an agent twice in one team, a play
 players changing between games, out-of-range values and matches that look like duplicates. A game
 where either clear time is 0 has no result: no winner, and it is left out of times, winrates and the
 match total in the export. Everything found is also on the export's "Аномалии" sheet.
+
+### Removing tournaments
+
+```bash
+venv/bin/python -m app.cli list-tournaments                 # numbered, oldest first, with ids
+venv/bin/python -m app.cli delete-tournaments --first 2     # the two oldest
+venv/bin/python -m app.cli delete-tournaments <id> <id>     # or by id
+```
+
+Deletes the tournaments with all their matches, games, players and picks after showing them and
+asking for `yes`. Importing their URLs again brings them back, so remove those lines from the URLs file.
