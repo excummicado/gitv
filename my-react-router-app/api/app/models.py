@@ -1,6 +1,7 @@
 """Table and API models."""
 
 import uuid
+from datetime import datetime
 from enum import Enum
 
 from pydantic import EmailStr
@@ -51,3 +52,67 @@ class UserPublic(UserBase):
 class Token(SQLModel):
     access_token: str
     token_type: str
+
+
+# Matches imported from the tournament site's API (app.cli import-matches).
+# Ids are the site's own ids, so re-importing a match replaces it instead of duplicating it.
+
+
+class Tournament(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    title: str
+
+
+class Match(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    tournament_id: str = Field(foreign_key="tournament.id", index=True)
+    system_id: str | None = None
+    system_title: str | None = None
+    mode: str | None = None
+    free_restarts: int | None = None
+    # paidRestarts as JSON, e.g. "[5, 5, 10]"
+    paid_restarts: str | None = None
+    is_official: bool = False
+    created_by: str | None = None
+    created_at: datetime = Field(index=True)
+    # The whole match as the API returned it, so nothing is lost.
+    raw: str
+
+
+class MatchDraft(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    match_id: str = Field(foreign_key="match.id", index=True)
+    # 1-based order of the draft (game) inside the match
+    game_no: int
+    status: str
+    # Slot (0 or 1) of the player who picks first, from pIndex[0]
+    first_pick_slot: int | None = None
+
+
+class MatchPlayer(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    draft_id: str = Field(foreign_key="matchdraft.id", index=True)
+    match_id: str = Field(foreign_key="match.id", index=True)
+    # Position in the draft's players list (0 or 1)
+    slot: int
+    # The site's user id, from the match's users list
+    user_id: str | None = Field(default=None, index=True)
+    full_name: str = Field(index=True)
+    prebans: int = 0
+    restarts: int = 0
+    clear_time: int = 0
+    clear_points: int = 0
+
+
+class MatchPick(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    player_id: int = Field(foreign_key="matchplayer.id", index=True)
+    draft_id: str = Field(foreign_key="matchdraft.id", index=True)
+    # Order in the player's team (0-7)
+    position: int
+    agent_id: str = Field(index=True)
+    agent_level: int | None = None
+    agent_mindscape: int = 0
+    engine_id: str | None = Field(default=None, index=True)
+    engine_level: int | None = None
+    engine_refinement: int | None = None

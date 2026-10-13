@@ -71,3 +71,39 @@ Super admins can only be set from the command line, inside `api/`:
 venv/bin/python -m app.cli set-role <nickname> super_admin
 venv/bin/python -m app.cli set-role <nickname> user   # also removes super admin
 ```
+
+## Importing matches from the tournament site
+
+Downloads every match from the URLs in a text file (one matches API URL per line, `#` for comments),
+with `limit=100000000000`, and stores only **finished** matches (every draft `FINISHED`) in the database.
+Running it again replaces matches that are already there, so it never duplicates them.
+
+```bash
+venv/bin/python -m app.cli import-matches ../references/tournament_urls_limit.txt
+```
+
+It asks for the site's `Cookie` header (DevTools > Network > a request to the API > Request Headers),
+hidden as you type, or reads it from `ABYSS_COOKIE`. The cookie is never saved. Saved API responses
+can be imported without downloading: `venv/bin/python -m app.cli import-matches --json page1.json page2.json`.
+
+Tables:
+
+| Table | One row per | Main columns |
+| --- | --- | --- |
+| `tournament` | tournament | `id`, `title` |
+| `match` | match | `tournament_id`, `created_at`, `system_title`, `mode`, `free_restarts`, `paid_restarts`, `raw` (the full API JSON) |
+| `matchdraft` | draft (game) in a match | `match_id`, `game_no`, `status`, `first_pick_slot` |
+| `matchplayer` | player in a draft | `draft_id`, `match_id`, `slot`, `user_id`, `full_name`, `restarts`, `clear_time`, `clear_points`, `prebans` |
+| `matchpick` | agent + engine in a player's team | `player_id`, `draft_id`, `position`, `agent_id`, `agent_mindscape`, `engine_id`, `engine_refinement` |
+
+Every game of one player, in order:
+
+```sql
+SELECT m.created_at, t.title, d.game_no, p.clear_time, p.restarts
+FROM matchplayer p
+JOIN matchdraft d ON d.id = p.draft_id
+JOIN match m ON m.id = p.match_id
+JOIN tournament t ON t.id = m.tournament_id
+WHERE p.full_name = 'DzeN'
+ORDER BY m.created_at, d.game_no;
+```
