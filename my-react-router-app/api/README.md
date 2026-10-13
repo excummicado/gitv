@@ -109,3 +109,14 @@ JOIN tournament t ON t.id = m.tournament_id
 WHERE p.full_name = 'DzeN'
 ORDER BY m.created_at, d.game_no;
 ```
+
+### Exporting to Excel
+
+```bash
+venv/bin/python -m app.cli export-xlsx matches.xlsx
+```
+
+One workbook, a sheet per view: players (winrates, times, restarts, favourite agents), every game of
+every player in order, games, matches, head-to-head, each player's agents, agents, engines, every
+pick, and tournaments. A game goes to the lower time after restart penalties (restarts beyond
+`free_restarts` cost `paid_restarts[k]` seconds), a match to the lower total; raw times are there too.

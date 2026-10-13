@@ -3,6 +3,7 @@
     venv/bin/python -m app.cli set-role <nickname> admin
     venv/bin/python -m app.cli set-role <nickname> user
     venv/bin/python -m app.cli import-matches ../references/tournament_urls_limit.txt
+    venv/bin/python -m app.cli export-xlsx matches.xlsx
 """
 
 import argparse
@@ -13,6 +14,7 @@ from sqlmodel import Session, select
 
 from .database import create_db_and_tables, engine
 from .models import Role, User
+from .services.match_export import export_xlsx
 from .services.match_import import import_from_files, import_from_urls
 
 
@@ -45,6 +47,13 @@ def import_matches(urls_file: str | None, files: list[str]) -> None:
         print("Error:", error)
 
 
+def export_matches(path: str) -> None:
+    create_db_and_tables()
+    with Session(engine) as session:
+        counts = export_xlsx(session, path)
+    print(f"Saved {path}: {counts['matches']} matches, {counts['games']} games, {counts['players']} players.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -55,6 +64,8 @@ def main() -> None:
     import_cmd.add_argument("urls_file", nargs="?", help="Text file with one matches API URL per line")
     import_cmd.add_argument("--json", nargs="+", default=[], metavar="FILE",
                             help="Import saved API responses instead of downloading")
+    export_cmd = commands.add_parser("export-xlsx", help="Export imported matches to an Excel workbook")
+    export_cmd.add_argument("path", nargs="?", default="matches.xlsx")
     args = parser.parse_args()
     if args.command == "set-role":
         set_role(args.nickname, Role(args.role))
@@ -62,6 +73,8 @@ def main() -> None:
         if not args.urls_file and not args.json:
             parser.error("import-matches needs a URLs file or --json files")
         import_matches(args.urls_file, args.json)
+    elif args.command == "export-xlsx":
+        export_matches(args.path)
 
 
 if __name__ == "__main__":
