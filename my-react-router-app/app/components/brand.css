@@ -1,0 +1,8 @@
+/* 58px matches the wordmark's height; the logo is decorative, the link is named by "GITV". */
+.gitv-mark {
+  display: block;
+  width: 58px;
+  height: 58px;
+  flex: none;
+  object-fit: cover;
+}

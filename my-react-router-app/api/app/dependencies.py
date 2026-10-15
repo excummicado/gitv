@@ -56,6 +56,14 @@ async def get_current_staff(
     return current_user
 
 
+async def get_current_player_editor(
+    current_user: Annotated[User, Depends(get_current_active_user)],
+):
+    if not current_user.role.can_edit_players:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only event organizers and admins can edit players.")
+    return current_user
+
+
 async def get_current_super_admin(
     current_user: Annotated[User, Depends(get_current_active_user)],
 ):

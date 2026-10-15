@@ -1,9 +1,9 @@
 """Import finished matches from the tournament site's API into the database.
 
-Each URL is a matches endpoint that returns {"items": [...], "count": N}. Its limit is raised so one
-request returns everything; if the server still returns fewer than count, the rest is fetched page by
-page through skip/offset/page when the URL has one of them. Only matches whose drafts are all
-FINISHED are stored. A match that is already in the database is replaced with the fresh copy.
+Each URL is a matches endpoint that returns {"items": [...], "count": N}. The site caps a page at 100
+items, so matches are fetched 100 at a time through skip until count is reached (the URL's own limit
+and skip are replaced). Only matches whose drafts are all FINISHED are stored. A match that is already
+in the database is replaced with the fresh copy.
 """
 
 import json
@@ -14,9 +14,10 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 import httpx
 from sqlmodel import Session, delete
 
-from ..models import Match, MatchDraft, MatchPick, MatchPlayer, Tournament
+from ..models import DraftAction, DraftLink, DraftState, Match, MatchDraft, MatchPick, MatchPlayer, Tournament
 
-LIMIT = "100000000000"
+# The most the site returns per request; asking for more doesn't get more.
+PAGE_SIZE = 100
 
 
 @dataclass
@@ -39,26 +40,19 @@ def page_items(data) -> list[dict]:
 
 
 def fetch_matches(client: httpx.Client, url: str) -> list[dict]:
-    url = with_params(url, limit=LIMIT)
-    first = client.get(url).raise_for_status().json()
-    items = page_items(first)
-    count = first.get("count", len(items)) if isinstance(first, dict) else len(items)
-
-    query = dict(parse_qsl(urlsplit(url).query))
-    page_key = next((k for k in ("skip", "offset", "page") if k in query), None)
-    page = int(query.get("page", 1))
-    while len(items) < count and page_key:
-        if page_key == "page":
-            page += 1
-            next_url = with_params(url, page=str(page))
-        else:
-            next_url = with_params(url, **{page_key: str(int(query[page_key]) + len(items))})
-        more = page_items(client.get(next_url).raise_for_status().json())
-        if not more:
+    """Every match behind the URL, PAGE_SIZE at a time; stops at the server's count or an empty page."""
+    items: list[dict] = []
+    count: int | None = None
+    while True:
+        data = client.get(with_params(url, limit=str(PAGE_SIZE), skip=str(len(items)))).raise_for_status().json()
+        page = page_items(data)
+        if isinstance(data, dict) and "count" in data:
+            count = data["count"]
+        items.extend(page)
+        if not page or (count is not None and len(items) >= count) or (count is None and len(page) < PAGE_SIZE):
             break
-        items.extend(more)
-    if len(items) < count:
-        print(f"  warning: got {len(items)} of {count} matches, the server capped the limit")
+    if count is not None and len(items) < count:
+        print(f"  warning: got {len(items)} of {count} matches")
     return items
 
 
@@ -75,6 +69,9 @@ def save_match(session: Session, m: dict) -> None:
     # Replace the match if it was imported before.
     session.exec(delete(MatchPick).where(MatchPick.draft_id.in_([d["_id"] for d in m["drafts"]])))
     session.exec(delete(MatchPlayer).where(MatchPlayer.match_id == m["_id"]))
+    session.exec(delete(DraftLink).where(DraftLink.match_id == m["_id"]))
+    session.exec(delete(DraftAction).where(DraftAction.match_id == m["_id"]))
+    session.exec(delete(DraftState).where(DraftState.match_id == m["_id"]))
     session.exec(delete(MatchDraft).where(MatchDraft.match_id == m["_id"]))
     session.exec(delete(Match).where(Match.id == m["_id"]))
 
@@ -157,7 +154,8 @@ def import_from_urls(session: Session, urls: list[str], cookie: str | None) -> I
                     seen[m["_id"]] = m
                 print(f"[{n}/{len(urls)}] {len(items)} matches")
             except httpx.HTTPStatusError as e:
-                hint = " (cookie missing or expired?)" if e.response.status_code in (401, 403) else ""
+                # The site answers 404 "Discord cookies not found" without a valid cookie.
+                hint = " (cookie missing or expired?)" if e.response.status_code in (401, 403, 404) else ""
                 result.errors.append(f"[{n}] HTTP {e.response.status_code}{hint}: {url}")
             except (httpx.HTTPError, ValueError) as e:
                 result.errors.append(f"[{n}] {e}: {url}")

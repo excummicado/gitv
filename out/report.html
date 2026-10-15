@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Draft Stats</title>
+<style>
+:root{--bg:#f7f7f5;--fg:#1d1d1b;--muted:#6b6b66;--card:#fff;--line:#e2e2dc;--accent:#2f6fde;--win:#1f8a4c;--loss:#c23b31;--draw:#8a6d1f}
+@media (prefers-color-scheme:dark){:root{--bg:#141413;--fg:#ecece8;--muted:#9b9b94;--card:#1e1e1c;--line:#33332f;--accent:#7aa5f0;--win:#5cc98a;--loss:#f07a70;--draw:#d8b75c}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,sans-serif;padding:16px}
+main{max-width:1200px;margin:0 auto}h1{margin:0 0 4px}h2{margin:0 0 12px}h2 small{color:var(--muted);font-weight:400}h3{margin:16px 0 8px;font-size:15px}
+.sub{color:var(--muted);margin-bottom:20px}a{color:var(--accent);text-decoration:none}
+section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px;overflow-x:auto}
+table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:top;white-space:nowrap}
+th{color:var(--muted);font-weight:600;font-size:12px}td.team{white-space:normal;font-size:12px;color:var(--muted);min-width:260px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.tiles div{border:1px solid var(--line);border-radius:8px;padding:10px}.tiles b{display:block;font-size:20px}.tiles span{color:var(--muted);font-size:12px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+details{margin-top:16px}summary{cursor:pointer;font-weight:600}
+.win{color:var(--win);font-weight:700}.loss{color:var(--loss);font-weight:700}.draw{color:var(--draw);font-weight:700}
+</style></head><body><main>
+<h1>Статистика игроков</h1>
+<div class="sub">Матчей: 0 · игр: 0 · игроков: 0. Победа в игре — меньшее время с учётом штрафа за платные рестарты; матч — по сумме времени двух игр. ★ — первый пик.</div>
+<section><h2>Общая таблица</h2><table><thead><tr><th>Игрок</th><th>Матчи</th><th>W-L</th><th>Винрейт</th><th>Игры</th><th>Винрейт игр</th><th>Ср. время</th><th>Лучшее</th><th>Рестарты/игра</th><th>Любимые агенты</th></tr></thead>
+<tbody></tbody></table></section>
+<section><h2>Агенты (все игроки)</h2><table><thead><tr><th>Агент</th><th>Пиков</th><th>Пикрейт</th><th>Винрейт</th><th>Игроков</th></tr></thead><tbody></tbody></table></section>
+
+</main></body></html>

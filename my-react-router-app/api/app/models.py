@@ -1,7 +1,7 @@
 """Table and API models."""
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 
 from pydantic import EmailStr
@@ -24,6 +24,11 @@ class Role(str, Enum):
     @property
     def is_staff(self) -> bool:
         return self in (Role.admin, Role.super_admin)
+
+    @property
+    def can_edit_players(self) -> bool:
+        """May write a tournament player's real name and birthday directly (no review)."""
+        return self in (Role.event_organizer, Role.admin, Role.super_admin)
 
 
 class UserBase(SQLModel):
@@ -116,3 +121,228 @@ class MatchPick(SQLModel, table=True):
     engine_id: str | None = Field(default=None, index=True)
     engine_level: int | None = None
     engine_refinement: int | None = None
+
+
+class DraftLink(SQLModel, table=True):
+    """Spectator link of a draft. The tournament matches list leaves it out, so it is fetched per match."""
+
+    draft_id: str = Field(primary_key=True, foreign_key="matchdraft.id")
+    match_id: str = Field(foreign_key="match.id", index=True)
+    # links.spectator from GET /api/abyss/draft_sets/<match id>
+    spectator_key: str
+    url: str
+
+
+class DraftState(SQLModel, table=True):
+    """The draft as its socket's init event sends it: what the matches list leaves out."""
+
+    draft_id: str = Field(primary_key=True, foreign_key="matchdraft.id")
+    match_id: str = Field(foreign_key="match.id", index=True)
+    status: str
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    # details.rooms / details.bosses as JSON
+    rooms: str | None = None
+    bosses: str | None = None
+    raw: str
+
+
+class DraftAction(SQLModel, table=True):
+    """One ban or pick, in the order it was made; undone moves and the judge's actions are left out.
+    agent_id is None when the move was skipped."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    draft_id: str = Field(foreign_key="matchdraft.id", index=True)
+    match_id: str = Field(foreign_key="match.id", index=True)
+    # 1-based order inside the draft
+    seq: int
+    # Slot (0 or 1) in the draft's players list of the player who acted ("player0" is players[pIndex[0]])
+    slot: int | None = None
+    # IMMUNE_BAN, IMMUNE_PICK, PREBAN, BAN, PICK, IMMUNE, MIRROR, ...
+    type: str = Field(index=True)
+    agent_id: str | None = Field(default=None, index=True)
+    at: datetime | None = None
+    # The actor's pick and reserve timers left after the action, in ms
+    pick_ms_left: int | None = None
+    reserve_ms_left: int | None = None
+
+
+class Agent(SQLModel, table=True):
+    """The site's agent list (GET /api/abyss/agents), to show names instead of ids."""
+
+    id: str = Field(primary_key=True)
+    name_ru: str | None = None
+    name_en: str | None = None
+    rarity: int | None = None
+    specialty: int | None = None
+    attribute: int | None = None
+    icon: str | None = None
+    # Large art from the same list: the wide splash and the tall gacha card
+    splash: str | None = None
+    card: str | None = None
+
+
+class Engine(SQLModel, table=True):
+    """The site's engine list (GET /api/abyss/engines)."""
+
+    id: str = Field(primary_key=True)
+    title_ru: str | None = None
+    title_en: str | None = None
+    rarity: int | None = None
+    specialty: int | None = None
+    icon: str | None = None
+
+
+class PlayerName(SQLModel, table=True):
+    """A nickname chosen by hand for a tournament player, shown instead of the one from their latest game.
+    Kept apart from the imported tables so re-importing never undoes it (app.cli set-player-name)."""
+
+    user_id: str = Field(primary_key=True)
+    name: str
+
+
+class TournamentInfo(SQLModel, table=True):
+    """Details from the site's tournaments list (app.cli fetch-tournaments) that the matches don't carry."""
+
+    tournament_id: str = Field(primary_key=True, foreign_key="tournament.id")
+    # The site user who created the tournament, and their name from GET /users/profile/<id>
+    organizer_id: str | None = Field(default=None, index=True)
+    organizer_name: str | None = None
+    system: str | None = None
+    prize: int | None = None
+    currency: str | None = None
+    is_finished: bool = False
+    finished_at: datetime | None = None
+
+
+# Real names, birthdays and avatars of tournament players come from site members: anyone signed in
+# suggests, admins accept or reject (routers/suggestions.py).
+
+
+class PlayerProfile(SQLModel, table=True):
+    """What is shown for a tournament player, from accepted suggestions."""
+
+    # The tournament site's user id (matchplayer.user_id)
+    player_id: str = Field(primary_key=True)
+    real_name: str | None = None
+    birth_date: date | None = None
+    # Path under the media folder, e.g. "avatars/<uuid>.png"
+    avatar: str | None = None
+    updated_at: datetime
+    updated_by: uuid.UUID | None = Field(default=None, foreign_key="user.id")
+
+
+class SuggestionStatus(str, Enum):
+    pending = "pending"
+    accepted = "accepted"
+    rejected = "rejected"
+
+
+class PlayerSuggestion(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    player_id: str = Field(index=True)
+    author_id: uuid.UUID = Field(foreign_key="user.id", index=True)
+    # Only the fields the author filled in; at least one is set.
+    real_name: str | None = None
+    birth_date: date | None = None
+    avatar: str | None = None
+    status: SuggestionStatus = Field(default=SuggestionStatus.pending, index=True)
+    created_at: datetime
+    reviewed_by: uuid.UUID | None = Field(default=None, foreign_key="user.id")
+    reviewed_at: datetime | None = None
+
+
+class SuggestionBan(SQLModel, table=True):
+    """Members who may not make suggestions (set by admins)."""
+
+    user_id: uuid.UUID = Field(primary_key=True, foreign_key="user.id")
+    banned_by: uuid.UUID | None = Field(default=None, foreign_key="user.id")
+    created_at: datetime
+
+
+class PlayerProfileChange(SQLModel, table=True):
+    """Every change to a PlayerProfile, so each edit leaves a trace: who, when, what it was and became."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    player_id: str = Field(index=True)
+    field: str  # real_name, birth_date or avatar
+    old_value: str | None = None
+    new_value: str | None = None
+    # The member who made the change: an editor writing directly, or the admin who accepted a suggestion
+    changed_by: uuid.UUID | None = Field(default=None, foreign_key="user.id")
+    # Set when the change came from an accepted suggestion
+    suggestion_id: int | None = Field(default=None, foreign_key="playersuggestion.id")
+    created_at: datetime
+
+
+class TournamentWinner(SQLModel, table=True):
+    """A tournament winner set by hand (app.cli set-tournament-winner), used only when the final's own data
+    can't tell (no times entered). Kept apart from imported tables so re-importing never undoes it."""
+
+    tournament_id: str = Field(primary_key=True, foreign_key="tournament.id")
+    player_id: str  # the site's user id (matchplayer.user_id)
+    # Where the result comes from, e.g. the tournament's Challonge page
+    source: str | None = None
+    created_at: datetime
+
+
+class IgnoredTournament(SQLModel, table=True):
+    """Tournaments sync never imports: deleted ones (delete-tournaments adds them), test events and the like."""
+
+    tournament_id: str = Field(primary_key=True)
+    title: str | None = None
+    created_at: datetime
+
+
+# Player rosters (characters and weapons they own), as each draft's socket data shows them; rebuilt from
+# draftstate by app.cli build-rosters. One row per distinct roster a player had in a tournament: usually one,
+# more when they changed it mid-tournament.
+
+
+class PlayerRoster(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    player_id: str = Field(index=True)  # the site's user id (matchplayer.user_id)
+    tournament_id: str = Field(index=True)
+    # The site's roster hash: equal hashes mean equal rosters
+    hash: str
+    # 1-based order of this version within the player's tournament
+    version: int
+    first_draft_id: str
+    last_draft_id: str
+    first_seen: datetime
+    last_seen: datetime
+    games: int
+    characters: int
+    weapons: int
+    # The draft system (cost tables) its first game was played under
+    system_id: str | None = None
+
+
+class RosterCharacter(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    roster_id: int = Field(foreign_key="playerroster.id", index=True)
+    agent_id: str = Field(index=True)
+    level: int | None = None
+    constellation: int = 0
+
+
+class RosterWeapon(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    roster_id: int = Field(foreign_key="playerroster.id", index=True)
+    engine_id: str = Field(index=True)
+    level: int | None = None
+    refinement: int | None = None
+    # Copies of this weapon at this level and refinement
+    count: int = 1
+
+
+
+class DraftSystem(SQLModel, table=True):
+    """A draft system from the site (GET /api/abyss/draft_systems/<id>): its rules and cost tables. Costs:
+    a character's by constellation (costs[C0..C6]), a weapon's by refinement (costs[R-1]; costs[5] when worn
+    off its type). Each draft names the system it was played under (app.cli fetch-draft-systems)."""
+
+    id: str = Field(primary_key=True)
+    title: str | None = None
+    raw: str
+    fetched_at: datetime

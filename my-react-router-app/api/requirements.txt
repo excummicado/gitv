@@ -3,3 +3,4 @@ sqlmodel
 pyjwt
 pydantic-settings
 openpyxl
+websocket-client

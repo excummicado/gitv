@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     discord_client_secret: str
     discord_redirect_uri: str = "http://localhost:5173/api/v1/auth/discord/callback"
     frontend_url: str = "http://localhost:5173"
+    # Seconds between background syncs with the tournament site (new finished tournaments); 0 turns it off.
+    # Never less than an hour: lower values are raised to 3600.
+    # Run the API as a single worker when it's on (the sync lock also keeps two passes from overlapping).
+    sync_interval: int = 0
 
     model_config = SettingsConfigDict(env_file=".env")
 

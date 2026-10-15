@@ -1,62 +1,33 @@
-import { Link } from "react-router";
+import { Navbar } from "../components/Navbar";
+import { Brand } from "../components/Brand";
 import "./login.css";
+import { useLang } from "../i18n";
 
 export function Login() {
+  const { t } = useLang();
   return (
     <main className="gitv-page">
       <div className="gitv-frame">
         {/* Full-width nav matching main page */}
-        <nav className="gitv-nav" aria-label="Login navigation">
-          <div className="gitv-nav-content">
-            <span>Matches</span><span>Players</span><span>Tournaments</span><span>Abyss</span>
-            <span className="gitv-search">Search...</span><span>Sign in</span><span>Settings</span>
-          </div>
-        </nav>
+        <Navbar />
 
         {/* Centered content stripe */}
         <div className="gitv-content">
-          <header className="gitv-brand">
-            <Link to="/"><img src="/Logo.png" alt="GITV Logo" className="gitv-mark" /><span>GITV</span></Link>
-          </header>
+          <Brand />
 
-          {/* Login form card centered */}
+          {/* Discord is the only sign-in; the first sign-in creates the account. */}
           <div className="login-wrapper">
             <div className="login-card">
               <div className="login-header">
-                <div className="login-title">Sign in to GITV</div>
-                <div className="login-subtitle">Enter your credentials to continue</div>
+                <h1 className="login-title">{t("Sign in to GITV", "Вход в GITV")}</h1>
+                <div className="login-subtitle">{t("GITV uses your Discord account. Signing in for the first time creates your profile.", "GITV использует ваш аккаунт Discord. При первом входе создаётся профиль.")}</div>
               </div>
 
-              <div className="login-field">
-                <label className="login-label">Username or email</label>
-                <div className="login-input">username@example.com</div>
-              </div>
-
-              <div className="login-field">
-                <label className="login-label">Password</label>
-                <div className="login-input login-input--password">••••••••••</div>
-              </div>
-
-              <div className="login-row">
-                <div className="login-checkbox">
-                  <span className="login-check-box" />
-                  <span className="login-check-label">Remember me</span>
-                </div>
-                <span className="login-link">Forgot password?</span>
-              </div>
-
-              <div className="login-btn">Sign In</div>
-
-              <div className="login-divider"><span>or continue with</span></div>
-
-              <div className="login-socials">
-                <div className="login-social-btn">Google</div>
-                <div className="login-social-btn">Discord</div>
-                <div className="login-social-btn">Steam</div>
-              </div>
+              {/* A full page load, not a router Link: the browser leaves the app for Discord. */}
+              <a href="/api/v1/auth/discord/login" className="login-btn">{t("Continue with Discord", "Войти через Discord")}</a>
 
               <div className="login-footer">
-                Don't have an account? <Link to="/register" className="login-link">Create one</Link>
+                {t("You'll be asked to share your Discord username and email.", "Discord попросит разрешить доступ к имени пользователя и почте.")}
               </div>
             </div>
           </div>

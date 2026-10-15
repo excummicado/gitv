@@ -1,10 +1,12 @@
 import type { Route } from "./+types/home";
 import { Welcome } from "../home/welcome";
+import { metaLang } from "../i18n";
 
-export function meta({ }: Route.MetaArgs) {
+export function meta({ matches }: Route.MetaArgs) {
+  const t = (en: string, ru: string) => (metaLang(matches) === "ru" ? ru : en);
   return [
-    { title: "GITV · Layout & Font Comparison" },
-    { name: "description", content: "A static GITV sports portal layout and serif font comparison." },
+    { title: t("GITV · Layout & Font Comparison", "GITV") },
+    { name: "description", content: t("A static GITV sports portal layout and serif font comparison.", "GITV: турниры, матчи и игроки Abyss.") },
   ];
 }
 

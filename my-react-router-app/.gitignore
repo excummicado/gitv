@@ -1,6 +1,11 @@
 .DS_Store
 .env
+venv/
+.venv/
+api/venv/
 /node_modules/
+.references/
+references/
 
 # React Router
 /.react-router/
