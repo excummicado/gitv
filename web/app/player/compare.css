@@ -1,0 +1,59 @@
+/* Player comparison */
+.cmp-top { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px; padding: 16px; }
+.cmp-head { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.cmp-head.right { flex-direction: row-reverse; text-align: right; }
+.cmp-head-text { display: flex; flex-direction: column; min-width: 0; }
+.cmp-name { font: 700 26px/1.2 var(--gitv-font); color: var(--gitv-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmp-avatar { width: 56px; height: 56px; object-fit: cover; border: 1px solid var(--gitv-border); }
+.cmp-vs { display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--gitv-faint); font: 700 14px/1 var(--gitv-font-display); letter-spacing: .1em; }
+.cmp-controls { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.cmp-picker { position: relative; flex: 0 1 320px; min-width: 0; }
+.cmp-picker .match-input { width: 100%; }
+.cmp-picker-list { position: absolute; z-index: 10; top: calc(100% + 4px); left: 0; right: 0; margin: 0; padding: 4px 0; list-style: none; background: var(--gitv-surface-2); border: 1px solid var(--gitv-border); }
+.cmp-picker-list button { display: flex; width: 100%; justify-content: space-between; gap: 8px; padding: 6px 10px; background: none; border: 0; color: var(--gitv-text); font: 13px/1.4 var(--gitv-font); text-align: left; cursor: pointer; }
+.cmp-picker-list button:hover { background: var(--gitv-surface-hover); }
+.cmp-picker-list .player-label { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.cmp-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(140px, 1.3fr) minmax(0, 1fr); align-items: center; gap: 12px; padding: 7px 14px; border-top: 1px dotted var(--gitv-border-muted); font-size: 13px; color: var(--gitv-text); }
+.cmp-value { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmp-value.right { text-align: right; }
+.cmp-value small { color: var(--gitv-muted); font-weight: 400; font-size: 11px; }
+.is-better { color: var(--gitv-win); }
+.cmp-mid { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.cmp-label { color: var(--gitv-muted); font-size: 12px; text-align: center; }
+.cmp-bar { width: 100%; height: 4px; background: var(--gitv-loss); opacity: .8; }
+.cmp-bar span { display: block; height: 100%; background: var(--gitv-accent); }
+.cmp-form { display: flex; gap: 3px; }
+.cmp-form-row > :last-child { justify-content: flex-end; }
+.cmp-form .player-game { width: 22px; height: 22px; font-size: 11px; text-decoration: none; }
+
+.cmp-score { display: flex; justify-content: center; align-items: baseline; gap: 14px; padding: 14px 14px 2px; font: 700 40px/1 var(--gitv-font); color: var(--gitv-text); }
+.cmp-score small { color: var(--gitv-faint); font-size: 24px; }
+.cmp-score-note { margin: 0; padding: 4px 14px 12px; text-align: center; font-size: 12px; }
+.cmp-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.cmp-char { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 5px 12px; border-top: 1px dotted var(--gitv-border-muted); font-size: 12px; color: var(--gitv-text); }
+.cmp-char-icon { width: 24px; height: 24px; background: var(--gitv-surface-hover); border: 1px solid var(--gitv-border); }
+.cmp-char-icon.rarity-5 { border-color: rgba(245, 197, 66, .6); }
+.cmp-char-icon.rarity-4 { border-color: rgba(167, 139, 250, .55); }
+
+.cmp-meeting { display: grid; grid-template-columns: 80px minmax(0, 1.4fr) minmax(0, 1fr) 54px minmax(0, 1fr) 96px; gap: 10px; align-items: center; padding: 7px 14px; border-top: 1px dotted var(--gitv-border-muted); color: var(--gitv-text); text-decoration: none; font-size: 13px; }
+.cmp-meeting:hover { background: var(--gitv-surface-hover); }
+.cmp-meeting-tournament { color: var(--gitv-muted); font-size: 12px; }
+.cmp-meeting-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmp-meeting-name.right { text-align: right; }
+.cmp-meeting-score { text-align: center; font-weight: 700; }
+.cmp-meeting-tags { display: flex; justify-content: flex-end; gap: 4px; }
+
+/* Entry point on the player page */
+.player-compare-link { display: inline-flex; align-items: center; padding: 6px 12px; background: var(--gitv-surface-2); border: 1px solid var(--gitv-border); color: var(--gitv-text-soft); font: 600 12px/1.4 var(--gitv-font); text-decoration: none; }
+.player-compare-link:hover { border-color: var(--gitv-accent); color: var(--gitv-text); }
+
+@media (max-width: 700px) {
+  .cmp-name { font-size: 18px; }
+  .cmp-avatar { display: none; }
+  .cmp-row { grid-template-columns: minmax(0, 1fr) minmax(96px, 1.2fr) minmax(0, 1fr); gap: 6px; padding: 7px 10px; font-size: 12px; }
+  .cmp-columns { grid-template-columns: 1fr; }
+  .cmp-meeting { grid-template-columns: 64px minmax(0, 1fr) 44px minmax(0, 1fr); }
+  .cmp-meeting-tournament, .cmp-meeting-tags { display: none; }
+  .cmp-form .player-game { width: 16px; height: 18px; font-size: 9px; }
+}

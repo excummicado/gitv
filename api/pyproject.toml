@@ -1,0 +1,25 @@
+[project]
+name = "gitv-api"
+version = "0.1.0"
+description = "Statistics API for GITV: Abyss tournaments, players, characters and drafts"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI declares parameters with these as defaults, which is safe there.
+extend-immutable-calls = ["fastapi.Query", "fastapi.Depends", "fastapi.File", "fastapi.Form"]
+
+[tool.ruff.lint.per-file-ignores]
+# The package re-exports its modules' functions.
+"app/services/stats/__init__.py" = ["F401"]
+# Message tables: one line per message reads better than wrapped strings.
+"app/messages.py" = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

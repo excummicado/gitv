@@ -1,7 +1,0 @@
-{
-  "version": "0.0.1",
-  "configurations": [
-    { "name": "web", "runtimeExecutable": "npm", "runtimeArgs": ["--prefix", "my-react-router-app", "run", "dev"], "port": 5173 },
-    { "name": "api", "runtimeExecutable": "bash", "runtimeArgs": ["-c", "cd /Users/excummicado69/Desktop/gitv/my-react-router-app/api && exec venv/bin/fastapi dev app/main.py --port 8000"], "port": 8000 }
-  ]
-}

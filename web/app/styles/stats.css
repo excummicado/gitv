@@ -1,0 +1,67 @@
+/* Stat boxes, tabs, controls, game strips and place badges, used on player, match, profile and schedule pages. */
+.player-frame .gitv-content { min-height: calc(100vh - 38px); }
+.player-content { max-width: 1000px; margin: 0 auto; padding: 10px clamp(12px, 2vw, 20px) 28px; }
+.player-box { min-width: 0; background: var(--gitv-surface-2); border: 1px solid var(--gitv-border); }
+.player-header { padding: 16px; }
+.player-tab.active { color: var(--gitv-text); background: var(--gitv-surface-2); border-bottom-color: var(--gitv-accent); }
+.player-match .player-game { height: 24px; font-size: 13px; }
+.player-nickname { font: 700 32px/1.2 var(--gitv-font); color: var(--gitv-text); }
+.player-fullname { margin: 3px 0 12px; color: var(--gitv-muted); font: 14px/1.4 var(--gitv-font); }
+.player-box-title { margin: 0; padding: 10px 12px; background: var(--gitv-surface-hover); color: var(--gitv-text); font: 700 13px/1.4 var(--gitv-font); }
+.player-label { color: var(--gitv-muted); }
+.player-game { font: 700 16px/1.4 var(--gitv-font); display: flex; align-items: center; justify-content: center; height: 28px; background: var(--gitv-surface-hover); border: 1px solid var(--gitv-border); }
+.player-game.win { color: var(--gitv-accent); border-color: rgba(96, 165, 250, 0.3); }
+.player-game.loss { color: var(--gitv-loss); border-color: rgba(239, 106, 106, 0.3); }
+.player-match-link { color: inherit; text-decoration: none; }
+.player-match-link:hover { color: var(--gitv-accent); text-decoration: underline; }
+.player-ellipsis { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.player-game:not(.win):not(.loss) { color: var(--gitv-muted); }
+.player-games-line .player-game { height: 26px; font-size: 12px; text-decoration: none; }
+.player-games-line .player-game:hover { background: #2f3d5c; }
+.player-control { padding: 5px 10px; background: var(--gitv-bg); border: 1px solid var(--gitv-border); color: var(--gitv-text-soft); font: 12px/1.4 var(--gitv-font); cursor: pointer; }
+.player-control:focus-visible { outline: 1px solid var(--gitv-accent); }
+.player-segment .player-control + .player-control { border-left: 0; }
+.player-segment .player-control.active { background: var(--gitv-surface-hover); color: var(--gitv-text); box-shadow: inset 0 -2px 0 var(--gitv-accent); }
+.player-record .player-label { font-size: 11px; }
+.player-major { padding: 6px 12px; background: var(--gitv-surface-2); border: 1px solid var(--gitv-border); color: var(--gitv-text-soft); font: 600 12px/1.4 var(--gitv-font); cursor: pointer; }
+.player-major:hover { border-color: #3a4a66; }
+.player-major:focus-visible { outline: 1px solid var(--gitv-accent); outline-offset: 2px; }
+.player-major.active { background: rgba(245, 197, 66, .12); border-color: rgba(245, 197, 66, .6); color: var(--gitv-gold); }
+.player-qual.failed { color: var(--gitv-loss); }
+.player-qual.pending { color: var(--gitv-muted); }
+.roster-versions .player-control.active { background: var(--gitv-surface-hover); color: var(--gitv-text); box-shadow: inset 0 -2px 0 var(--gitv-accent); }
+.roster-heading--row .player-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.roster-heading--row .player-control { padding: 3px 9px; font-size: 11px; }
+.roster-heading--row .player-control.active { background: var(--gitv-surface-hover); color: var(--gitv-text); box-shadow: inset 0 -2px 0 var(--gitv-accent); }
+.player-tabs { display: grid; grid-template-columns: repeat(2, 1fr); margin-bottom: 16px; background: var(--gitv-surface-hover); border: 1px solid var(--gitv-border); border-top: 0; }
+.player-tab { padding: 8px; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--gitv-muted); font: 600 13px/1.4 var(--gitv-font); cursor: pointer; }
+.player-tab + .player-tab { border-left: 1px solid var(--gitv-surface-2); }
+.player-tab:hover { text-decoration: underline; }
+.player-box-body { padding: 6px 14px; }
+.player-stat-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 9px 0; border-bottom: 1px dotted var(--gitv-border-muted); }
+.player-stat-row:last-child { border-bottom: 0; }
+.player-value { color: var(--gitv-text); font-weight: 500; text-align: right; }
+.player-message { margin: 0; padding: 16px; color: var(--gitv-muted); }
+.player-note { margin: 0; font-size: 12px; }
+
+/* Sort / result / incomplete controls above the Matches and Games lists. */
+.player-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 14px; border-bottom: 1px solid var(--gitv-border); }
+.player-segment { display: flex; }
+.player-place-badge { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border: 1px solid; font: 700 11px/1 var(--gitv-font); }
+.player-place-badge.place-1 { color: #1a1300; background: var(--gitv-gold); border-color: var(--gitv-gold); }
+.player-place-badge.place-2 { color: #15181d; background: var(--gitv-silver); border-color: var(--gitv-silver); }
+.player-place-badge.place-3 { color: #1d0f05; background: var(--gitv-bronze); border-color: var(--gitv-bronze); }
+.player-place-badge.place-4 { color: var(--gitv-text-soft); background: var(--gitv-border-muted); border-color: var(--gitv-date); }
+.player-place-badge.is-zero { opacity: .35; }
+/* Records under the nickname: a row of label/value tiles. */
+.player-records { display: grid; grid-template-columns: repeat(4, minmax(0, auto)); justify-content: start; gap: 8px; margin-bottom: 12px; }
+.player-record { display: flex; flex-direction: column; gap: 3px; padding: 7px 12px; background: var(--gitv-surface-hover); border: 1px solid var(--gitv-border); }
+.player-record .player-value { text-align: left; font-size: 15px; }
+/* Tournaments tab: one row per tournament, its roster opening underneath. */
+.player-tabs { grid-template-columns: repeat(3, 1fr); }
+.player-qual { font-weight: 600; }
+.player-qual.passed { color: var(--gitv-win); }
+/* Sortable column headers (players and characters tables). */
+.players-sort { padding: 0; background: none; border: 0; color: var(--gitv-faint); font: 600 11px/1.4 var(--gitv-font); letter-spacing: .06em; text-transform: uppercase; text-align: inherit; cursor: pointer; white-space: nowrap; }
+.players-sort:hover { color: var(--gitv-muted); }
+.players-sort.is-sorted { color: var(--gitv-text); }

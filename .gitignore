@@ -1,0 +1,7 @@
+# macOS
+.DS_Store
+
+# Editor and assistant settings stay local
+.claude/
+.vscode/
+.idea/

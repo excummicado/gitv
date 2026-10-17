@@ -1,0 +1,107 @@
+/* Characters page: pick, ban and win rates across the scene. */
+.chars-filters { display: flex; flex-direction: column; gap: 10px; padding: 12px; }
+.chars-filter-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.chars-filter-search { flex: 1 1 180px; }
+.chars-filter-label { display: flex; flex-direction: column; gap: 3px; }
+.chars-filter-label .player-label { font-size: 11px; }
+.chars-filter-label input[type="date"] { color-scheme: dark; }
+.chars-filter-number { width: 80px; }
+.chars-filters .player-control.active { background: var(--gitv-surface-hover); color: var(--gitv-text); box-shadow: inset 0 -2px 0 var(--gitv-accent); }
+.chars-organizers { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding-top: 8px; border-top: 1px dotted var(--gitv-border-muted); font-size: 12px; }
+.chars-organizer { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; background: var(--gitv-bg); border: 1px solid var(--gitv-border); color: var(--gitv-text); cursor: pointer; }
+.chars-organizer small { color: var(--gitv-faint); }
+.chars-organizer.is-excluded { color: var(--gitv-faint); text-decoration: line-through; }
+.chars-organizer input { accent-color: var(--gitv-accent); }
+
+.chars-summary { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.chars-summary small { font-weight: 400; font-size: 11px; }
+.chars-table-row { display: grid; grid-template-columns: 30px minmax(0, 1.4fr) 110px repeat(3, minmax(0, 1fr)) repeat(2, 56px) 56px 70px 56px minmax(0, 1.2fr); gap: 10px; align-items: center; padding: 6px 14px; border-top: 1px dotted var(--gitv-border-muted); font-size: 13px; color: var(--gitv-text); }
+.chars-table-row > :nth-child(n + 3) { text-align: right; }
+.chars-table-row small { font-size: 10px; }
+.chars-table-head { padding-top: 6px; padding-bottom: 6px; }
+.chars-table-icon { width: 30px; height: 30px; background: var(--gitv-surface-hover); border: 1px solid var(--gitv-border); }
+.chars-table-icon.rarity-5 { border-color: rgba(245, 197, 66, .6); }
+.chars-table-icon.rarity-4 { border-color: rgba(167, 139, 250, .55); }
+.chars-presence { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; font-weight: 600; }
+.chars-presence-bar { width: 100%; height: 3px; background: var(--gitv-surface-hover); }
+.chars-presence-bar span { display: block; height: 100%; background: var(--gitv-accent); }
+.chars-table-row .is-good { color: var(--gitv-win); }
+.chars-table-row .is-bad { color: var(--gitv-loss); }
+.chars-top { min-width: 0; overflow: hidden; }
+
+@media (max-width: 960px) {
+  .chars-table-row { grid-template-columns: 30px minmax(0, 1.4fr) 100px repeat(3, minmax(0, 1fr)) repeat(2, 50px) 50px; }
+  .chars-table-row .hide-md { display: none; }
+}
+@media (max-width: 700px) {
+  .chars-table-row { grid-template-columns: 28px minmax(0, 1.2fr) 80px repeat(3, minmax(0, 1fr)) 46px; gap: 6px; }
+  .chars-table-row .hide-sm { display: none; }
+}
+@media (max-width: 480px) {
+  .chars-table-row { grid-template-columns: 26px minmax(0, 1fr) 70px repeat(3, minmax(0, 1fr)); padding: 6px 10px; font-size: 12px; }
+  .chars-table-row .hide-xs { display: none; }
+}
+.chars-prize { display: inline-flex; }
+.chars-prize .player-control { white-space: nowrap; }
+
+/* C0–C6 range: one track with two handles (pointer and keyboard handled in ConstellationRange). */
+.chars-cons-range { display: flex; flex-direction: column; gap: 4px; max-width: 420px; }
+.chars-cons-range .player-label { font-size: 11px; }
+.chars-cons-range .player-label b { color: var(--gitv-text); }
+.chars-cons-range.active .player-label b { color: var(--gitv-gold); }
+.chars-cons-reset { margin-left: 8px; padding: 0; background: none; border: 0; color: var(--gitv-accent); font: inherit; cursor: pointer; }
+.chars-cons-reset:hover { text-decoration: underline; }
+.chars-cons-track { position: relative; height: 20px; margin: 0 7px; cursor: pointer; touch-action: none; user-select: none; }
+.chars-cons-track::before { content: ""; position: absolute; left: 0; right: 0; top: 9px; height: 3px; background: var(--gitv-surface-hover); }
+.chars-cons-fill { position: absolute; top: 9px; height: 3px; background: var(--gitv-accent); }
+.chars-cons-thumb { position: absolute; top: 3px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--gitv-text); border: 2px solid var(--gitv-accent); box-sizing: border-box; }
+.chars-cons-thumb:focus-visible { outline: 2px solid var(--gitv-accent); outline-offset: 2px; }
+.chars-cons-ticks { display: flex; justify-content: space-between; font-size: 10px; color: var(--gitv-faint); }
+.chars-cons-ticks .in { color: var(--gitv-text-soft); }
+
+/* Players count: hovering it lists who picked the character and when. */
+.chars-players { position: relative; cursor: help; }
+.chars-players-count { text-decoration: underline dotted var(--gitv-faint); text-underline-offset: 3px; }
+.chars-players:focus-visible { outline: 1px solid var(--gitv-accent); outline-offset: 2px; }
+.chars-players-pop { display: none; position: absolute; z-index: 30; top: calc(100% + 4px); right: 0; width: 420px; max-width: 86vw;
+  background: var(--gitv-surface); border: 1px solid var(--gitv-border); box-shadow: 0 8px 24px rgba(0, 0, 0, .5); text-align: left; cursor: default; }
+.chars-players-pop::before { content: ""; position: absolute; top: -6px; left: 0; right: 0; height: 6px; }
+.chars-players:hover .chars-players-pop, .chars-players:focus-within .chars-players-pop { display: block; }
+.chars-games-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 7px 10px; background: var(--gitv-surface-hover); font-size: 12px; }
+.chars-games-head .player-label { font-size: 11px; }
+.chars-games-list { max-height: 300px; overflow-y: auto; }
+.chars-players-head, .chars-players-row { display: grid; grid-template-columns: minmax(0, 1fr) 40px 48px 56px 140px; gap: 8px; align-items: center; padding: 4px 10px; font-size: 12px; }
+.chars-players-head { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--gitv-border); }
+.chars-players-head > :not(:first-child), .chars-players-row > :not(:first-child) { text-align: right; }
+.chars-players-row { border-top: 1px dotted var(--gitv-border-muted); color: var(--gitv-text); text-decoration: none; }
+.chars-players-row:hover { background: var(--gitv-surface-hover); }
+.chars-players-row small { color: var(--gitv-faint); font-size: 10px; white-space: nowrap; }
+.chars-players-row .is-good { color: var(--gitv-win); }
+.chars-players-row .is-bad { color: var(--gitv-loss); }
+
+/* Clicking a character opens its picks and winrate by constellation. */
+.chars-table-row.is-clickable { cursor: pointer; }
+.chars-table-row.is-clickable:hover, .chars-table-row.is-open { background: var(--gitv-surface-hover); }
+.chars-table-row.is-clickable:focus-visible { outline: 1px solid var(--gitv-accent); outline-offset: -1px; }
+.chars-cons-panel { padding: 8px 14px 12px 54px; background: var(--gitv-surface); border-top: 1px solid var(--gitv-border); }
+.chars-cons-panel-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; font-size: 12px; color: var(--gitv-text); }
+.chars-cons-panel-head .player-label { font-size: 11px; }
+.chars-cons-grid { display: grid; grid-template-columns: 40px minmax(140px, 2fr) repeat(6, minmax(0, 1fr)); gap: 4px 12px; align-items: center; max-width: 800px; font-size: 12px; color: var(--gitv-text); }
+.chars-cons-grid > .player-label { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; text-align: right; }
+.chars-cons-grid > .player-label:nth-child(2) { text-align: left; }
+.chars-cons-line { display: contents; }
+.chars-cons-line > :nth-child(n + 3) { text-align: right; }
+.chars-cons-line.is-empty { color: var(--gitv-faint); }
+.chars-cons-c { font-weight: 700; }
+.chars-cons-c.c6 { color: var(--gitv-gold); }
+.chars-cons-picks { display: flex; align-items: center; gap: 8px; }
+.chars-cons-bar { flex: 1; height: 6px; background: var(--gitv-surface-hover); }
+.chars-cons-bar span { display: block; height: 100%; background: var(--gitv-accent); }
+.chars-cons-line .is-good { color: var(--gitv-win); }
+.chars-cons-line .is-bad { color: var(--gitv-loss); }
+@media (max-width: 700px) {
+  .chars-cons-panel { padding-left: 14px; }
+  .chars-cons-grid { grid-template-columns: 34px minmax(80px, 2fr) repeat(4, minmax(0, 1fr)); }
+  /* Phones: C, picks, share, winrate, ban rate; W–L, time and players go. */
+  .chars-cons-grid > :nth-child(n + 6):nth-child(-n + 8), .chars-cons-line > :nth-child(n + 6) { display: none; }
+}

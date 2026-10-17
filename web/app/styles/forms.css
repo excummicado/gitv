@@ -1,0 +1,6 @@
+/* Buttons and form messages shared by the suggestion and schedule forms. */
+.suggest-ok { color: var(--gitv-win); }
+.suggest-button { padding: 7px 14px; border: 0; background: var(--gitv-accent-deep); color: var(--gitv-text); font: 600 12px/1.4 var(--gitv-font); cursor: pointer; }
+.suggest-button:hover { background: var(--gitv-accent-strong); }
+.suggest-button:disabled { opacity: .7; cursor: default; }
+.suggest-error { grid-column: 1 / -1; margin: 0; color: var(--gitv-loss); font-size: 12px; }

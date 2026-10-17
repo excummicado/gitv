@@ -1,0 +1,170 @@
+.player-match { display: grid; grid-template-columns: 96px minmax(0, 1fr) minmax(0, 1.4fr) 56px 48px 52px; gap: 12px; align-items: center; padding: 8px 14px; border-bottom: 1px dotted var(--gitv-border-muted); }
+.player-match:last-child { border-bottom: 0; }
+.player-match-head { color: var(--gitv-faint); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+.player-columns { display: grid; grid-template-columns: 220px minmax(0, 1fr) 180px; gap: 16px; align-items: start; }
+.player-column { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.player-games { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; padding: 12px 14px; text-align: center; }
+.player-row-gap { height: 12px; border-bottom: 1px dotted var(--gitv-border-muted); }
+@media (max-width: 900px) {
+  .player-columns { grid-template-columns: 220px minmax(0, 1fr); }
+  .player-column:last-child { grid-column: 1 / -1; }
+}
+@media (max-width: 700px) {
+  .player-columns { grid-template-columns: 1fr; }
+  .player-column:first-child { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 10px; }
+}
+@media (max-width: 600px) {
+  .player-match { grid-template-columns: 80px minmax(0, 1fr) 48px 52px; }
+  .player-match > :nth-child(3), .player-match > :nth-child(5) { display: none; }
+}
+@media (max-width: 480px) {
+  .player-column:first-child { grid-template-columns: 1fr; }
+  .player-stat-row { align-items: flex-start; font-size: 12px; }
+}
+/* Last 10 games on one line: narrow chips, each a link to its match. */
+.player-games-line { grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 3px; padding: 12px 10px; }
+.player-check { display: flex; align-items: center; gap: 6px; color: var(--gitv-text-soft); font-size: 12px; cursor: pointer; }
+.player-controls-count { margin-left: auto; font-size: 12px; }
+@media (max-width: 600px) {
+  .player-controls-count { margin-left: 0; }
+}
+/* Placements: top-4 tournament places with medal colours. */
+.player-places { display: flex; flex-direction: column; padding: 4px 0; }
+.player-place { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 6px 12px; color: var(--gitv-text); text-decoration: none; font-size: 12px; }
+.player-place + .player-place { border-top: 1px dotted var(--gitv-border-muted); }
+.player-place:hover { background: var(--gitv-surface-hover); }
+.player-top4 { display: inline-flex; gap: 4px; }
+.player-top4 .player-place-badge { width: 24px; }
+@media (max-width: 600px) {
+  .player-records { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* Top-4 badge popover: the tournaments finished in that place. */
+.player-top4-item { position: relative; display: inline-flex; }
+.player-top4-button { padding: 0; background: none; border: 0; cursor: pointer; }
+.player-top4-button:focus-visible { outline: 1px solid var(--gitv-accent); outline-offset: 2px; }
+.player-top4-popover { position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; display: none; flex-direction: column; width: 280px; max-height: 320px; overflow-y: auto; padding: 4px 0; background: var(--gitv-surface-2); border: 1px solid var(--gitv-border); box-shadow: 0 8px 24px rgba(0, 0, 0, .35); font-weight: 400; }
+/* An invisible bridge over the gap so the popover stays open while the pointer moves down to it. */
+.player-top4-popover::before { content: ""; position: absolute; top: -7px; left: 0; right: 0; height: 7px; }
+.player-top4-item:hover .player-top4-popover, .player-top4-item:focus-within .player-top4-popover { display: flex; }
+.player-top4-heading { padding: 6px 12px; color: var(--gitv-muted); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
+.player-top4-row { display: flex; justify-content: space-between; gap: 10px; padding: 6px 12px; border-top: 1px dotted var(--gitv-border-muted); color: var(--gitv-text); text-decoration: none; font-size: 12px; }
+.player-top4-row:hover { background: var(--gitv-surface-hover); }
+/* Adjust for major tournaments toggle. */
+.player-scope { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+/* Avatar, nickname and real name (accepted suggestions). */
+.player-identity { display: flex; align-items: center; gap: 14px; }
+.player-identity-text { min-width: 0; }
+.player-avatar { flex: none; width: 72px; height: 72px; object-fit: cover; background: var(--gitv-surface); border: 1px solid var(--gitv-border); }
+.player-realname { margin-top: 2px; color: var(--gitv-text-soft); font: 500 15px/1.4 var(--gitv-font); }
+/* Tournament picker next to the majors switch. */
+.player-scope { gap: 8px; flex-wrap: wrap; }
+.player-tournament-pick { max-width: 100%; min-width: 0; font-weight: 500; color-scheme: dark; }
+.player-tourney { display: grid; grid-template-columns: 96px minmax(0, 1fr) 130px 100px 110px; gap: 12px; align-items: center; padding: 8px 14px; border-bottom: 1px dotted var(--gitv-border-muted); font-size: 13px; }
+.player-tourney-place { display: inline-flex; align-items: center; gap: 6px; }
+.player-tourney-roster { text-align: right; }
+.roster-panel { padding: 10px 14px 14px; background: #172033; border-bottom: 1px dotted var(--gitv-border-muted); }
+.roster-versions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 12px; }
+.roster-heading { margin: 6px 0; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.roster-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 10px 6px; }
+.roster-grid--weapons { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); }
+.roster-item { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
+.roster-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--gitv-text-soft); font-size: 11px; }
+@media (max-width: 600px) {
+  .player-tourney { grid-template-columns: minmax(0, 1fr) 46px 90px; }
+  .player-tourney > :first-child, .player-tourney > :nth-child(3) { display: none; }
+  .player-tourney-roster { grid-column: 1 / -1; text-align: left; }
+}
+.roster-cost { color: var(--gitv-warn); font: 600 11px/1.2 var(--gitv-font); }
+.roster-heading--row { display: flex; align-items: center; justify-content: space-between; gap: 10px; text-transform: none; letter-spacing: 0; }
+/* Most frequent opponents (right column of the stats tab). */
+.player-opponent { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px dotted var(--gitv-border-muted); }
+.player-opponent:last-child { border-bottom: 0; }
+.player-opponent-main, .player-opponent-record { display: flex; flex-direction: column; min-width: 0; }
+.player-opponent-main .player-label, .player-opponent-record .player-label { font-size: 11px; }
+.player-opponent-name { font-weight: 600; font-size: 13px; color: var(--gitv-text); }
+.player-opponent-record { align-items: flex-end; font-size: 13px; color: var(--gitv-text); }
+.player-opponent-w { color: var(--gitv-win); }
+.player-opponent-l { color: var(--gitv-loss); }
+.player-opponent-vs { padding: 3px 7px; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-decoration: none; }
+.player-opponent-vs:hover { border-color: var(--gitv-accent); color: var(--gitv-text); }
+/* "Count from" date on the player page. */
+.player-since { display: inline-flex; align-items: center; background: var(--gitv-surface-2); border: 1px solid var(--gitv-border); }
+.player-since.active { border-color: var(--gitv-accent); }
+.player-since label { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; color: var(--gitv-text-soft); font: 600 12px/1.4 var(--gitv-font); }
+.player-since input { padding: 2px 4px; background: var(--gitv-bg); border: 1px solid var(--gitv-border); color: var(--gitv-text); font: 12px/1.4 var(--gitv-font); color-scheme: dark; }
+.player-since input:focus { outline: none; border-color: var(--gitv-accent); }
+.player-since button { align-self: stretch; padding: 0 9px; background: none; border: 0; border-left: 1px solid var(--gitv-border); color: var(--gitv-muted); font-size: 14px; cursor: pointer; }
+.player-since button:hover { color: var(--gitv-text); }
+/* Characters tab: everything ever in the roster. */
+.chars-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--gitv-border); }
+.chars-roster { display: flex; flex-direction: column; gap: 3px; flex: 1 1 260px; min-width: 0; }
+.chars-roster .player-label { font-size: 11px; }
+.chars-roster .match-input { width: 100%; }
+.chars-search { flex: 0 1 160px; }
+.chars-toolbar .player-control.active { background: var(--gitv-surface-hover); color: var(--gitv-text); box-shadow: inset 0 -2px 0 var(--gitv-accent); }
+.chars-note { margin: 0; padding: 8px 14px; font-size: 12px; }
+.chars-row { display: grid; grid-template-columns: 30px minmax(0, 1.4fr) 58px minmax(0, 2fr) 80px 100px 70px 50px; gap: 10px; align-items: center; padding: 6px 14px; border-top: 1px dotted var(--gitv-border-muted); font-size: 13px; color: var(--gitv-text); }
+.chars-row > :nth-child(n + 5) { text-align: right; }
+.chars-row small { font-size: 11px; }
+.chars-head { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+.chars-row.is-unplayed { color: var(--gitv-muted); }
+.chars-row.is-unplayed .chars-icon { opacity: .6; }
+.chars-icon { width: 30px; height: 30px; background: var(--gitv-surface-hover); border: 1px solid var(--gitv-border); }
+.chars-icon.rarity-5 { border-color: rgba(245, 197, 66, .6); }
+.chars-icon.rarity-4 { border-color: rgba(167, 139, 250, .55); }
+.chars-name { display: flex; flex-direction: column; min-width: 0; }
+.chars-cons { font-weight: 700; white-space: nowrap; }
+.chars-cons.c6 { color: var(--gitv-gold); }
+.chars-up { margin-left: 4px; color: var(--gitv-win); }
+.chars-history { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; }
+.chars-step { display: inline-flex; align-items: baseline; gap: 3px; white-space: nowrap; }
+.chars-step b { color: var(--gitv-text); }
+.chars-step small { color: var(--gitv-faint); font-size: 10px; }
+.chars-arrow { color: var(--gitv-win); margin-right: 2px; }
+.chars-history-none { font-size: 11px; }
+@media (max-width: 760px) {
+  .chars-row { grid-template-columns: 28px minmax(0, 1.4fr) 50px 64px 90px 60px 40px; }
+  .chars-row .hide-sm { display: none; }
+}
+@media (max-width: 480px) {
+  .chars-row { grid-template-columns: 26px minmax(0, 1fr) 44px 54px 76px; gap: 6px; padding: 6px 10px; }
+  .chars-row .hide-xs { display: none; }
+}
+/* Hovering a character's name lists the games it was picked in. */
+.chars-name.has-games { position: relative; cursor: help; }
+.chars-name.has-games > b { text-decoration: underline dotted var(--gitv-faint); text-underline-offset: 3px; }
+.chars-name.has-games:focus-visible { outline: 1px solid var(--gitv-accent); outline-offset: 2px; }
+.chars-games { display: none; position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; width: 360px; max-width: 80vw; background: var(--gitv-surface); border: 1px solid var(--gitv-border); box-shadow: 0 8px 24px rgba(0, 0, 0, .5); cursor: default; text-align: left; }
+/* A gap-free bridge, so moving the mouse onto the list doesn't close it. */
+.chars-games::before { content: ""; position: absolute; top: -6px; left: 0; right: 0; height: 6px; }
+.chars-name.has-games:hover .chars-games, .chars-name.has-games:focus-within .chars-games { display: block; }
+.chars-games-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 7px 10px; background: var(--gitv-surface-hover); font-size: 12px; }
+.chars-games-head .player-label { font-size: 11px; }
+.chars-games-list { max-height: 280px; overflow-y: auto; }
+.chars-game { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 5px 10px; border-top: 1px dotted var(--gitv-border-muted); color: var(--gitv-text); text-decoration: none; font-size: 12px; }
+.chars-game:hover { background: var(--gitv-surface-hover); }
+.chars-game-result { display: flex; align-items: center; justify-content: center; height: 20px; background: var(--gitv-surface-hover); border: 1px solid var(--gitv-border); color: var(--gitv-muted); font-weight: 700; font-size: 11px; }
+.chars-game-result.win { color: var(--gitv-accent); border-color: rgba(96, 165, 250, .3); }
+.chars-game-result.loss { color: var(--gitv-loss); border-color: rgba(239, 106, 106, .3); }
+.chars-game-main { display: flex; flex-direction: column; min-width: 0; }
+.chars-game-main small, .chars-game-side small { color: var(--gitv-faint); font-size: 10px; }
+.chars-game-side { display: flex; flex-direction: column; align-items: flex-end; white-space: nowrap; }
+/* Hovering an opponent lists every match between the two. */
+.player-opponent { position: relative; cursor: help; }
+.player-opponent:focus-visible { outline: 1px solid var(--gitv-accent); outline-offset: 2px; }
+.player-opponent-pop { display: none; position: absolute; z-index: 30; top: calc(100% + 2px); right: 0; width: 320px; max-width: 86vw;
+  background: var(--gitv-surface); border: 1px solid var(--gitv-border); box-shadow: 0 8px 24px rgba(0, 0, 0, .5); cursor: default; }
+.player-opponent-pop::before { content: ""; position: absolute; top: -6px; left: 0; right: 0; height: 6px; }
+.player-opponent:hover .player-opponent-pop, .player-opponent:focus-within .player-opponent-pop { display: block; }
+.player-opponent-pop-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 7px 10px; background: var(--gitv-surface-hover); font-size: 12px; color: var(--gitv-text); }
+.player-opponent-pop-head .player-label { font-size: 11px; }
+.player-opponent-pop-list { max-height: 280px; overflow-y: auto; }
+.player-opponent-meeting { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 5px 10px; border-top: 1px dotted var(--gitv-border-muted); color: var(--gitv-text); text-decoration: none; font-size: 12px; }
+.player-opponent-meeting:hover { background: var(--gitv-surface-hover); }
+.player-opponent-res { display: flex; align-items: center; justify-content: center; height: 20px; background: var(--gitv-surface-hover); border: 1px solid var(--gitv-border); color: var(--gitv-muted); font-weight: 700; font-size: 11px; }
+.player-opponent-res.win { color: var(--gitv-accent); border-color: rgba(96, 165, 250, .3); }
+.player-opponent-res.loss { color: var(--gitv-loss); border-color: rgba(239, 106, 106, .3); }
+.player-opponent-meeting-main { display: flex; flex-direction: column; min-width: 0; }
+.player-opponent-meeting-main small, .player-opponent-meeting-side small { color: var(--gitv-faint); font-size: 10px; }
+.player-opponent-meeting-side { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.player-opponent-meeting-side .match-tag { padding: 0 4px; font-size: 9px; }

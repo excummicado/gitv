@@ -1,0 +1,17 @@
+.schedule-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 14px; align-items: start; }
+.schedule-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.schedule-field .player-label { font-size: 11px; }
+.schedule-field .match-input { width: 100%; color-scheme: dark; }
+.schedule-field--wide { grid-column: 1 / -1; }
+.schedule-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.schedule-hint { color: var(--gitv-faint); font-size: 11px; }
+.schedule-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; font-size: 12px; }
+.schedule-day { padding: 8px 14px 4px; color: var(--gitv-muted); font: 600 11px/1.4 var(--gitv-font); letter-spacing: .06em; text-transform: uppercase; }
+.schedule-item { display: grid; grid-template-columns: 60px minmax(0, 1fr) minmax(0, 1fr) 80px; gap: 12px; align-items: center; padding: 7px 14px; border-top: 1px dotted var(--gitv-border-muted); font-size: 13px; color: var(--gitv-text); }
+.schedule-time { color: var(--gitv-accent); font-weight: 600; }
+@media (max-width: 700px) {
+  .schedule-form { grid-template-columns: minmax(0, 1fr); }
+  .schedule-row { grid-template-columns: minmax(0, 1fr); }
+  .schedule-item { grid-template-columns: 52px minmax(0, 1fr) 70px; }
+  .schedule-item > :nth-child(3) { display: none; }
+}

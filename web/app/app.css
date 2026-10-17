@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+:root {
+  --gitv-font: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --gitv-font-nav: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --gitv-font-display: "Archivo", ui-sans-serif, system-ui, sans-serif;
+
+  /* Colors: the site is dark-only; every stylesheet takes its colors from here. */
+  --gitv-bg: #0b1220; /* page background */
+  --gitv-surface: #0f172a; /* cards and panels */
+  --gitv-surface-2: #1e293b; /* inputs, raised panels */
+  --gitv-surface-hover: #243049; /* hover and selected rows */
+  --gitv-nav-bg: #162033; /* navbar */
+  --gitv-border: #2a3548; /* lines and frames */
+  --gitv-border-muted: #3a4250; /* quieter lines */
+  --gitv-text: #e2e8f0; /* main text */
+  --gitv-text-soft: #cbd5e1; /* secondary text */
+  --gitv-muted: #94a3b8; /* labels */
+  --gitv-faint: #64748b; /* hints and placeholders */
+  --gitv-date: #4b5563; /* dates */
+  --gitv-accent: #60a5fa; /* links, active tab, focus */
+  --gitv-accent-strong: #2563eb; /* buttons */
+  --gitv-accent-deep: #1d4ed8; /* button hover */
+  --gitv-win: #4ade80; /* wins, winners */
+  --gitv-loss: #ef6a6a; /* losses */
+  --gitv-warn: #fbbf24; /* warnings, technical defeats */
+  --gitv-gold: #f5c542; /* 1st place */
+  --gitv-silver: #c9d1db; /* 2nd place */
+  --gitv-bronze: #cd7f32; /* 3rd place */
+}
+
+html,
+body {
+  @apply bg-white dark:bg-gray-950;
+
+  @media (prefers-color-scheme: dark) {
+    color-scheme: dark;
+  }
+}
+
+/* Dates are secondary everywhere: a size smaller and greyer than the text around them. */
+.gitv-date {
+  color: var(--gitv-date);
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
+}

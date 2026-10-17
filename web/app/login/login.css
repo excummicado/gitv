@@ -1,0 +1,187 @@
+/* Inherits same page/frame/nav/brand/mark styles as gitv-preview.css; fonts come from app.css */
+
+/* ── Page shell (identical to main page) ── */
+.gitv-page {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  background: var(--gitv-bg);
+}
+
+.gitv-frame {
+  width: 100%;
+  min-height: 100vh;
+  overflow: hidden;
+  color: var(--gitv-text);
+  background: var(--gitv-bg);
+  border: 0;
+  font: 13px/1.4 var(--gitv-font);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Centered stripe (same as main page) ── */
+.gitv-content {
+  max-width: 1040px;
+  margin: 0 auto;
+  background: var(--gitv-surface);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+  min-height: calc(100vh - 38px);
+}
+
+/* ── Brand header (same as main page) ── */
+.gitv-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 10px 6px;
+  font-family: var(--gitv-font-display);
+  font-weight: 800;
+  font-stretch: 112%;
+  font-size: 48px;
+  letter-spacing: 0.02em;
+  background: var(--gitv-surface);
+}
+
+.gitv-brand a {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: inherit;
+  text-decoration: none;
+}
+
+
+/* ── Login layout ── */
+.login-wrapper {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 48px 24px 64px;
+  min-height: calc(100vh - 140px);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  border: 1px solid var(--gitv-border);
+  background: var(--gitv-surface-2);
+}
+
+/* ── Card header ── */
+.login-header {
+  padding: 24px 24px 16px;
+  border-bottom: 1px solid var(--gitv-border);
+}
+
+.login-title {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--gitv-text);
+  margin-bottom: 4px;
+  font-family: var(--gitv-font);
+}
+
+.login-subtitle {
+  font-size: 12px;
+  color: var(--gitv-faint);
+}
+
+.login-error {
+  margin: 14px 24px 0;
+  padding: 8px 12px;
+  border: 1px solid rgba(239, 106, 106, 0.4);
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+  font-size: 12px;
+}
+
+.login-link {
+  font-size: 12px;
+  color: var(--gitv-accent);
+  text-decoration: none;
+}
+
+/* ── Nickname field (first Discord sign-in) ── */
+.login-field {
+  padding: 16px 24px 0;
+}
+
+.login-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gitv-muted);
+  margin-bottom: 6px;
+}
+
+.login-input {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--gitv-border);
+  background: var(--gitv-surface);
+  color: var(--gitv-text);
+  font: 13px/1.4 var(--gitv-font);
+  box-sizing: border-box;
+}
+
+.login-input:focus {
+  outline: none;
+  border-color: var(--gitv-accent);
+}
+
+.login-field-hint,
+.login-field-error {
+  margin-top: 5px;
+  font-size: 12px;
+  color: var(--gitv-faint);
+}
+
+.login-field-error {
+  color: var(--gitv-loss);
+}
+
+/* ── Discord sign-in button ── */
+.login-btn {
+  display: block;
+  text-decoration: none;
+  box-sizing: border-box;
+  width: calc(100% - 48px);
+  border: 0;
+  cursor: pointer;
+  margin: 20px 24px 0;
+  padding: 10px;
+  text-align: center;
+  background: var(--gitv-accent-deep);
+  color: var(--gitv-text);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-family: var(--gitv-font);
+}
+
+.login-btn:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+/* ── Footer ── */
+.login-btn:hover {
+  background: var(--gitv-accent-strong);
+}
+
+.login-footer {
+  margin: 20px 24px 24px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--gitv-faint);
+}
+
+.login-footer .login-link {
+  color: var(--gitv-accent);
+}
