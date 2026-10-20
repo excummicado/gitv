@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from statistics import median
 from typing import NamedTuple
 
+from sqlalchemy import bindparam
 from sqlmodel import Session, select, text
 
 from ..models import Match, MatchDraft, MatchPick, MatchPlayer, Tournament
@@ -82,8 +83,18 @@ MAJOR_TITLE = re.compile(r"\bquals?\b|qualification|playoff", re.IGNORECASE)
 QUALIFIER = re.compile(r"\bquals?\b|qualification", re.IGNORECASE)
 QUALIFIER_STAGE_2 = re.compile(r"round 2|2nd stage", re.IGNORECASE)
 CUP_PLAYOFF = re.compile(r"abyss cup.*playoff", re.IGNORECASE)
-# Group stages, qualifiers and league rounds: no final, so no tournament places.
-GROUP_STAGE = re.compile(r"\bgroups?\b|\bquals?\b|qualification|\[round|\bround \d", re.IGNORECASE)
+# Group stages, Swiss rounds, qualifiers and league rounds: no final, so no tournament places.
+GROUP_STAGE = re.compile(r"\bgroups?\b|\bswiss\b|\bquals?\b|qualification|\[round|\bround \d", re.IGNORECASE)
+
+# A word in capitals (three letters or more): ABYSS FAST SOUP, [ROUND 1], PLAY-OFF.
+CAPS_WORD = re.compile(r"(?<![^\W\d_])[^\W\d_]{3,}(?![^\W\d_])")
+
+
+def tidy_title(title: str) -> str:
+    """A tournament title with words written in capitals capitalized: "ABYSS FAST SOUP 5" -> "Abyss Fast Soup 5",
+    "REVERSE CUP [ROUND 1]" -> "Reverse Cup [Round 1]". Mixed-case words (HotH) and short ones (2x2) stay."""
+    return CAPS_WORD.sub(lambda m: m.group().capitalize() if m.group().isupper() else m.group(), title)
+
 
 # The site's internal mode ids, shown under the names players use.
 MODE_LABELS = {"shiyu": "Abyss"}
@@ -97,16 +108,22 @@ def has_result(clear_time: int) -> bool:
     return clear_time > 0
 
 
-def room_times(session: Session) -> dict[tuple[str, int], tuple[int, int, int]]:
-    """{(draft id, slot): (room 1, room 2, room 3)} from the stored socket data; 0 where a room is missing."""
-    rows = session.exec(
-        text("""
+def room_times(session: Session, draft_ids: list[str] | None = None) -> dict[tuple[str, int], tuple[int, int, int]]:
+    """{(draft id, slot): (room 1, room 2, room 3)} from the stored socket data, for every draft or only the given
+    ones; 0 where a room is missing."""
+    query = """
         SELECT s.draft_id, CAST(p.key AS INTEGER),
                json_extract(p.value, '$.clearTimeRoom1'), json_extract(p.value, '$.clearTimeRoom2'),
                json_extract(p.value, '$.clearTimeRoom3')
         FROM draftstate s, json_each(s.raw, '$.players') p
-    """)
-    ).all()
+    """
+    if draft_ids is not None:
+        if not draft_ids:
+            return {}
+        statement = text(query + " WHERE s.draft_id IN :ids").bindparams(bindparam("ids", expanding=True))
+        rows = session.exec(statement, params={"ids": list(draft_ids)}).all()
+    else:
+        rows = session.exec(text(query)).all()
     return {(d, slot): (r1 or 0, r2 or 0, r3 or 0) for d, slot, r1, r2, r3 in rows}
 
 

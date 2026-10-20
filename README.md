@@ -33,9 +33,13 @@ Challonge embed page ─┘     (api/app/services)
 
 ## Data and privacy
 
-- **Visitors.** No analytics, trackers or ads. Besides the site itself, the browser loads fonts from Google
-  Fonts and character art and tournament banners from darte.gg's image server.
-  Cookies: `gitv-lang` (site language) and a 10-minute `discord_oauth_state` during sign-in.
+- **Visitors.** No third-party analytics, trackers or ads, and no cookies for counting. The site counts page
+  views itself (`api/app/services/analytics.py`): the page path, the referring site, and a visitor hash salted
+  with a random value that is replaced every day, so no IP address is stored and the same person can't be
+  followed across days. Bots and browsers sending Do Not Track or Global Privacy Control aren't counted; only
+  admins see the totals. Besides the site itself, the browser loads fonts from Google Fonts and character art
+  and tournament banners from darte.gg's image server. Cookies: `gitv-lang` (site language) and a 10-minute
+  `discord_oauth_state` during sign-in.
 - **Accounts.** Sign-in is Discord only, no passwords. Stored: Discord id and username, the verified email Discord
   returns, the chosen nickname and the role. Discord's access token is used once to read the profile and is not
   stored. The site token is kept in the browser's local storage.

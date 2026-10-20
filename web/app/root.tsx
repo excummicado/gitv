@@ -5,8 +5,10 @@ import {
   Scripts,
   ScrollRestoration,
   useLoaderData,
+  useLocation,
   useRouteLoaderData,
 } from "react-router";
+import { useEffect, useRef } from "react";
 
 import type { Route } from "./+types/root";
 import "./app.css";
@@ -16,6 +18,22 @@ import "./styles/stats.css";
 import "./styles/matches.css";
 import "./styles/forms.css";
 import { LangProvider, langFromCookie, type Lang } from "./i18n";
+
+// Page views for the site's own analytics (api/app/services/analytics.py): only the path and, on the first page,
+// the referring site; no cookies; nothing at all for browsers asking not to be tracked. Kept here rather than in a
+// module of its own: content blockers block files named like analytics, and the root must always load.
+function countPageView(path: string, referrer: string | null) {
+  const nav = navigator as Navigator & { globalPrivacyControl?: boolean };
+  if (nav.doNotTrack === "1" || nav.globalPrivacyControl === true) return;
+  fetch("/api/v1/analytics/view", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path, referrer }),
+    keepalive: true,
+  }).catch(() => {
+    // A blocked or failed count never gets in the way of the page.
+  });
+}
 
 // The language comes from the cookie, so the first render on the server is already in it.
 export function loader({ request }: Route.LoaderArgs) {
@@ -55,5 +73,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const { lang } = useLoaderData<typeof loader>();
+  // One page view per page opened; the referring site only counts for the first one.
+  const { pathname } = useLocation();
+  const first = useRef(true);
+  useEffect(() => {
+    countPageView(pathname, first.current ? document.referrer || null : null);
+    first.current = false;
+  }, [pathname]);
   return <LangProvider initial={lang}><Outlet /></LangProvider>;
 }

@@ -588,3 +588,30 @@ def test_ban_rate_by_constellation(world):
     rows = {r["constellation"]: r for r in character_constellations(snap, "pyro", owned=owned)}
     assert (rows[2]["owned_games"], rows[2]["banned_games"], rows[2]["ban_rate"]) == (2, 1, 50.0)
     assert rows[0]["owned_games"] == 0 and rows[0]["ban_rate"] is None
+
+
+def test_match_list_rows_agree_with_match_pages(world):
+    """The match lists build their rows in bulk; each row must say what the match's own page says."""
+    import sqlmodel
+
+    from app.models import Match
+    from app.routers.matches import match_detail, summaries
+
+    tid = world.tournament("Abyss Fast Soup 190")
+    world.win(tid, "A", "B")
+    world.play(tid, "B", "C", (120, 100), (100, 130))  # 1-1, decided by total time
+    world.play(tid, "C", "A", (0, 0))  # no result
+    snap = world.snap()
+    matches = list(world.s.exec(sqlmodel.select(Match).where(Match.tournament_id == tid)))
+    rows = {r.id: r for r in summaries(world.s, matches, snap)}
+    assert len(rows) == 3
+    for match in matches:
+        page = match_detail(world.s, match, snap)
+        row = rows[match.id]
+        assert (row.sides, row.winner, row.technical, row.result_source, row.games) == (
+            page.sides,
+            page.winner,
+            page.technical,
+            page.result_source,
+            len(page.games),
+        )

@@ -54,6 +54,16 @@
 /* Avatar, nickname and real name (accepted suggestions). */
 .player-identity { display: flex; align-items: center; gap: 14px; }
 .player-identity-text { min-width: 0; }
+.player-name-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+/* Major champion badge, yellow like a 1st place; the tooltip lists the majors won. */
+.player-major-champion { position: relative; display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border: 1px solid rgba(245, 197, 66, .6); background: rgba(245, 197, 66, .12); color: var(--gitv-gold); font: 700 11px/1.4 var(--gitv-font); letter-spacing: .08em; text-transform: uppercase; cursor: default; }
+.player-major-champion b { font-weight: 800; letter-spacing: 0; }
+.player-major-champion:focus-visible { outline: 1px solid var(--gitv-gold); outline-offset: 2px; }
+.player-major-tip { position: absolute; left: 0; top: calc(100% + 6px); z-index: 20; display: none; min-width: 260px; max-width: min(360px, 80vw); padding: 4px 0; background: var(--gitv-surface); border: 1px solid rgba(245, 197, 66, .45); box-shadow: 0 8px 24px rgba(0, 0, 0, .35); text-transform: none; letter-spacing: 0; }
+.player-major-tip::before { content: ""; position: absolute; left: 0; right: 0; top: -8px; height: 8px; }
+.player-major-champion:hover .player-major-tip, .player-major-champion:focus-within .player-major-tip { display: block; }
+.player-major-tip-row { display: flex; justify-content: space-between; gap: 12px; padding: 6px 12px; color: var(--gitv-text); font: 500 13px/1.4 var(--gitv-font); text-decoration: none; }
+.player-major-tip-row:hover { background: var(--gitv-surface-hover); color: var(--gitv-gold); }
 .player-avatar { flex: none; width: 72px; height: 72px; object-fit: cover; background: var(--gitv-surface); border: 1px solid var(--gitv-border); }
 .player-realname { margin-top: 2px; color: var(--gitv-text-soft); font: 500 15px/1.4 var(--gitv-font); }
 /* Tournament picker next to the majors switch. */

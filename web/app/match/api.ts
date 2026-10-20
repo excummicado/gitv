@@ -19,6 +19,10 @@ export type MatchDetail = {
   free_restarts: number | null; paid_restarts: number[]; sides: MatchSide[]; winner: number | null; technical: boolean;
   // How the winner is known: the tournament's Challonge bracket, a technical defeat or the total time
   result_source: ResultSource; games: Game[];
+  // A match of a tournament played only on Challonge: the result, no games
+  challonge_only: boolean;
+  // That bracket on Challonge; null for one entered by hand
+  challonge_url: string | null;
 };
 
 export function fetchMatch(id: string, signal?: AbortSignal) {

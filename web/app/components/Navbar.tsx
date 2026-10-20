@@ -1,7 +1,8 @@
 import { NavLink, useLocation } from "react-router";
-import { clearSession } from "../auth/client";
+import { clearSession, STAFF_ROLES } from "../auth/client";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import { LangSwitch, useLang } from "../i18n";
+import { CoffeeIcon } from "./CoffeeIcon";
 import { NavSearch } from "./NavSearch";
 import { SignOutIcon } from "./SignOutIcon";
 import "./navbar.css";
@@ -35,7 +36,13 @@ export function Navbar() {
     <nav className="gitv-nav" aria-label={t("Site navigation", "Навигация по сайту")}>
       <div className="gitv-nav-content">
         {links.map(({ hideOnMobile, label, ...link }) => <NavItem key={label[0]} label={t(...label)} {...link} className={hideOnMobile ? "hide-mobile" : ""} />)}
+        {user && STAFF_ROLES.includes(user.role) && <NavItem label={t("Analytics", "Аналитика")} to="/analytics" className="hide-mobile" />}
         <NavSearch className="hide-mobile" />
+        {/* Supporting the site; on phones only the icon fits. */}
+        <a className="gitv-nav-link gitv-nav-kofi" href="https://ko-fi.com/abyssgitv" target="_blank" rel="noopener noreferrer"
+          aria-label={t("Support GITV on Ko-fi", "Поддержать GITV на Ko-fi")} title={t("Support GITV on Ko-fi", "Поддержать GITV на Ko-fi")}>
+          <CoffeeIcon /><span className="gitv-nav-kofi-label">{t("Support", "Поддержать")}</span>
+        </a>
         {user ? (
           <>
             <NavItem label={user.nickname} to="/profile" className="gitv-nav-user" />

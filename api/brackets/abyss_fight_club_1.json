@@ -1,0 +1,52 @@
+{
+  "slug": "abyss_fight_club_1",
+  "title": "Abyss Fight Club 1",
+  "started": "2024-04-18",
+  "ended": "2024-06-15",
+  "organizer": "Astro Liber",
+  "major": true,
+  "rounds": [
+    [
+      ["Invinsik", "alouxd", "alouxd"],
+      ["Remission", "jaba_jab", "jaba_jab"],
+      ["Jousix", "Einsoal", "Einsoal"],
+      ["WaterMan", "shiroja", "WaterMan"],
+      ["Hanwig", "SashaKotyk", "Hanwig"],
+      ["yunnost_", "_Arabus_", "yunnost_"],
+      ["Miron", "Palm", "Miron"],
+      ["Carmine", "Astro_Liber", "Astro_Liber"],
+      ["bshka_", "qsummercy", "qsummercy"],
+      ["futanar1", "Sintory", "Sintory"],
+      ["SoloHoneyGoose", "Neo", "SoloHoneyGoose"],
+      ["Pmir", "I_Arioh", "Pmir"],
+      ["diagolt", "Kutsuki", "Kutsuki"],
+      ["gr4G", "divizor", "gr4G"],
+      ["NineTeen7", "TurboVafelka", "NineTeen7"],
+      ["Nesteridze", "linkle.", "linkle."]
+    ],
+    [
+      ["alouxd", "jaba_jab", "alouxd"],
+      ["Einsoal", "WaterMan", "Einsoal"],
+      ["Hanwig", "yunnost_", "Hanwig"],
+      ["Miron", "Astro_Liber", "Miron"],
+      ["qsummercy", "Sintory", "Sintory"],
+      ["SoloHoneyGoose", "Pmir", "Pmir"],
+      ["Kutsuki", "gr4G", "Kutsuki"],
+      ["NineTeen7", "linkle.", "linkle."]
+    ],
+    [
+      ["alouxd", "Einsoal", "alouxd"],
+      ["Hanwig", "Miron", "Miron"],
+      ["Sintory", "Pmir", "Pmir"],
+      ["Kutsuki", "linkle.", "Kutsuki"]
+    ],
+    [
+      ["alouxd", "Miron", "alouxd"],
+      ["Pmir", "Kutsuki", "Kutsuki"]
+    ],
+    [
+      ["alouxd", "Kutsuki", "alouxd"]
+    ]
+  ],
+  "third_place": ["Miron", "Pmir", "Miron"]
+}

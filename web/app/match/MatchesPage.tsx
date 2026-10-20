@@ -44,7 +44,7 @@ function TournamentSection({ group, onPick, filtered }: { group: TournamentGroup
       {places.length > 0 && (
         <div className="match-places" aria-label={t("Top four", "Первые четыре места")}>
           {places.map((p) => (
-            <Link className={`match-place place-${p.place}`} to={`/player/${p.player.id}`} key={p.place}>
+            <Link className={`match-place place-${p.place}`} to={`/player/${p.player.id}`} key={`${p.place}-${p.player.id}`}>
               <span className="match-place-no">{p.place}</span>{p.player.name}
             </Link>
           ))}

@@ -5,3 +5,6 @@
 .claude/
 .vscode/
 .idea/
+
+# Build caches
+.vite/

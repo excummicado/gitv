@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
 import { OrganizerName } from "../match/OrganizerName";
@@ -20,12 +20,13 @@ function Box({ title, children }: { title: string; children: ReactNode }) {
   return <section className="player-box"><h2 className="player-box-title">{title}</h2>{children}</section>;
 }
 
-function Place({ row }: { row: TableRow }) {
+function Place({ row, manual = false }: { row: TableRow; manual?: boolean }) {
   const { t } = useLang();
   if (!row.place) return <span>—</span>;
   const [low, high] = row.place;
   const estimate = row.place_source === "estimate";
-  const title = estimate ? t("Estimated from matches won", "Оценка по выигранным матчам") : t("From the Challonge bracket", "Из сетки Challonge");
+  const title = estimate ? t("Estimated from matches won", "Оценка по выигранным матчам")
+    : manual ? t("From the tournament's bracket", "Из сетки турнира") : t("From the Challonge bracket", "Из сетки Challonge");
   return (
     <span title={title}>
       {low <= 4 ? <span className={`player-place-badge place-${low}`}>{low}</span>
@@ -50,9 +51,11 @@ function Standings({ tournament }: { tournament: TournamentDetail }) {
         <span className="hide-sm">{t("Best", "Лучшее")}</span><span className="hide-xs">{qualifier ? t("Qualifiers", "Квалы") : t("Tech L", "Тех. пор.")}</span>
       </div>
       {tournament.table.map((row, i) => (
-        <div className="tourney-table-row" key={row.player.id}>
-          {bracket ? <Place row={row} /> : <span className="player-label">{i + 1}</span>}
-          <Link className="player-match-link tourney-player" to={`/player/${row.player.id}?tournament=${tournament.id}`}>{row.player.name}</Link>
+        <div className="tourney-table-row" key={row.player.id ?? `?${row.player.name}`}>
+          {bracket ? <Place row={row} manual={tournament.challonge_only && !tournament.challonge_url} /> : <span className="player-label">{i + 1}</span>}
+          {row.player.id
+            ? <Link className="player-match-link tourney-player" to={`/player/${row.player.id}?tournament=${tournament.id}`}>{row.player.name}</Link>
+            : <span className="tourney-player player-ellipsis" title={t("Not on the site: matched to no player", "Нет на сайте: не сопоставлен с игроком")}>{row.player.name}</span>}
           <span>{row.match_wins} – {row.match_losses}{row.match_draws ? ` – ${row.match_draws}` : ""}</span>
           <span className="hide-xs">{row.games_won} – {row.games_lost}</span>
           <span className="hide-sm">{s(row.avg_time)}</span>
@@ -62,7 +65,15 @@ function Standings({ tournament }: { tournament: TournamentDetail }) {
             : row.tech_losses || "—"}</span>
         </div>
       ))}
-      {bracket && tournament.places_source !== "challonge" && (
+      {tournament.challonge_only && !tournament.challonge_url && (
+        <p className="player-note tourney-note">{t("Played before the site: matches and places come from its published bracket; there are no games, times or drafts. Names without a link aren't matched to a player on the site.",
+          "Турнир проходил до сайта: матчи и места взяты из опубликованной сетки, игр, времени и драфтов нет. Имена без ссылки не сопоставлены с игроками сайта.")}</p>
+      )}
+      {tournament.challonge_only && tournament.challonge_url && (
+        <p className="player-note tourney-note">{t("Played only on Challonge: matches and places come from its bracket; there are no games, times or drafts. Names without a link aren't matched to a player on the site.",
+          "Турнир проходил только на Challonge: матчи и места взяты из его сетки, игр, времени и драфтов нет. Имена без ссылки не сопоставлены с игроками сайта.")}</p>
+      )}
+      {bracket && !tournament.challonge_only && tournament.places_source !== "challonge" && (
         <p className="player-note tourney-note">{t("No Challonge bracket: places below the top four are estimated from matches won (≈).",
           "Сетки Challonge нет: места ниже четвёртого оценены по выигранным матчам (≈).")}</p>
       )}
@@ -92,7 +103,7 @@ function Side({ side, won, score }: { side: BracketSide | null; won: boolean; sc
   );
 }
 
-function Bracket({ rounds, unmatched }: { rounds: BracketRound[]; unmatched: string[] }) {
+function Bracket({ rounds, unmatched, challonge }: { rounds: BracketRound[]; unmatched: string[]; challonge: boolean }) {
   const { t } = useLang();
   const main = rounds.filter((r) => r.round > 0 || r.round === 0);
   const losers = rounds.filter((r) => r.round < 0);
@@ -110,7 +121,7 @@ function Bracket({ rounds, unmatched }: { rounds: BracketRound[]; unmatched: str
     </div>
   );
   return (
-    <Box title={t("Bracket (Challonge)", "Сетка (Challonge)")}>
+    <Box title={challonge ? t("Bracket (Challonge)", "Сетка (Challonge)") : t("Bracket", "Сетка")}>
       <div className="tourney-bracket">{main.map(column)}</div>
       {losers.length > 0 && <><h3 className="player-box-title tourney-subtitle">{t("Losers' bracket", "Нижняя сетка")}</h3><div className="tourney-bracket">{losers.map(column)}</div></>}
       {unmatched.length > 0 && (
@@ -185,6 +196,7 @@ export function TournamentPage({ tournamentId }: { tournamentId: string }) {
   const [tournament, setTournament] = useState<TournamentDetail | null>(null);
   const [error, setError] = useState("");
   const { t, count } = useLang();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -196,7 +208,9 @@ export function TournamentPage({ tournamentId }: { tournamentId: string }) {
     return () => controller.abort();
   }, [tournamentId]);
 
-  const tabs: Tab[] = tournament?.bracket ? ["standings", "bracket", "matches", "stats"] : ["standings", "matches", "stats"];
+  // A Challonge-only tournament has no games: no match list or draft statistics.
+  const tabs: Tab[] = (tournament?.bracket ? ["standings", "bracket", "matches", "stats"] as Tab[] : ["standings", "matches", "stats"] as Tab[])
+    .filter((name) => !tournament?.challonge_only || name === "standings" || name === "bracket");
   const asked = params.get("tab") as Tab | null;
   const tab: Tab = asked && tabs.includes(asked) ? asked : "standings";
   const top = tournament?.table.filter((r) => r.place && r.place[0] <= 4) ?? [];
@@ -216,9 +230,18 @@ export function TournamentPage({ tournamentId }: { tournamentId: string }) {
                     <Link className="player-match-link" to="/tournaments">{t("Tournaments", "Турниры")}</Link> · {t(...KIND_LABELS[tournament.kind])}
                     {tournament.major && <span className="match-tag tourneys-major">{t("Major", "Мейджор")}</span>}
                   </div>
-                  <h1 className="player-nickname">{tournament.title}</h1>
+                  {tournament.event && tournament.stages.length > 1 ? <>
+                    <h1 className="player-nickname">{tournament.event.title}</h1>
+                    <label className="tourney-stage">
+                      <span className="player-label">{t("Stage", "Стадия")}</span>
+                      <select className="match-input tourney-stage-select" id="tourney-stage" value={tournament.id}
+                        onChange={(e) => navigate(`/tournament/${e.target.value}`)}>
+                        {tournament.stages.map((s, i) => <option value={s.id} key={s.id}>{i + 1}. {s.title}</option>)}
+                      </select>
+                    </label>
+                  </> : <h1 className="player-nickname">{tournament.title}</h1>}
                   <p className="player-fullname">
-                    <DateRange first={tournament.first_match} last={tournament.last_match} />
+                    <DateRange first={tournament.first_match} last={tournament.last_match} estimated={tournament.date_estimated} />
                     {tournament.organizer && <> · {t("by", "орг.")} <OrganizerName organizer={tournament.organizer} /></>}
                     {tournament.system && <> · {tournament.system}</>}
                   </p>
@@ -231,11 +254,13 @@ export function TournamentPage({ tournamentId }: { tournamentId: string }) {
                   </div>
                   {top.length > 0 && (
                     <div className="match-places" aria-label={t("Top four", "Первые четыре места")}>
-                      {top.map((r) => (
-                        <Link className={`match-place place-${r.place![0]}`} to={`/player/${r.player.id}`} key={r.player.id}>
+                      {top.map((r) => r.player.id
+                        ? <Link className={`match-place place-${r.place![0]}`} to={`/player/${r.player.id}`} key={r.player.id}>
                           <span className="match-place-no">{r.place![0]}</span>{r.player.name}
                         </Link>
-                      ))}
+                        : <span className={`match-place place-${r.place![0]}`} key={`?${r.player.name}`}>
+                          <span className="match-place-no">{r.place![0]}</span>{r.player.name}
+                        </span>)}
                     </div>
                   )}
                 </header>
@@ -249,11 +274,13 @@ export function TournamentPage({ tournamentId }: { tournamentId: string }) {
                   ))}
                 </div>
 
-                {tab === "bracket" && tournament.bracket ? <Bracket rounds={tournament.bracket} unmatched={tournament.unmatched} />
+                {tab === "bracket" && tournament.bracket ? <Bracket rounds={tournament.bracket} unmatched={tournament.unmatched} challonge={!!tournament.challonge_url} />
                   : tab === "matches" ? <Matches tournamentId={tournament.id} />
                   : tab === "stats" ? <Stats tournament={tournament} />
                   : <Standings tournament={tournament} />}
-                <p className="player-note tourney-note">{count(tournament.table.length, ["player with games", "players with games"], ["игрок с играми", "игрока с играми", "игроков с играми"])}</p>
+                <p className="player-note tourney-note">{tournament.challonge_only
+                  ? count(tournament.table.length, ["player", "players"], ["игрок", "игрока", "игроков"])
+                  : count(tournament.table.length, ["player with games", "players with games"], ["игрок с играми", "игрока с играми", "игроков с играми"])}</p>
               </>}
           </div>
         </div>

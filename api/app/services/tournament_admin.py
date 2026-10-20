@@ -7,6 +7,7 @@ from sqlmodel import Session, delete, func, select
 
 from ..models import (
     ChallongeBracket,
+    ChallongeTournament,
     DraftAction,
     DraftLink,
     DraftState,
@@ -81,6 +82,9 @@ def delete_tournaments(session: Session, ids: list[str]) -> dict[str, int]:
         ).rowcount,
         "tournament players": session.exec(
             delete(TournamentPlayer).where(TournamentPlayer.tournament_id.in_(ids))
+        ).rowcount,
+        "challonge-only tournaments": session.exec(
+            delete(ChallongeTournament).where(ChallongeTournament.tournament_id.in_(ids))
         ).rowcount,
         "challonge brackets": session.exec(
             delete(ChallongeBracket).where(ChallongeBracket.tournament_id.in_(ids))

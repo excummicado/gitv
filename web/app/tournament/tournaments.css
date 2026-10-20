@@ -10,6 +10,11 @@
 .tourneys-title small { font-weight: 400; font-size: 11px; }
 .tourneys-winner { font-weight: 600; color: var(--gitv-win); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tourneys-major { color: var(--gitv-gold); border-color: rgba(245, 197, 66, .6); }
+.tourneys-chevron { display: inline-block; width: 12px; color: var(--gitv-muted); }
+.tourneys-stage { background: var(--gitv-surface); font-size: 12px; }
+.tourneys-stage .tourneys-title { padding-left: 20px; font-weight: 500; }
+.tourney-stage { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 4px; }
+.tourney-stage-select { max-width: 100%; min-width: 0; }
 
 /* Tournament page */
 .tourney-kicker { display: flex; align-items: center; gap: 6px; font-size: 12px; margin-bottom: 4px; }

@@ -1,0 +1,25 @@
+/* Analytics page (admins). */
+.stats-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.stats-head .player-control.active { background: var(--gitv-surface-hover); color: var(--gitv-text); box-shadow: inset 0 -2px 0 var(--gitv-accent); }
+.stats-note { font-size: 11px; }
+.stats-records { grid-template-columns: repeat(5, minmax(0, 1fr)); margin-bottom: 0; }
+.stats-live { color: var(--gitv-win); }
+.stats-chart-title { display: flex; justify-content: space-between; align-items: center; }
+.stats-legend { display: inline-flex; align-items: center; gap: 6px; font-weight: 400; font-size: 11px; color: var(--gitv-muted); }
+.stats-legend i { display: inline-block; width: 10px; height: 10px; }
+.stats-legend i.views { background: var(--gitv-surface-hover); border: 1px solid var(--gitv-accent); }
+.stats-legend i.visitors { background: var(--gitv-accent); margin-left: 6px; }
+.stats-chart { display: flex; align-items: flex-end; gap: 2px; height: 160px; padding: 12px; }
+.stats-bar { position: relative; flex: 1; height: 100%; min-width: 2px; }
+.stats-bar:hover .stats-bar-views { border-color: var(--gitv-text); }
+.stats-bar span { position: absolute; left: 0; right: 0; bottom: 0; }
+.stats-bar-views { background: var(--gitv-surface-hover); border: 1px solid rgba(96, 165, 250, .5); }
+.stats-bar-visitors { left: 25% !important; right: 25% !important; background: var(--gitv-accent); }
+.stats-columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.stats-row { position: relative; display: flex; justify-content: space-between; gap: 8px; padding: 6px 12px; border-top: 1px dotted var(--gitv-border-muted); font-size: 12px; color: var(--gitv-text); }
+.stats-row > :not(.stats-row-fill) { position: relative; }
+.stats-row-fill { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(96, 165, 250, .08); }
+@media (max-width: 860px) {
+  .stats-records { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stats-columns { grid-template-columns: 1fr; }
+}

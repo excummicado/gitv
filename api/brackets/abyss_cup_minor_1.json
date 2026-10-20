@@ -1,0 +1,34 @@
+{
+  "slug": "abyss_cup_minor_1",
+  "title": "Abyss Cup Minor Season 1",
+  "started": "2024-02-02",
+  "ended": "2024-03-28",
+  "organizer": "Xeity",
+  "major": true,
+  "rounds": [
+    [
+      ["Shiroja", "Einsoal", "Shiroja"],
+      ["Introvert", "Borodywa", "Borodywa"],
+      ["Diagolt", "Gurupatikus", "Gurupatikus"],
+      ["Astro", "Dze_n", "Dze_n"],
+      ["NineTeen7", "Badirak", "Badirak"],
+      ["Xoyira", "Dramp", "Xoyira"],
+      ["Frizing21", "Qsummercy", "Qsummercy"],
+      ["Pmir", "Touchme", "Pmir"]
+    ],
+    [
+      ["Shiroja", "Borodywa", "Shiroja"],
+      ["Gurupatikus", "Dze_n", "Dze_n"],
+      ["Badirak", "Xoyira", "Badirak"],
+      ["Qsummercy", "Pmir", "Pmir"]
+    ],
+    [
+      ["Shiroja", "Dze_n", "Dze_n"],
+      ["Badirak", "Pmir", "Pmir"]
+    ],
+    [
+      ["Pmir", "Dze_n", "Dze_n"]
+    ]
+  ],
+  "third_place": ["Badirak", "Shiroja", "Badirak"]
+}

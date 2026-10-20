@@ -51,9 +51,26 @@ export function TournamentsPage() {
   const shown = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return (rows ?? []).filter((r) =>
-      (!needle || r.title.toLowerCase().includes(needle) || r.winner?.name.toLowerCase().includes(needle))
+      (!needle || r.title.toLowerCase().includes(needle) || r.winner?.name.toLowerCase().includes(needle)
+        || !!r.event?.title.toLowerCase().includes(needle))
       && (!kind || r.kind === kind) && (!major || r.major) && (!organizer || r.organizer?.id === organizer));
   }, [rows, search, kind, major, organizer]);
+
+  // Stages of one event (Abyss Fight Club 4, an Abyss Cup season) become one entry that opens to them, placed by its latest stage.
+  const entries = useMemo(() => {
+    const out: ({ row: TournamentRow } | { event: NonNullable<TournamentRow["event"]>; stages: TournamentRow[] })[] = [];
+    const events = new Map<string, TournamentRow[]>();
+    for (const r of shown) {
+      if (!r.event) { out.push({ row: r }); continue; }
+      const stages = events.get(r.event.id);
+      if (stages) stages.push(r);
+      else { const list = [r]; events.set(r.event.id, list); out.push({ event: r.event, stages: list }); }
+    }
+    for (const list of events.values()) list.sort((a, b) => a.event!.position - b.event!.position);
+    return out;
+  }, [shown]);
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const toggle = (id: string) => setOpen((o) => { const next = new Set(o); if (next.has(id)) next.delete(id); else next.add(id); return next; });
 
   return (
     <main className="gitv-page">
@@ -79,29 +96,39 @@ export function TournamentsPage() {
               : !rows ? <div className="player-box player-message">{t("Loading tournaments…", "Загрузка турниров…")}</div>
               : (
                 <section className="player-box">
-                  <h2 className="player-box-title">{count(shown.length, ["tournament", "tournaments"], ["турнир", "турнира", "турниров"])}</h2>
+                  <h2 className="player-box-title">{count(entries.length, ["tournament", "tournaments"], ["турнир", "турнира", "турниров"])}</h2>
                   <div className="tourneys-row tourneys-head player-label">
                     <span>{t("Dates", "Даты")}</span><span>{t("Tournament", "Турнир")}</span><span className="hide-sm">{t("Format", "Формат")}</span>
                     <span className="hide-xs">{t("Players", "Игроки")}</span><span className="hide-sm">{t("Prize", "Приз")}</span><span>{t("Winner", "Победитель")}</span>
                   </div>
                   {shown.length === 0 && <p className="player-message">{t("No tournaments match the filters.", "Нет турниров под эти фильтры.")}</p>}
-                  {shown.map((r) => (
-                    // A row is a link, but holds links of its own (organizer, winner), so it navigates on click instead of being an <a>.
-                    <div className="tourneys-row" key={r.id} role="link" tabIndex={0}
-                      onClick={(e) => { if (!(e.target as HTMLElement).closest("a")) navigate(`/tournament/${r.id}`); }}
-                      onKeyDown={(e) => { if (e.key === "Enter") navigate(`/tournament/${r.id}`); }}>
-                      <span className="gitv-date"><DateRange first={r.first_match} last={r.last_match} /></span>
-                      <span className="tourneys-title">
-                        <Link to={`/tournament/${r.id}`} className="player-match-link">{r.title}</Link>
-                        {r.major && <span className="match-tag tourneys-major">{t("Major", "Мейджор")}</span>}
-                        {r.organizer && <small className="player-label">{t("by", "орг.")} <OrganizerName organizer={r.organizer} /></small>}
-                      </span>
-                      <span className="hide-sm">{t(...KIND_LABELS[r.kind])}</span>
-                      <span className="hide-xs">{r.players}</span>
-                      <span className="hide-sm"><Prize prize={r.prize} currency={r.currency} /></span>
-                      <span className="tourneys-winner">{r.winner ? <Link to={`/player/${r.winner.id}`} className="player-match-link">{r.winner.name}</Link> : "—"}</span>
-                    </div>
-                  ))}
+                  {entries.map((entry) => "row" in entry ? <Row r={entry.row} key={entry.row.id} /> : (() => {
+                    const { event, stages } = entry;
+                    const last = [...stages].sort((a, b) => b.event!.position - a.event!.position)[0];
+                    const final = stages.find((s) => s.event!.position === event.stages - 1);
+                    const first = stages.map((s) => s.first_match).filter(Boolean).sort()[0] ?? null;
+                    const isOpen = open.has(event.id) || !!search.trim();
+                    return (
+                      <div className="tourneys-event" key={event.id}>
+                        <div className="tourneys-row tourneys-event-row" role="button" tabIndex={0} aria-expanded={isOpen}
+                          onClick={(e) => { if (!(e.target as HTMLElement).closest("a")) toggle(event.id); }}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(event.id); } }}>
+                          <span className="gitv-date"><DateRange first={first} last={last.last_match} estimated={last.date_estimated} /></span>
+                          <span className="tourneys-title">
+                            <span className="tourneys-chevron" aria-hidden="true">{isOpen ? "▾" : "▸"}</span>
+                            <span>{event.title}</span>
+                            {stages.every((s) => s.major) && <span className="match-tag tourneys-major">{t("Major", "Мейджор")}</span>}
+                            {last.organizer && <small className="player-label">{t("by", "орг.")} <OrganizerName organizer={last.organizer} /></small>}
+                          </span>
+                          <span className="hide-sm">{count(event.stages, ["stage", "stages"], ["стадия", "стадии", "стадий"])}</span>
+                          <span className="hide-xs">{final?.players ?? "—"}</span>
+                          <span className="hide-sm"><Prize prize={(final ?? last).prize} currency={(final ?? last).currency} /></span>
+                          <span className="tourneys-winner">{final?.winner ? <Link to={`/player/${final.winner.id}`} className="player-match-link">{final.winner.name}</Link> : "—"}</span>
+                        </div>
+                        {isOpen && stages.map((r) => <Row r={r} key={r.id} stage />)}
+                      </div>
+                    );
+                  })())}
                 </section>
               )}
           </div>
@@ -109,4 +136,24 @@ export function TournamentsPage() {
       </div>
     </main>
   );
+
+  function Row({ r, stage = false }: { r: TournamentRow; stage?: boolean }) {
+    return (
+                    // A row is a link, but holds links of its own (organizer, winner), so it navigates on click instead of being an <a>.
+                    <div className={`tourneys-row${stage ? " tourneys-stage" : ""}`} role="link" tabIndex={0}
+                      onClick={(e) => { if (!(e.target as HTMLElement).closest("a")) navigate(`/tournament/${r.id}`); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") navigate(`/tournament/${r.id}`); }}>
+                      <span className="gitv-date"><DateRange first={r.first_match} last={r.last_match} estimated={r.date_estimated} /></span>
+                      <span className="tourneys-title">
+                        <Link to={`/tournament/${r.id}`} className="player-match-link">{stage && r.event ? r.event.stage : r.title}</Link>
+                        {!stage && r.major && <span className="match-tag tourneys-major">{t("Major", "Мейджор")}</span>}
+                        {!stage && r.organizer && <small className="player-label">{t("by", "орг.")} <OrganizerName organizer={r.organizer} /></small>}
+                      </span>
+                      <span className="hide-sm">{t(...KIND_LABELS[r.kind])}</span>
+                      <span className="hide-xs">{r.players}</span>
+                      <span className="hide-sm"><Prize prize={r.prize} currency={r.currency} /></span>
+                      <span className="tourneys-winner">{r.winner ? <Link to={`/player/${r.winner.id}`} className="player-match-link">{r.winner.name}</Link> : "—"}</span>
+                    </div>
+    );
+  }
 }

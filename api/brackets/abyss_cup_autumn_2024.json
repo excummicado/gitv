@@ -1,0 +1,86 @@
+{
+  "slug": "abyss_cup_autumn_2024",
+  "title": "Abyss Cup Autumn 2024",
+  "started": "2024-09-27",
+  "ended": "2024-11-15",
+  "organizer": "Xeity",
+  "major": true,
+  "rounds": [
+    [
+      ["Alou", "Wanar1n", "Alou"],
+      ["Roronoa", "Heckfy", "Roronoa"],
+      ["Palm", "jaba_jab", "Palm"],
+      ["Сабелли", "Hiatus", "Сабелли"],
+      ["Touchme", "0141", "Touchme"],
+      ["yunnost", "NineTeen7", "NineTeen7"],
+      ["Onki", "Leksichka", "Onki"],
+      ["драгквин", "Hevix", "драгквин"],
+      ["Lelouch", "Korus", "Lelouch"],
+      ["Jericho", "pitto", "Jericho"],
+      ["SoloHoneyGoose", "Divan", "SoloHoneyGoose"],
+      ["Alex_Shiba", "Astro Liber", "Astro Liber"],
+      ["Divizor", "Yukine", "Divizor"],
+      ["Reyseg", "saintplaza", "saintplaza"],
+      ["Rafta_lia", "Dramp", "Rafta_lia"],
+      ["qwezxctrueghoul~", "Mistikal", "Mistikal"],
+      ["Kutsuki", "Koldun", "Kutsuki"],
+      ["kustikgame", "Mexanik35", "Mexanik35"],
+      ["FrogVRot", "2_4_8", "FrogVRot"],
+      ["GODJO™", "aqkvva", "aqkvva"],
+      ["Senoen", "Banka Svetlogo", "Banka Svetlogo"],
+      ["kisselka", "SADovniker", "kisselka"],
+      ["Saine", "Jousix", "Jousix"],
+      ["MarryStorm", "Remission", "Remission"],
+      ["diagolt", "yooouki2187", "diagolt"],
+      ["Skiramit", "Sakuta", "Sakuta"],
+      ["darkness_dove", "qsummercy", "qsummercy"],
+      ["rpyt02", "zxc_dew", "rpyt02"],
+      ["smertikk", "rouziee_uwu", "smertikk"],
+      ["Ywku", "i_arioh", "i_arioh"],
+      ["Nesteridze", "xxxenon", "xxxenon"],
+      ["raiymbek", "ulup", "ulup"]
+    ],
+    [
+      ["Alou", "Roronoa", "Alou"],
+      ["Palm", "Сабелли", "Сабелли"],
+      ["Touchme", "NineTeen7", "Touchme"],
+      ["Onki", "драгквин", "драгквин"],
+      ["Lelouch", "Jericho", "Jericho"],
+      ["SoloHoneyGoose", "Astro Liber", "SoloHoneyGoose"],
+      ["Divizor", "saintplaza", "Divizor"],
+      ["Rafta_lia", "Mistikal", "Mistikal"],
+      ["Kutsuki", "Mexanik35", "Kutsuki"],
+      ["FrogVRot", "aqkvva", "FrogVRot"],
+      ["Banka Svetlogo", "kisselka", "kisselka"],
+      ["Jousix", "Remission", "Jousix"],
+      ["diagolt", "Sakuta", "diagolt"],
+      ["qsummercy", "rpyt02", "rpyt02"],
+      ["smertikk", "i_arioh", "smertikk"],
+      ["xxxenon", "ulup", "ulup"]
+    ],
+    [
+      ["Alou", "Сабелли", "Alou"],
+      ["Touchme", "драгквин", "Touchme"],
+      ["Jericho", "SoloHoneyGoose", "SoloHoneyGoose"],
+      ["Divizor", "Mistikal", "Mistikal"],
+      ["Kutsuki", "FrogVRot", "Kutsuki"],
+      ["kisselka", "Jousix", "kisselka"],
+      ["diagolt", "rpyt02", "rpyt02"],
+      ["smertikk", "ulup", "smertikk"]
+    ],
+    [
+      ["Alou", "Touchme", "Alou"],
+      ["SoloHoneyGoose", "Mistikal", "Mistikal"],
+      ["Kutsuki", "kisselka", "Kutsuki"],
+      ["rpyt02", "smertikk", "smertikk"]
+    ],
+    [
+      ["Alou", "Mistikal", "Mistikal"],
+      ["Kutsuki", "smertikk", "smertikk"]
+    ],
+    [
+      ["Mistikal", "smertikk", "smertikk"]
+    ]
+  ],
+  "third_place": ["Alou", "Kutsuki", "Alou"]
+}

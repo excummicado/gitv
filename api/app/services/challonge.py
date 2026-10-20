@@ -23,7 +23,14 @@ from urllib.parse import urlsplit
 import httpx
 from sqlmodel import Session, select
 
-from ..models import ChallongeAlias, ChallongeBracket, PlayerMerge, TournamentInfo, TournamentPlayer
+from ..models import (
+    ChallongeAlias,
+    ChallongeBracket,
+    ChallongeTournament,
+    PlayerMerge,
+    TournamentInfo,
+    TournamentPlayer,
+)
 
 log = logging.getLogger("gitv.challonge")
 
@@ -81,14 +88,18 @@ class BracketMatch:
     loser: str | None
     scores: list[int]
     underway_at: str | None = None
+    forfeited: bool = False
+    group: str | None = None  # the group's name for a group-stage match
 
 
 @dataclass
 class Bracket:
     type: str  # "single elimination", "double elimination", "round robin", "swiss", ...
-    state: str  # "complete", "underway", "pending", ...
+    state: str  # "complete", "underway", "pending", "group_stages_finalized", ...
     matches: list[BracketMatch]
     third_place: BracketMatch | None = None
+    # A two-stage tournament's group matches (round robin groups played before the bracket); not part of places
+    group_matches: list[BracketMatch] = field(default_factory=list)
 
     @property
     def players(self) -> list[str]:
@@ -97,10 +108,10 @@ class Bracket:
 
     @property
     def all_matches(self) -> list[BracketMatch]:
-        return self.matches + ([self.third_place] if self.third_place else [])
+        return self.group_matches + self.matches + ([self.third_place] if self.third_place else [])
 
 
-def _match(raw: dict) -> BracketMatch:
+def _match(raw: dict, group: str | None = None) -> BracketMatch:
     def name(side: str) -> str | None:
         return ((raw.get(side) or {}).get("display_name") or "").strip() or None
 
@@ -115,6 +126,8 @@ def _match(raw: dict) -> BracketMatch:
         loser=ids.get(raw.get("loser_id")),
         scores=raw.get("scores") or [],
         underway_at=raw.get("underway_at"),
+        forfeited=bool(raw.get("forfeited")),
+        group=group,
     )
 
 
@@ -122,11 +135,18 @@ def bracket_from_store(store: dict) -> Bracket:
     tournament = store.get("tournament") or {}
     matches = [_match(m) for ms in (store.get("matches_by_round") or {}).values() for m in ms]
     third = store.get("third_place_match")
+    groups = [
+        _match(m, g.get("name") or "")
+        for g in store.get("groups") or []
+        for ms in (g.get("matches_by_round") or {}).values()
+        for m in ms
+    ]
     return Bracket(
         type=tournament.get("tournament_type") or "",
         state=tournament.get("state") or "",
         matches=matches,
         third_place=_match(third) if third else None,
+        group_matches=groups,
     )
 
 
@@ -173,22 +193,33 @@ def normalize(name: str) -> str:
 
 # "nick (discord)": both halves are tried.
 BRACKETED = re.compile(r"^(.*?)\s*\((.+)\)\s*$")
+# Challonge shows a participant whose account was deleted as "Deleted <name>".
+DELETED = re.compile(r"^Deleted\s+(.+)$")
 
 
 def name_variants(name: str) -> list[str]:
     m = BRACKETED.match(name)
-    return [name, *m.groups()] if m else [name]
+    variants = [name, *m.groups()] if m else [name]
+    if d := DELETED.match(name):
+        variants.append(d.group(1))
+    return variants
 
 
-def match_names(names: list[str], candidates: dict[str, set[str]]) -> tuple[dict[str, str], list[str]]:
+def match_names(
+    names: list[str], candidates: dict[str, set[str]], forced: dict[str, str] | None = None
+) -> tuple[dict[str, str], list[str]]:
     """({Challonge name: player id}, unmatched names). candidates: {player id: every nickname they played under}.
     A name matches when exactly one player has a nickname equal to it once normalized; "nick (discord)" is
-    tried whole, then by each half."""
+    tried whole, then by each half. forced: {normalized name: player id} set by hand, which wins over a nickname
+    two players share, as long as that player is among the candidates."""
     by_key: dict[str, set[str]] = defaultdict(set)
     for pid, nicks in candidates.items():
         for nick in nicks:
             if key := normalize(nick):
                 by_key[key].add(pid)
+    for key, pid in (forced or {}).items():
+        if pid in candidates:
+            by_key[key] = {pid}
     found, missing = {}, []
     for name in names:
         for variant in name_variants(name):
@@ -211,22 +242,28 @@ class ChallongeResult:
     unmatched: list[str] = field(default_factory=list)  # Challonge names no player could be found for
     bracket: Bracket | None = None  # the bracket itself, for showing it
     ids: dict[str, str] = field(default_factory=dict)  # Challonge name -> player id
+    places_by_name: dict[str, tuple[int, int]] = field(default_factory=dict)  # Challonge name -> (best, worst)
 
 
 def result_for(
-    bracket: Bracket, candidates: dict[str, set[str]], everyone: dict[str, set[str]] | None = None
+    bracket: Bracket,
+    candidates: dict[str, set[str]],
+    everyone: dict[str, set[str]] | None = None,
+    forced: dict[str, str] | None = None,
 ) -> ChallongeResult:
     """candidates: the tournament's players and their names; everyone: all players, tried for names the
-    tournament's players don't have (someone who signed up but has no match on the site)."""
-    ids, unmatched = match_names(bracket.players, candidates)
+    tournament's players don't have (someone who signed up but has no match on the site); forced: names tied by
+    hand (see match_names)."""
+    ids, unmatched = match_names(bracket.players, candidates, forced)
     if everyone and unmatched:
-        more, unmatched = match_names(unmatched, everyone)
+        more, unmatched = match_names(unmatched, everyone, forced)
         ids.update(more)
-    result = ChallongeResult(unmatched=unmatched, bracket=bracket, ids=ids)
-    for name, place in places(bracket).items():
+    result = ChallongeResult(unmatched=unmatched, bracket=bracket, ids=ids, places_by_name=places(bracket))
+    for name, place in result.places_by_name.items():
         if name in ids:
             result.places[ids[name]] = place
-    ordered = sorted(bracket.all_matches, key=lambda m: (m.underway_at or "", abs(m.round), m.id))
+    # Group matches come before the bracket's.
+    ordered = sorted(bracket.all_matches, key=lambda m: (m.group is None, m.underway_at or "", abs(m.round), m.id))
     for m in ordered:
         if m.winner and m.player1 in ids and m.player2 in ids:
             pair = frozenset((ids[m.player1], ids[m.player2]))
@@ -281,9 +318,11 @@ def stored_results(session: Session, candidates: dict[str, dict[str, set[str]]])
         tid: {pid: nicks | discord.get(pid, set()) for pid, nicks in players.items()}
         for tid, players in candidates.items()
     }
-    # Names set by hand count as one more nickname.
+    # Names set by hand count as one more nickname, and win over a nickname two players share.
+    forced = {}
     for name, user_id in session.exec(select(ChallongeAlias.name, ChallongeAlias.user_id)):
         user_id = merged.get(user_id, user_id)
+        forced[name] = user_id
         for players in candidates.values():
             if user_id in players:
                 players[user_id] = players[user_id] | {name}
@@ -298,7 +337,7 @@ def stored_results(session: Session, candidates: dict[str, dict[str, set[str]]])
         except (ValueError, KeyError, TypeError):
             log.warning("unreadable Challonge bracket for %s", row.tournament_id)
             continue
-        results[row.tournament_id] = result_for(bracket, candidates.get(row.tournament_id, {}), everyone)
+        results[row.tournament_id] = result_for(bracket, candidates.get(row.tournament_id, {}), everyone, forced)
     return results
 
 
@@ -317,6 +356,8 @@ def fetch_challonge(session: Session, refetch: bool = False) -> FetchResult:
         for i in session.exec(select(TournamentInfo).where(TournamentInfo.challonge_url.is_not(None)))
         if i.is_finished and (refetch or i.tournament_id not in stored or stored[i.tournament_id].state != "complete")
     ]
+    # Challonge-only tournaments have no participants list on the site.
+    only = set(session.exec(select(ChallongeTournament.tournament_id)))
     result = FetchResult()
     with httpx.Client(timeout=30, headers=HEADERS, follow_redirects=True) as client:
         for n, info in enumerate(wanted):
@@ -327,12 +368,14 @@ def fetch_challonge(session: Session, refetch: bool = False) -> FetchResult:
                 r = client.get(url)
                 r.raise_for_status()
                 store = parse_store(r.text)
-                participants = client.get(f"{SITE_API}/drafts/players", params={"tournament": info.tournament_id})
-                participants.raise_for_status()
+                participants = []
+                if info.tournament_id not in only:
+                    response = client.get(f"{SITE_API}/drafts/players", params={"tournament": info.tournament_id})
+                    participants = response.raise_for_status().json()
             except (httpx.HTTPError, ValueError) as e:
                 result.errors.append(f"{info.challonge_url}: {e}")
                 continue
-            for p in participants.json():
+            for p in participants:
                 if p.get("_id"):
                     session.merge(
                         TournamentPlayer(

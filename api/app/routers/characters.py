@@ -11,6 +11,7 @@ from sqlmodel import select
 
 from ..database import SessionDep
 from ..models import Agent, PlayerRoster, RosterCharacter, TournamentInfo
+from ..services.organizers import organizer_resolver
 from ..services.player_names import display_names, merges
 from ..services.stats import character_constellations, character_players, character_stats, prize_winners, snapshot
 from ..services.stats.snapshot import Snapshot, restrict
@@ -94,21 +95,17 @@ def filters(
     snap = snapshot(session, scope, since)
     in_scope = {snap.match_tournament[m] for pd in snap.players.values() for m in pd.matches}
     infos = {i.tournament_id: i for i in session.exec(select(TournamentInfo))}
-    organizer_of = {
-        tid: (infos[tid].organizer_id if tid in infos and infos[tid].organizer_id else UNKNOWN) for tid in in_scope
-    }
+    names = display_names(session)
+    resolve = organizer_resolver(session, names)
+    shown = {tid: resolve(i.organizer_id, i.organizer_name) for tid, i in infos.items()}
+    organizer_of = {tid: (shown[tid].id if shown.get(tid) else UNKNOWN) for tid in in_scope}
     excluded = set(exclude)
     kept = {tid for tid, org in organizer_of.items() if org not in excluded}
 
-    names = display_names(session)
     counts: dict[str, int] = {}
     for org in organizer_of.values():
         counts[org] = counts.get(org, 0) + 1
-    label = {
-        i.organizer_id: names.get(i.organizer_id) or i.organizer_name or i.organizer_id
-        for i in infos.values()
-        if i.organizer_id
-    }
+    label = {o.id: o.name for o in shown.values() if o}
     organizers = sorted(
         (
             OrganizerOption(

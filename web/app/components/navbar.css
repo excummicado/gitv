@@ -117,9 +117,9 @@ a.gitv-nav-link:hover,
 
 @media (max-width: 760px) {
   .gitv-nav .hide-mobile { display: none; }
-  /* With the search hidden, the account items start the right-hand group. */
-  .gitv-nav-signin,
-  .gitv-nav-user { margin-left: auto; }
+  /* With the search hidden, the Ko-fi link starts the right-hand group, as an icon only. */
+  .gitv-nav-kofi { margin-left: auto; }
+  .gitv-nav-kofi-label { display: none; }
 }
 
 @media (max-width: 520px) {
@@ -134,6 +134,10 @@ a.gitv-nav-link:hover,
 .gitv-lang-option + .gitv-lang-option { border-left: 1px solid var(--gitv-border); }
 .gitv-lang-option:hover { color: var(--gitv-text); }
 .gitv-lang-option.is-active { background: var(--gitv-surface-hover); color: var(--gitv-text); }
+
+/* Ko-fi: the cup in gold, so it reads as an invitation rather than a menu item. */
+.gitv-nav-kofi { gap: 5px; text-transform: none; }
+.gitv-nav-kofi .coffee-icon { color: var(--gitv-gold); }
 
 /* Same width in both languages. */
 .gitv-nav-signin { min-width: 4.2em; justify-content: flex-end; }

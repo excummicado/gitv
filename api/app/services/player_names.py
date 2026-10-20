@@ -6,7 +6,7 @@ played under (see complexity); a nickname set by hand (app.cli set-player-name) 
 
 from sqlmodel import Session, func, select
 
-from ..models import Match, MatchPlayer, PlayerMerge, PlayerName
+from ..models import Match, MatchPlayer, OffsitePlayer, PlayerMerge, PlayerName
 
 
 def complexity(name: str) -> float:
@@ -68,6 +68,8 @@ def display_names(session: Session) -> dict[str, str]:
     for alias, into in merged.items():
         if into in names:
             names[alias] = names[into]
+    for player_id, name in session.exec(select(OffsitePlayer.id, OffsitePlayer.name)):
+        names.setdefault(player_id, name)
     return names
 
 

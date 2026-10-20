@@ -1,0 +1,36 @@
+{
+  "slug": "abyss_cup_media",
+  "title": "Abyss Cup Media",
+  "started": "2024-05-15",
+  "ended": "2024-06-09",
+  "organizer": "Xeity",
+  "major": false,
+  "groups": {
+    "Group A": [
+      ["Alou", "Spartanchick", "Alou"],
+      ["Alou", "Dzen", "Alou"],
+      ["Alou", "Shiro", "Alou"],
+      ["Spartanchick", "Dzen", "Spartanchick"],
+      ["Spartanchick", "Shiro", "Spartanchick"],
+      ["Dzen", "Shiro", "Dzen"]
+    ],
+    "Group B": [
+      ["Shadovv_man", "Gl1n", "Shadovv_man"],
+      ["Shadovv_man", "Bananchik1", "Shadovv_man"],
+      ["Shadovv_man", "Arra", "Shadovv_man"],
+      ["Gl1n", "Bananchik1", "Gl1n"],
+      ["Gl1n", "Arra", "Gl1n"],
+      ["Bananchik1", "Arra", "Bananchik1"]
+    ]
+  },
+  "rounds": [
+    [
+      ["Shadovv_man", "Spartanchick", "Spartanchick"],
+      ["Alou", "Gl1n", "Alou"]
+    ],
+    [
+      ["Alou", "Spartanchick", "Alou"]
+    ]
+  ],
+  "third_place": ["Gl1n", "Shadovv_man", "Shadovv_man"]
+}

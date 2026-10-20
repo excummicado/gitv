@@ -42,6 +42,13 @@ button.match-input:disabled { color: var(--gitv-faint); cursor: default; }
 .match-place { display: inline-flex; align-items: center; gap: 6px; color: var(--gitv-text); text-decoration: none; }
 .match-place:hover { text-decoration: underline; }
 .match-place-no { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; background: var(--gitv-surface-hover); border: 1px solid var(--gitv-border); color: var(--gitv-muted); font-size: 11px; font-weight: 700; }
-.match-place.place-1 { color: var(--gitv-win); font-weight: 600; }
-.match-place.place-1 .match-place-no { color: var(--gitv-win); border-color: rgba(74, 222, 128, .4); }
+/* Places in medal colors, like the place badges on player pages: the square filled, the name tinted. */
+.match-place.place-1 { color: var(--gitv-gold); font-weight: 600; }
+.match-place.place-2 { color: var(--gitv-silver); }
+.match-place.place-3 { color: var(--gitv-bronze); }
+.match-place.place-1 .match-place-no { color: #1a1300; background: var(--gitv-gold); border-color: var(--gitv-gold); }
+.match-place.place-2 .match-place-no { color: #15181d; background: var(--gitv-silver); border-color: var(--gitv-silver); }
+.match-place.place-3 .match-place-no { color: #1d0f05; background: var(--gitv-bronze); border-color: var(--gitv-bronze); }
+.match-place.place-4 .match-place-no { color: var(--gitv-text-soft); background: var(--gitv-border-muted); border-color: var(--gitv-date); }
+.match-place-no { font-weight: 700; }
 .match-places { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 8px 14px; border-top: 1px solid var(--gitv-border); font-size: 13px; }

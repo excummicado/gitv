@@ -153,7 +153,7 @@ function MatchHeader({ match }: { match: MatchDetail }) {
     <header className="player-box match-header">
       <div className="match-kicker">
         <span><Link className="match-player-link" to={`/tournament/${match.tournament_id}`}>{match.tournament}</Link>{match.organizer && <> · {t("by", "орг.")} <OrganizerName organizer={match.organizer} /></>}</span>
-        <span className="gitv-date">{date(match.created_at)}</span>
+        <span className="gitv-date">{match.challonge_only ? "≈ " : ""}{date(match.created_at)}</span>
         {match.system && <span>{match.system}{match.mode ? ` · ${match.mode === "Abyss" ? t("Abyss", "Бездна") : match.mode}` : ""}</span>}
         {match.is_official && <span className="match-tag">{t("Official", "Официальный")}</span>}
       </div>
@@ -167,12 +167,21 @@ function MatchHeader({ match }: { match: MatchDetail }) {
       <div className="match-summary">
         {match.winner != null && a && b
           ? <>{t("Winner", "Победитель")}: <strong>{match.sides[match.winner].name}</strong>{match.result_source === "challonge"
-            ? <span title={t("The result as entered on the tournament's Challonge bracket.", "Результат из сетки турнира на Challonge.")}>{t(" (Challonge bracket)", " (по сетке Challonge)")}</span>
+            ? (match.challonge_only && !match.challonge_url
+              ? <span>{t(" (tournament bracket)", " (по сетке турнира)")}</span>
+              : <span title={t("The result as entered on the tournament's Challonge bracket.", "Результат из сетки турнира на Challonge.")}>{t(" (Challonge bracket)", " (по сетке Challonge)")}</span>)
             : match.technical && t(" by technical defeat", " по тех. поражению")}</>
           : t("No result", "Нет результата")}
         {a?.total_time != null && b?.total_time != null && <> · {t("Total time", "Общее время")} {a.total_time}{s} – {b.total_time}{s}</>}
-        <> · {count(match.free_restarts ?? 0, ["free restart", "free restarts"], ["бесплатный рестарт", "бесплатных рестарта", "бесплатных рестартов"])}, {penalty}</>
+        {!match.challonge_only && <> · {count(match.free_restarts ?? 0, ["free restart", "free restarts"], ["бесплатный рестарт", "бесплатных рестарта", "бесплатных рестартов"])}, {penalty}</>}
       </div>
+      {match.challonge_only && (
+        <p className="player-note">{match.challonge_url
+          ? t("This tournament was played only on Challonge: the result is from its bracket, there are no games, times or drafts.",
+            "Этот турнир проходил только на Challonge: результат взят из сетки, игр, времени и драфтов нет.")
+          : t("This tournament was played before the site: the result is from its published bracket, there are no games, times or drafts.",
+            "Этот турнир проходил до сайта: результат взят из опубликованной сетки, игр, времени и драфтов нет.")}</p>
+      )}
     </header>
   );
 }

@@ -15,6 +15,7 @@ import httpx
 from sqlmodel import Session, delete
 
 from ..models import DraftAction, DraftLink, DraftState, Match, MatchDraft, MatchPick, MatchPlayer, Tournament
+from .match_checks import tidy_title
 
 # The most the site returns per request; asking for more doesn't get more.
 PAGE_SIZE = 100
@@ -76,7 +77,7 @@ def save_match(session: Session, m: dict) -> None:
     session.exec(delete(Match).where(Match.id == m["_id"]))
 
     tournament = m.get("tournament") or {}
-    session.merge(Tournament(id=tournament["_id"], title=tournament.get("title", "")))
+    session.merge(Tournament(id=tournament["_id"], title=tidy_title(tournament.get("title", ""))))
 
     system = m.get("system") or {}
     main = system.get("main") or {}

@@ -44,6 +44,8 @@ export type PlayerDetail = PlayerSummary & {
   profile: PlayerInfo | null;
   profile_history: ProfileChange[];
   finishes: Finish[];
+  // Major tournaments won, newest first, whatever the shown scope
+  major_titles: { tournament_id: string; title: string; date: string }[];
   match_list: PlayerMatch[];
   frequent_opponents: FrequentOpponent[];
 };

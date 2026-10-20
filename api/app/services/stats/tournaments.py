@@ -29,10 +29,12 @@ def tournament_table(snap: Snapshot, tid: str) -> list[dict]:
     for pid, pd in snap.players.items():
         outcomes = [o for m, (o, _) in pd.matches.items() if snap.match_tournament[m] == tid]
         games = [g for g in pd.games if snap.match_tournament[g.match_id] == tid]
-        if not games:
+        if not games and not outcomes:
             continue
         rank = ranks.get((pid, tid))
         won, lost = sum(g.result == "W" for g in games), sum(g.result == "L" for g in games)
+        if tid in snap.challonge_only:
+            won, lost = games_record(snap, tid, pid)
         times = [g.clear_time for g in timed(games)]
         rows.append(
             {
@@ -50,6 +52,7 @@ def tournament_table(snap: Snapshot, tid: str) -> list[dict]:
                 "qualification": qualified.get((pid, tid)),
             }
         )
+    rows += not_on_site(snap, tid)
     rows.sort(
         key=lambda r: (
             r["place"] is None,
@@ -59,6 +62,49 @@ def tournament_table(snap: Snapshot, tid: str) -> list[dict]:
             r["player"]["name"].lower(),
         )
     )
+    return rows
+
+
+def games_record(snap: Snapshot, tid: str, side: str) -> tuple[int, int]:
+    """(games won, lost) by a side over a Challonge-only tournament's matches, from Challonge's scores."""
+    won = lost = 0
+    for cm in snap.challonge_matches.values():
+        if cm.tournament_id == tid and side in cm.games_won:
+            won += cm.games_won[side]
+            lost += sum(n for s, n in cm.games_won.items() if s != side)
+    return won, lost
+
+
+def not_on_site(snap: Snapshot, tid: str) -> list[dict]:
+    """Table rows for a Challonge-only tournament's players who couldn't be matched to anyone on the site: their
+    Challonge name, no player page, Challonge's places."""
+    ch = snap.challonge.get(tid)
+    records: dict[str, Counter] = defaultdict(Counter)
+    for cm in snap.challonge_matches.values():
+        if cm.tournament_id == tid:
+            for side, name in cm.names.items():
+                if side.startswith("?"):
+                    records[name]["W" if cm.winner == side else "L"] += 1
+    rows = []
+    for name, record in records.items():
+        place = ch.places_by_name.get(name) if ch else None
+        won, lost = games_record(snap, tid, f"?{name}")
+        rows.append(
+            {
+                "player": {"id": None, "name": name},
+                "place": place,
+                "place_source": "challonge" if place else None,
+                "match_wins": record["W"],
+                "match_losses": record["L"],
+                "match_draws": 0,
+                "games_won": won,
+                "games_lost": lost,
+                "tech_losses": 0,
+                "avg_time": None,
+                "best_time": None,
+                "qualification": None,
+            }
+        )
     return rows
 
 

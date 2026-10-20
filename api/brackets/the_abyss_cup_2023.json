@@ -1,0 +1,24 @@
+{
+  "slug": "the_abyss_cup_2023",
+  "title": "The Abyss Cup",
+  "started": "2023-12-01",
+  "ended": "2023-12-31",
+  "organizer": "Xeity",
+  "major": true,
+  "rounds": [
+    [
+      ["Spartanchick", "Pmir", "Spartanchick"],
+      ["Dze_n", "Enarel", "Enarel"],
+      ["Gr4g", "Alouxd", "Gr4g"],
+      ["Linkle", "Hanwig", "Linkle"]
+    ],
+    [
+      ["Spartanchick", "Enarel", "Spartanchick"],
+      ["Gr4g", "Linkle", "Gr4g"]
+    ],
+    [
+      ["Spartanchick", "Gr4g", "Spartanchick"]
+    ]
+  ],
+  "third_place": ["Enarel", "Linkle", "Linkle"]
+}

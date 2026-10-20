@@ -171,3 +171,11 @@ class TestMatchOutcome:
 
     def test_needs_two_sides(self):
         assert not match_outcome(self.games(("a", "W", False, 100))).decided
+
+
+def test_tidy_title():
+    from app.services.match_checks import tidy_title
+
+    assert tidy_title("ABYSS FAST SOUP 5") == "Abyss Fast Soup 5"
+    assert tidy_title("Abyss Ascend Casual League [ROUND 1]") == "Abyss Ascend Casual League [Round 1]"
+    assert tidy_title("HotH: 2x2") == "HotH: 2x2"

@@ -210,7 +210,7 @@ def in_tournament(snap: Snapshot, pd: PlayerData, tournament_id: str) -> PlayerD
     """The player's data cut down to one tournament (None if they didn't play it); detail() then gives that
     tournament's statistics."""
     games = [g for g in pd.games if snap.match_tournament[g.match_id] == tournament_id]
-    if not games:
+    if not games and tournament_id not in pd.tournaments:
         return None
     drafts = {g.draft_id for g in games}
     return PlayerData(

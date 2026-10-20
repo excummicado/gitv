@@ -20,6 +20,11 @@ venv/bin/python -m app.cli list-tournaments
 venv/bin/python -m app.cli set-player-name "Anemo main" Northwar
 venv/bin/python -m app.cli set-tournament-winner "Abyss Weekend 16" rpyt02 --source challonge.com/hoth_fast_16
 venv/bin/python -m app.cli delete-tournaments --first 2
+venv/bin/python -m app.cli add-challonge-tournament https://challonge.com/afc_fast_5 "Abyss Fight Club: Abyss Weekend 5"
+venv/bin/python -m app.cli set-challonge-url "HotH: Abyss Weekend 6" https://challonge.com/hoth_fast_6
+venv/bin/python -m app.cli check-challonge
+venv/bin/python -m app.cli set-tournament-event "Abyss Fight Club 4" challonge-afc_4_1="Group stage 1" \
+    challonge-afc_4_3="Main Stage"
 """
 
 import argparse
@@ -274,7 +279,11 @@ def find_player(session: Session, player: str) -> str:
     overrides = {
         n.user_id for n in session.exec(select(PlayerName).where(func.lower(PlayerName.name) == player.lower()))
     }
-    ids = {i for i in ids | overrides if i}
+    from .models import OffsitePlayer
+
+    by_offsite = (OffsitePlayer.id == player) | (func.lower(OffsitePlayer.name) == player.lower())
+    offsite = {o.id for o in session.exec(select(OffsitePlayer).where(by_offsite))}
+    ids = {i for i in ids | overrides | offsite if i}
     if not ids:
         raise SystemExit(f"No player with id or nickname {player!r}.")
     if len(ids) > 1:
@@ -379,6 +388,175 @@ def set_tournament_winner(tournament: str, player: str | None, source: str | Non
         print(f"{found.title}: winner is {player} ({user_id}). Used only when the final has no result.")
 
 
+def add_challonge_tournament(
+    url: str, title: str, organizer: str | None, date: str | None, team: bool, major: bool
+) -> None:
+    from datetime import datetime
+
+    from .services.challonge_import import add_challonge_tournament as add
+
+    create_db_and_tables()
+    started = datetime.fromisoformat(date).replace(tzinfo=UTC) if date else None
+    with Session(engine) as session:
+        try:
+            row = add(session, url, title, organizer, started, team, major=major)
+        except ValueError as e:
+            raise SystemExit(str(e)) from e
+        when = row.started_at.date().isoformat() + (" (estimated)" if row.date_estimated else "")
+        notes = (", team event" if row.team else "") + (", major" if row.major else "")
+        print(f"{title}: {row.tournament_id}, {when}{notes}.")
+
+
+def set_challonge_url(tournament: str, url: str | None) -> None:
+    from .services.challonge import fetch_challonge
+    from .services.challonge_import import set_challonge_url as set_url
+
+    create_db_and_tables()
+    with Session(engine) as session:
+        found = (
+            session.get(Tournament, tournament)
+            or session.exec(select(Tournament).where(func.lower(Tournament.title) == tournament.lower())).first()
+        )
+        if found is None:
+            raise SystemExit(f"No tournament with id or title {tournament!r}. See list-tournaments.")
+        title = found.title
+        try:
+            set_url(session, found.id, url)
+        except ValueError as e:
+            raise SystemExit(str(e)) from e
+        errors = fetch_challonge(session).errors if url else []
+    print(f"{title}: Challonge {'link ' + url if url else 'link removed'}.")
+    for error in errors:
+        print("Error:", error)
+
+
+def set_tournament_event(event: str | None, stages: list[str]) -> None:
+    """Makes the tournaments (ids or exact titles, in stage order; "title=stage name" to name the stage) the stages
+    of one event; event None takes them out of their event."""
+    from datetime import datetime
+
+    from .models import TournamentEvent
+
+    create_db_and_tables()
+    with Session(engine) as session:
+        for position, arg in enumerate(stages):
+            ref, _, label = arg.partition("=")
+            found = (
+                session.get(Tournament, ref)
+                or session.exec(select(Tournament).where(func.lower(Tournament.title) == ref.lower())).first()
+            )
+            if found is None:
+                raise SystemExit(f"No tournament with id or title {ref!r}. See list-tournaments.")
+            current = session.get(TournamentEvent, found.id)
+            if event is None:
+                if current:
+                    session.delete(current)
+                print(f"{found.title}: no longer a stage of an event.")
+                continue
+            session.merge(
+                TournamentEvent(
+                    tournament_id=found.id,
+                    event=event,
+                    stage=label or None,
+                    position=position,
+                    created_at=datetime.now(UTC),
+                )
+            )
+            print(f"{event}, stage {position + 1}: {label or found.title}")
+        session.commit()
+
+
+def add_manual_tournament(path: str) -> None:
+    import json
+
+    from .services.challonge_import import add_manual_tournament as add
+
+    create_db_and_tables()
+    with open(path, encoding="utf-8") as f:
+        spec = json.load(f)
+    with Session(engine) as session:
+        try:
+            row = add(session, spec)
+        except (KeyError, ValueError) as e:
+            raise SystemExit(f"{path}: {e}") from e
+        print(f"{spec['title']}: {row.tournament_id}{', major' if row.major else ''}.")
+
+
+def find_organizer(session: Session, ref: str) -> str:
+    """An organizer's site user id, from the id or their name on the site."""
+    from .models import TournamentInfo
+
+    ids = {
+        oid
+        for oid, name in session.exec(select(TournamentInfo.organizer_id, TournamentInfo.organizer_name).distinct())
+        if oid and (oid == ref or (name or "").casefold() == ref.casefold())
+    }
+    if len(ids) != 1:
+        raise SystemExit(f"{ref!r} isn't exactly one organizer (an id or their name on the site).")
+    return ids.pop()
+
+
+def set_organizer(ref: str, name: str | None, into: str | None, clear: bool) -> None:
+    """Shows an organizer under a name of their own and/or as another organizer; clear removes both."""
+    from datetime import datetime
+
+    from .models import OrganizerAlias
+
+    create_db_and_tables()
+    with Session(engine) as session:
+        oid = find_organizer(session, ref)
+        row = session.get(OrganizerAlias, oid)
+        if clear:
+            if row:
+                session.delete(row)
+            session.commit()
+            print(f"{ref}: shown as on the site again.")
+            return
+        target = find_organizer(session, into) if into else None
+        if target == oid:
+            raise SystemExit("That's the same organizer.")
+        row = row or OrganizerAlias(organizer_id=oid, created_at=datetime.now(UTC))
+        if name is not None:
+            row.name = name
+        if into is not None:
+            row.into_id = target
+        session.add(row)
+        session.commit()
+        print(
+            f"{ref}: "
+            + ", ".join(
+                filter(
+                    None, [f"shown as {row.name!r}" if row.name else None, f"counts as {into}" if row.into_id else None]
+                )
+            )
+            + "."
+        )
+
+
+def add_player(name: str, challonge_names: list[str]) -> None:
+    """Adds a person who never played on the site, and ties their bracket names to them."""
+    from datetime import datetime
+
+    from .models import OffsitePlayer
+    from .services.events import slug
+
+    create_db_and_tables()
+    pid = "offsite-" + (slug(name) or "player")
+    with Session(engine) as session:
+        session.merge(OffsitePlayer(id=pid, name=name, created_at=datetime.now(UTC)))
+        session.commit()
+    print(f"{name}: player {pid}.")
+    for n in challonge_names:
+        set_challonge_name(n, pid)
+
+
+def check_challonge() -> None:
+    from .services.challonge_check import find_issues, print_report
+
+    with Session(engine) as session:
+        print_report(find_issues(session))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -438,6 +616,38 @@ def main() -> None:
     winner_cmd.add_argument("player", nargs="?", help="Site user id or nickname of the winner")
     winner_cmd.add_argument("--source", help="Where the result comes from, e.g. a Challonge page")
     winner_cmd.add_argument("--clear", action="store_true", help="Remove the winner set by hand")
+    add_ch_cmd = commands.add_parser(
+        "add-challonge-tournament", help="Add a tournament played only on Challonge, with its bracket"
+    )
+    add_ch_cmd.add_argument("url", help="The Challonge bracket, e.g. https://challonge.com/afc_fast_5")
+    add_ch_cmd.add_argument("title", help="The title to show")
+    add_ch_cmd.add_argument("--organizer", help="Organizer's name as on the site's tournaments, e.g. 'Astro Liber'")
+    add_ch_cmd.add_argument("--date", help="When it was played (YYYY-MM-DD); estimated from the bracket if left out")
+    add_ch_cmd.add_argument("--team", action="store_true", help="A team event: left out of personal statistics")
+    add_ch_cmd.add_argument("--major", action="store_true", help="Count it as a major tournament")
+    url_cmd = commands.add_parser("set-challonge-url", help="Link a site tournament to its Challonge bracket")
+    url_cmd.add_argument("tournament", help="Tournament id or exact title")
+    url_cmd.add_argument("url", nargs="?", help="The Challonge bracket")
+    url_cmd.add_argument("--clear", action="store_true", help="Remove the link and the stored bracket")
+    commands.add_parser("check-challonge", help="List where Challonge brackets and the site's matches disagree")
+    player_cmd = commands.add_parser("add-player", help="Add a person who played only in bracket-only tournaments")
+    player_cmd.add_argument("name", help="The name to show")
+    player_cmd.add_argument("challonge_names", nargs="*", help="Their names in brackets, tied to them")
+    org_cmd = commands.add_parser("set-organizer", help="Show an organizer under another name, or as another organizer")
+    org_cmd.add_argument("organizer", help="The organizer's name on the site or their id")
+    org_cmd.add_argument("--name", help="The name to show, e.g. 'House of the Hearth'")
+    org_cmd.add_argument("--into", help="Another organizer this one counts as (one series, two accounts)")
+    org_cmd.add_argument("--clear", action="store_true", help="Show them as on the site again")
+    manual_cmd = commands.add_parser(
+        "add-manual-tournament", help="Add a tournament from a bracket entered by hand (a JSON file)"
+    )
+    manual_cmd.add_argument("file", help="JSON: slug, title, started, ended, rounds, third_place, major, organizer")
+    event_cmd = commands.add_parser("set-tournament-event", help="Group tournaments as the stages of one event")
+    event_cmd.add_argument("event", nargs="?", help="The event's name, e.g. 'Abyss Fight Club 4'")
+    event_cmd.add_argument(
+        "stages", nargs="+", help="Tournament ids or exact titles in stage order; 'title=Stage name' names a stage"
+    )
+    event_cmd.add_argument("--clear", action="store_true", help="Take the tournaments out of their event")
     args = parser.parse_args()
     if args.command == "set-role":
         set_role(args.nickname, Role(args.role))
@@ -483,6 +693,27 @@ def main() -> None:
         if not args.clear and not args.player:
             parser.error("set-tournament-winner needs a player or --clear")
         set_tournament_winner(args.tournament, None if args.clear else args.player, args.source)
+    elif args.command == "add-challonge-tournament":
+        add_challonge_tournament(args.url, args.title, args.organizer, args.date, args.team, args.major)
+    elif args.command == "set-challonge-url":
+        if not args.clear and not args.url:
+            parser.error("set-challonge-url needs a URL or --clear")
+        set_challonge_url(args.tournament, None if args.clear else args.url)
+    elif args.command == "set-tournament-event":
+        if args.clear:
+            set_tournament_event(None, ([args.event] if args.event else []) + args.stages)
+        else:
+            set_tournament_event(args.event, args.stages)
+    elif args.command == "add-manual-tournament":
+        add_manual_tournament(args.file)
+    elif args.command == "set-organizer":
+        if not (args.clear or args.name or args.into):
+            parser.error("set-organizer needs --name, --into or --clear")
+        set_organizer(args.organizer, args.name, args.into, args.clear)
+    elif args.command == "add-player":
+        add_player(args.name, args.challonge_names)
+    elif args.command == "check-challonge":
+        check_challonge()
     elif args.command == "delete-tournaments":
         if not args.ids and not args.first:
             parser.error("delete-tournaments needs tournament ids or --first N")

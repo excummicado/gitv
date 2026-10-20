@@ -1,6 +1,8 @@
 """Imported tournament matches, public: the matches list and everything the match page shows."""
 
 import json
+from collections import defaultdict
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Annotated
 
@@ -26,13 +28,17 @@ from ..models import (
 )
 from ..services.match_checks import (
     NO_RESULT,
+    MatchOutcome,
     SideGame,
+    TechnicalGame,
     adjusted_time,
     game_results,
     match_outcome,
     mode_label,
+    room_times,
     technical_game,
 )
+from ..services.organizers import organizer_resolver
 from ..services.player_names import display_names, merges, player_key, shown_name
 from ..services.stats import Snapshot, latest_top_pick, popular_characters, snapshot, tournament_standings
 from ..services.sync import live_tournaments
@@ -106,17 +112,15 @@ class Organizer(BaseModel):
 def organizers(
     session: SessionDep, tournament_ids: list[str], names: dict[str, str] | None = None
 ) -> dict[str, Organizer]:
-    """{tournament id: organizer} from fetch-tournaments; an organizer who also played shows under their player name."""
+    """{tournament id: organizer} from fetch-tournaments, under the name and grouping set with set-organizer; an
+    organizer who also played shows under their player name."""
     names = display_names(session) if names is None else names
+    resolve = organizer_resolver(session, names)
     infos = session.exec(select(TournamentInfo).where(TournamentInfo.tournament_id.in_(tournament_ids)))
     return {
-        i.tournament_id: Organizer(
-            id=i.organizer_id,
-            name=names.get(i.organizer_id) or i.organizer_name or i.organizer_id,
-            played=i.organizer_id in names,
-        )
+        i.tournament_id: Organizer(id=o.id, name=o.name, played=o.played)
         for i in infos
-        if i.organizer_id
+        if (o := resolve(i.organizer_id, i.organizer_name))
     }
 
 
@@ -145,6 +149,10 @@ class MatchDetail(BaseModel):
     # How the winner is known: "challonge" (the tournament's bracket), "technical" or "time"
     result_source: str | None = None
     games: list[Game]
+    # A match of a tournament known only by its bracket: the result, no games
+    challonge_only: bool = False
+    # That bracket on Challonge; None for one entered by hand
+    challonge_url: str | None = None
 
 
 def rooms_of(state: DraftState | None) -> dict[int, list[int]]:
@@ -192,7 +200,7 @@ def list_matches(
     total = session.exec(select(func.count()).select_from(query.subquery())).one()
     page = session.exec(query.order_by(Match.created_at.desc()).offset(offset).limit(limit)).all()
     snap = snapshot(session)
-    return MatchPage(items=[summary(session, m, snap) for m in page], total=total)
+    return MatchPage(items=summaries(session, list(page), snap), total=total)
 
 
 class Place(BaseModel):
@@ -227,19 +235,114 @@ def filtered(query, q: str, tournament: str | None):
     return query
 
 
-def summary(session: SessionDep, m: Match, snap: Snapshot) -> MatchSummary:
-    d = match_detail(session, m, snap)
-    return MatchSummary(
-        id=d.id,
-        tournament_id=d.tournament_id,
-        tournament=d.tournament,
-        created_at=d.created_at,
-        sides=d.sides,
-        winner=d.winner,
-        technical=d.technical,
-        result_source=d.result_source,
-        games=len(d.games),
+@dataclass
+class ScoredMatch:
+    """A match's sides and result: what the match page and the match lists both show."""
+
+    first: list[MatchPlayer]  # the sides, in the order of the first game
+    games_won: list[int]
+    totals: list[int | None]  # None when the totals mean nothing (see score_match)
+    outcome: MatchOutcome
+    winner: int | None  # index into the sides
+    games: list[tuple[MatchDraft, list[MatchPlayer], TechnicalGame | None, tuple[str, ...]]]
+
+    def sides(self, names: dict[str, str], merged: dict[str, str]) -> list[MatchSide]:
+        return [
+            MatchSide(
+                name=shown_name(p, names),
+                user_id=merged.get(p.user_id, p.user_id),
+                games_won=self.games_won[i],
+                total_time=self.totals[i],
+            )
+            for i, p in enumerate(self.first)
+        ]
+
+
+def score_match(
+    m: Match,
+    drafts: list[MatchDraft],
+    players: list[MatchPlayer],
+    rooms: dict[tuple[str, int], tuple[int, int, int]],
+    merged: dict[str, str],
+    snap: Snapshot,
+) -> ScoredMatch:
+    """Scores a match from its drafts (in game order), players and room times by (draft, slot), by the shared rule
+    (match_checks.match_outcome): Challonge first, then technical defeats, then total time."""
+    paid = json.loads(m.paid_restarts or "[]")
+
+    def adj(p: MatchPlayer) -> int:
+        return adjusted_time(p.clear_time, p.restarts, m.free_restarts, paid)
+
+    def key(p: MatchPlayer) -> str:
+        return player_key(p, merged)
+
+    # Sides in the order of the first game; later games are matched to them by player.
+    first = sorted((p for p in players if drafts and p.draft_id == drafts[0].id), key=lambda p: p.slot)
+    side_of = {key(p): i for i, p in enumerate(first)}
+    won = [0] * len(first)
+    totals: list[int | None] = [0] * len(first)
+    games = []
+    side_games: list[SideGame] = []
+    for d in drafts:
+        dp = sorted((p for p in players if p.draft_id == d.id), key=lambda p: p.slot)
+        tech = technical_game(dp, {p.slot: rooms.get((d.id, p.slot)) for p in dp})
+        results = game_results(dp[0], dp[1], tech, adj(dp[0]), adj(dp[1])) if len(dp) == 2 else (NO_RESULT,) * len(dp)
+        for p, r in zip(dp, results, strict=True):
+            i = side_of.get(key(p))
+            # A player who isn't one of the first game's two: the match can't be scored.
+            side_games.append(
+                SideGame(i if i is not None else key(p), r, bool(tech and tech.loser_slot == p.slot), adj(p))
+            )
+            if i is not None:
+                won[i] += r == "W"
+                totals[i] += adj(p)
+        games.append((d, dp, tech, results))
+
+    known = snap.outcomes.get(m.id)
+    challonge = side_of.get(known.winner) if known and known.source == "challonge" else None
+    outcome = match_outcome(side_games, challonge)
+    # Totals mean something only when every game has a time and nobody took a technical defeat.
+    if outcome.technical or any(g.result == NO_RESULT for g in side_games) or len(side_of) != 2:
+        totals = [None] * len(first)
+    return ScoredMatch(first, won, totals, outcome, outcome.winner if outcome.winner in (0, 1) else None, games)
+
+
+def summaries(session: SessionDep, matches: list[Match], snap: Snapshot) -> list[MatchSummary]:
+    """List rows for many matches at once: three queries for the whole page instead of a match page each."""
+    if not matches:
+        return []
+    ids = [m.id for m in matches]
+    drafts: dict[str, list[MatchDraft]] = defaultdict(list)
+    for d in session.exec(select(MatchDraft).where(MatchDraft.match_id.in_(ids)).order_by(MatchDraft.game_no)):
+        drafts[d.match_id].append(d)
+    players: dict[str, list[MatchPlayer]] = defaultdict(list)
+    for p in session.exec(select(MatchPlayer).where(MatchPlayer.match_id.in_(ids))):
+        players[p.match_id].append(p)
+    rooms = room_times(session, [d.id for ds in drafts.values() for d in ds])
+    titles = dict(
+        session.exec(
+            select(Tournament.id, Tournament.title).where(Tournament.id.in_({m.tournament_id for m in matches}))
+        ).all()
     )
+    merged = merges(session)
+    names = display_names(session)
+    rows = []
+    for m in matches:
+        scored = score_match(m, drafts[m.id], players[m.id], rooms, merged, snap)
+        rows.append(
+            MatchSummary(
+                id=m.id,
+                tournament_id=m.tournament_id,
+                tournament=titles.get(m.tournament_id, ""),
+                created_at=m.created_at,
+                sides=scored.sides(names, merged),
+                winner=scored.winner,
+                technical=scored.outcome.technical,
+                result_source=scored.outcome.source if scored.outcome.decided else None,
+                games=len(drafts[m.id]),
+            )
+        )
+    return rows
 
 
 @router.get("/by-tournament", response_model=GroupedPage)
@@ -282,7 +385,7 @@ def list_matches_by_tournament(
                     Place(place=p["place"], player=Organizer(**p["player"], played=True))
                     for p in places.get(tournament_id, [])
                 ],
-                items=[summary(session, m, snap) for m in ms],
+                items=summaries(session, list(ms), snap),
             )
         )
     return GroupedPage(groups=groups, total=len(rows), matches=sum(r[1] for r in rows))
@@ -407,8 +510,48 @@ def list_match_tournaments(session: SessionDep):
 def read_match(match_id: str, session: SessionDep):
     m = session.get(Match, match_id)
     if m is None:
+        if match_id.startswith("ch-"):
+            return challonge_match_detail(session, match_id)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such match.")
     return match_detail(session, m)
+
+
+def challonge_match_detail(session: SessionDep, match_id: str) -> MatchDetail:
+    """A match of a Challonge-only tournament, from its bracket: the two sides, the score and the winner."""
+    snap = snapshot(session)
+    cm = snap.challonge_matches.get(match_id)
+    if cm is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such match.")
+    names = display_names(session)
+    order = list(cm.names)
+    tournament = session.get(Tournament, cm.tournament_id)
+    return MatchDetail(
+        id=match_id,
+        tournament_id=cm.tournament_id,
+        tournament=tournament.title if tournament else "",
+        organizer=organizers(session, [cm.tournament_id], names).get(cm.tournament_id),
+        created_at=cm.created_at,
+        system=None,
+        mode=None,
+        is_official=False,
+        free_restarts=None,
+        paid_restarts=[],
+        sides=[
+            MatchSide(
+                name=snap.players[side].name if side in snap.players else cm.names[side],
+                user_id=side if side in snap.players else None,
+                games_won=cm.games_won[side],
+                total_time=None,
+            )
+            for side in order
+        ],
+        winner=order.index(cm.winner),
+        technical=cm.technical,
+        result_source="challonge",
+        games=[],
+        challonge_only=True,
+        challonge_url=(info := session.get(TournamentInfo, cm.tournament_id)) and info.challonge_url,
+    )
 
 
 def match_detail(session: SessionDep, m: Match, snap: Snapshot | None = None) -> MatchDetail:
@@ -453,36 +596,16 @@ def match_detail(session: SessionDep, m: Match, snap: Snapshot | None = None) ->
         return adjusted_time(p.clear_time, p.restarts, m.free_restarts, paid)
 
     merged = merges(session)
-
-    def key(p: MatchPlayer) -> str:
-        return player_key(p, merged)
-
-    # Sides in the order of the first game; later games are matched to them by player.
-    first = sorted((p for p in players if drafts and p.draft_id == drafts[0].id), key=lambda p: p.slot)
-    side_of = {key(p): i for i, p in enumerate(first)}
     names = display_names(session)
-    sides = [
-        MatchSide(name=shown_name(p, names), user_id=merged.get(p.user_id, p.user_id), games_won=0, total_time=0)
-        for p in first
-    ]
+    room_lists = {d.id: rooms_of(states.get(d.id)) for d in drafts}
+    rooms = {(d, slot): tuple(times) for d, by_slot in room_lists.items() for slot, times in by_slot.items()}
+    scored = score_match(m, drafts, players, rooms, merged, snap or snapshot(session))
+    sides = scored.sides(names, merged)
 
     games: list[Game] = []
-    side_games: list[SideGame] = []
-    for d in drafts:
-        dp = sorted((p for p in players if p.draft_id == d.id), key=lambda p: p.slot)
-        rooms = rooms_of(states.get(d.id))
-        tech = technical_game(dp, {p.slot: tuple(rooms[p.slot]) if p.slot in rooms else None for p in dp})
-        results = game_results(dp[0], dp[1], tech, adj(dp[0]), adj(dp[1])) if len(dp) == 2 else (NO_RESULT,) * len(dp)
+    for d, dp, tech, results in scored.games:
+        rooms = room_lists[d.id]
         winner_slot = next((p.slot for p, r in zip(dp, results, strict=True) if r == "W"), None)
-        for p, r in zip(dp, results, strict=True):
-            i = side_of.get(key(p))
-            # A player who isn't one of the first game's two: the match can't be scored.
-            side_games.append(
-                SideGame(i if i is not None else key(p), r, bool(tech and tech.loser_slot == p.slot), adj(p))
-            )
-            if i is not None:
-                sides[i].games_won += r == "W"
-                sides[i].total_time += adj(p)
         state = states.get(d.id)
         games.append(
             Game(
@@ -536,16 +659,6 @@ def match_detail(session: SessionDep, m: Match, snap: Snapshot | None = None) ->
             )
         )
 
-    # The shared rule (match_checks.match_outcome): Challonge first, then technical defeats, then total time.
-    known = (snap or snapshot(session)).outcomes.get(m.id)
-    challonge = side_of.get(known.winner) if known and known.source == "challonge" else None
-    outcome = match_outcome(side_games, challonge)
-    winner = outcome.winner if outcome.winner in (0, 1) else None
-    # Totals mean something only when every game has a time and nobody took a technical defeat.
-    if outcome.technical or any(g.result == NO_RESULT for g in side_games) or len(side_of) != 2:
-        for s in sides:
-            s.total_time = None
-
     return MatchDetail(
         id=m.id,
         tournament_id=m.tournament_id,
@@ -558,8 +671,8 @@ def match_detail(session: SessionDep, m: Match, snap: Snapshot | None = None) ->
         free_restarts=m.free_restarts,
         paid_restarts=paid,
         sides=sides,
-        winner=winner,
-        technical=outcome.technical,
-        result_source=outcome.source if outcome.decided else None,
+        winner=scored.winner,
+        technical=scored.outcome.technical,
+        result_source=scored.outcome.source if scored.outcome.decided else None,
         games=games,
     )

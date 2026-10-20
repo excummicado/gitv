@@ -13,8 +13,21 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from .config import settings
 from .database import create_db_and_tables, engine
 from .messages import request_lang, translate
-from .routers import admin, characters, discord, health, matches, players, schedule, suggestions, tournaments, users
+from .routers import (
+    admin,
+    analytics,
+    characters,
+    discord,
+    health,
+    matches,
+    players,
+    schedule,
+    suggestions,
+    tournaments,
+    users,
+)
 from .services.media import MEDIA_DIR
+from .services.stats.snapshot import warm_up
 from .services.sync import run_forever
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -24,9 +37,12 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname
 async def lifespan(app: FastAPI):
     # SQLite tables are created on startup only for the time being (no migrations yet).
     create_db_and_tables()
+    # Statistics are built in the background straight away instead of on the first request.
+    warming = asyncio.create_task(asyncio.to_thread(warm_up, engine))
     # Background sync with the tournament site, when SYNC_INTERVAL is set (off by default).
     task = asyncio.create_task(run_forever(engine, settings.sync_interval)) if settings.sync_interval > 0 else None
     yield
+    warming.cancel()
     if task:
         task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
@@ -54,6 +70,7 @@ app.include_router(suggestions.router, prefix=settings.api_prefix)
 app.include_router(schedule.router, prefix=settings.api_prefix)
 app.include_router(tournaments.router, prefix=settings.api_prefix)
 app.include_router(characters.router, prefix=settings.api_prefix)
+app.include_router(analytics.router, prefix=settings.api_prefix)
 
 # Uploaded avatars. Only images checked by their bytes are ever written there (services/media.py).
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)

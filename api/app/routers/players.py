@@ -23,9 +23,12 @@ from ..services.stats import (
     recent_champions,
     snapshot,
     summary,
+    tournament_standings,
 )
+from ..services.stats.snapshot import major_tournament_ids
 from .matches import Character
 from .suggestions import PlayerInfo, ProfileChangeOut, player_info, profile_history
+from .tournaments import rows as tournament_rows
 
 router = APIRouter(prefix="/players", tags=["players"])
 
@@ -155,6 +158,12 @@ class RosterVersion(BaseModel):
     weapons: list[RosterWeapon]
 
 
+class MajorTitle(BaseModel):
+    tournament_id: str  # the stage they won (the final stage of a tournament in stages)
+    title: str  # the event's name for a tournament in stages, else the tournament's
+    date: datetime
+
+
 class PlayerDetail(PlayerSummary):
     most_picked: CharacterCount | None
     most_banned_against: CharacterCount | None
@@ -177,6 +186,8 @@ class PlayerDetail(PlayerSummary):
     profile_history: list[ProfileChangeOut]
     # Top-4 places, newest first
     finishes: list[Finish]
+    # Major tournaments won, newest first, whatever the shown scope
+    major_titles: list[MajorTitle] = []
     match_list: list[PlayerMatch]
     # Most met opponents, with the player's record against them
     frequent_opponents: list["FrequentOpponent"]
@@ -314,7 +325,29 @@ def read_player(
         "tournament": tournament,
         "profile": player_info(session, player_id),
         "profile_history": profile_history(session, player_id),
+        "major_titles": major_titles(session, everything, player_id),
     }
+
+
+def major_titles(session: SessionDep, snap, player_id: str) -> list[dict]:
+    """Major tournaments the player won (1st place), newest first; a tournament in stages under its event's name."""
+    majors = major_tournament_ids(session)
+    won = [
+        s
+        for s in tournament_standings(snap)
+        if s["tournament"]["id"] in majors
+        and any(p["place"] == 1 and p["player"]["id"] == player_id for p in s["places"])
+    ]
+    if not won:
+        return []
+    events = {r.id: r.event for r in tournament_rows(session, [s["tournament"]["id"] for s in won])}
+    titles = []
+    for s in won:
+        tid = s["tournament"]["id"]
+        event = events.get(tid)
+        title = event.title if event else s["tournament"]["title"]
+        titles.append({"tournament_id": tid, "title": title, "date": s["date"]})
+    return titles
 
 
 @router.get("/{player_id}/rosters/{tournament_id}", response_model=list[RosterVersion])

@@ -201,6 +201,16 @@ class PlayerName(SQLModel, table=True):
     name: str
 
 
+class OffsitePlayer(SQLModel, table=True):
+    """A person who played only in tournaments known by their bracket (Challonge or a picture), never on the site,
+    added by hand (app.cli add-player) so they get a player page; their bracket names are tied to them with
+    set-challonge-name. The id is "offsite-<slug>"."""
+
+    id: str = Field(primary_key=True)
+    name: str
+    created_at: datetime
+
+
 class PlayerMerge(SQLModel, table=True):
     """One person on two site accounts (app.cli merge-players): the account user_id counts as into_id everywhere,
     in statistics, names and links. Kept apart from imported tables so re-importing never undoes it."""
@@ -226,6 +236,17 @@ class TournamentInfo(SQLModel, table=True):
     challonge_url: str | None = None
     # The tournament's banner on the site
     image: str | None = None
+
+
+class OrganizerAlias(SQLModel, table=True):
+    """How an organizer is shown, set by hand (app.cli set-organizer): a name of their own (a league or brand,
+    e.g. "House of the Hearth") and/or another organizer they count as, so two site accounts running one series
+    show and filter as one. Kept apart from tournamentinfo, which fetch-tournaments rewrites."""
+
+    organizer_id: str = Field(primary_key=True)  # the site user id (tournamentinfo.organizer_id)
+    name: str | None = None
+    into_id: str | None = None  # the organizer this one counts as
+    created_at: datetime
 
 
 class TournamentPlayer(SQLModel, table=True):
@@ -258,6 +279,27 @@ class ChallongeBracket(SQLModel, table=True):
     tournament_type: str | None = None
     raw: str  # JSON of window._initialStoreState['TournamentStore']
     fetched_at: datetime
+
+
+class ChallongeTournament(SQLModel, table=True):
+    """A tournament played only on Challonge, before or beside the site (app.cli add-challonge-tournament), or with
+    a bracket entered by hand from a picture (app.cli add-manual-tournament, id "manual-<slug>", empty url): it has
+    a Tournament row (id "challonge-<slug>") and its bracket, but no drafts, so it counts for matches and places,
+    not for games, times or characters. Kept apart from imported tables so re-importing never undoes it."""
+
+    tournament_id: str = Field(primary_key=True, foreign_key="tournament.id")
+    url: str
+    # Challonge's embed page has no dates: unless set by hand, the date is estimated from the bracket's Challonge
+    # id against tournaments with known dates (date_estimated)
+    started_at: datetime
+    # When it ended, if known: the bracket's rounds are then spread between the two dates
+    ended_at: datetime | None = None
+    date_estimated: bool = True
+    # A team event: shown with its bracket, left out of personal statistics
+    team: bool = False
+    # Counts as a major tournament (the site's «major tournaments» filter), e.g. the numbered Abyss Fight Club events
+    major: bool | None = None
+    created_at: datetime
 
 
 # Real names, birthdays and avatars of tournament players come from site members: anyone signed in
@@ -317,6 +359,18 @@ class PlayerProfileChange(SQLModel, table=True):
     changed_by: uuid.UUID | None = Field(default=None, foreign_key="user.id")
     # Set when the change came from an accepted suggestion
     suggestion_id: int | None = Field(default=None, foreign_key="playersuggestion.id")
+    created_at: datetime
+
+
+class TournamentEvent(SQLModel, table=True):
+    """A stage of a tournament run in several stages (groups, Swiss, main stage), set by hand
+    (app.cli set-tournament-event): the tournaments list shows the event as one row that opens to its stages.
+    Abyss Cup seasons are grouped on their own (services.events). Kept apart from imported tables."""
+
+    tournament_id: str = Field(primary_key=True, foreign_key="tournament.id")
+    event: str = Field(index=True)  # the event's name, e.g. "Abyss Fight Club 4"
+    stage: str | None = None  # the stage's name within it, e.g. "Group stage 1"; the tournament's title if None
+    position: int = 0  # order of the stage within the event
     created_at: datetime
 
 
@@ -407,3 +461,33 @@ class ScheduledMatch(SQLModel, table=True):
     starts_at: datetime = Field(index=True)  # UTC
     created_by: uuid.UUID = Field(foreign_key="user.id")
     created_at: datetime
+
+
+# Site analytics (services/analytics.py): aggregated counts only. Visitors are kept as a hash salted with a
+# random value that changes every day, so they can't be followed from one day to the next; no IP address,
+# user agent or cookie is stored.
+
+
+class AnalyticsSalt(SQLModel, table=True):
+    day: date = Field(primary_key=True)
+    salt: str
+
+
+class PageViewDay(SQLModel, table=True):
+    day: date = Field(primary_key=True)
+    path: str = Field(primary_key=True, max_length=120)
+    views: int = 0
+
+
+class VisitorDay(SQLModel, table=True):
+    day: date = Field(primary_key=True)
+    visitor: str = Field(primary_key=True, max_length=32)  # salted hash, see AnalyticsSalt
+    views: int = 0
+    first_seen: datetime
+    last_seen: datetime
+
+
+class ReferrerDay(SQLModel, table=True):
+    day: date = Field(primary_key=True)
+    host: str = Field(primary_key=True, max_length=120)  # the referring site, e.g. discord.com
+    visits: int = 0

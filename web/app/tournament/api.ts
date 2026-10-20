@@ -10,9 +10,16 @@ export type TournamentRow = {
   system: string | null; prize: number | null; currency: string | null; challonge_url: string | null;
   first_match: string | null; last_match: string | null; matches: number; players: number;
   winner: PlayerRef | null; places_source: "challonge" | "matches" | null;
+  // Played only on Challonge (matches and places, no games or drafts); its date is then usually an estimate
+  challonge_only: boolean; date_estimated: boolean;
+  // The event this tournament is a stage of (Abyss Fight Club 4, an Abyss Cup season)
+  event: EventRef | null;
 };
+export type EventRef = { id: string; title: string; stage: string; position: number; stages: number };
+export type StageRef = { id: string; title: string; kind: TournamentKind; first_match: string | null; last_match: string | null };
 export type TableRow = {
-  player: PlayerRef; place: [number, number] | null; place_source: "challonge" | "estimate" | null;
+  // id null: a Challonge name not matched to anyone on the site
+  player: { id: string | null; name: string }; place: [number, number] | null; place_source: "challonge" | "estimate" | null;
   match_wins: number; match_losses: number; match_draws: number; games_won: number; games_lost: number;
   tech_losses: number; avg_time: number | null; best_time: number | null; qualification: "passed" | "failed" | "pending" | null;
 };
@@ -26,7 +33,7 @@ export type BracketSide = { name: string; id: string | null; challonge_name: str
 export type BracketMatch = { player1: BracketSide | null; player2: BracketSide | null; scores: number[]; winner: 1 | 2 | null };
 // round: 1, 2, ... main bracket; negative: losers' bracket; 0: third-place match
 export type BracketRound = { round: number; matches: BracketMatch[] };
-export type TournamentDetail = TournamentRow & { table: TableRow[]; stats: TournamentStats; bracket: BracketRound[] | null; unmatched: string[] };
+export type TournamentDetail = TournamentRow & { stages: StageRef[]; table: TableRow[]; stats: TournamentStats; bracket: BracketRound[] | null; unmatched: string[] };
 
 export function fetchTournamentList(signal?: AbortSignal) {
   return getJson<TournamentRow[]>("/api/v1/tournaments", { signal });

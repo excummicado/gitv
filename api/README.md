@@ -252,6 +252,14 @@ name), its system, prize and finish date in `tournamentinfo`, from the public to
 `/users/profile/<id>`. The site shows the organizer next to the tournament name; one who also played
 links to their player page. Run it after importing new tournaments.
 
+### Analytics
+
+The site counts its own page views (`app/services/analytics.py`, `POST /api/v1/analytics/view`): the page,
+the referring site and a visitor hash salted with a value replaced every day; no IP address or cookie is kept,
+and bots, Do Not Track and Global Privacy Control are left out. Admins see daily views and visitors, the most
+viewed pages and sections, referring sites and who is on the site now at `/analytics`
+(`GET /api/v1/admin/analytics?days=30`). Visitor rows are deleted after 90 days.
+
 ### One person, two accounts
 
 Someone who played from two site accounts is counted as one player with
@@ -287,6 +295,97 @@ adjusted time. Places: the final's winner and loser, the third-place match if pl
 round they were knocked out in (5–8, 9–16, …; double elimination by losers'-bracket round). The player page
 marks places worked out without Challonge with «≈».
 
+Group stages on a Challonge bracket (round robin groups before the playoff) are read too: their results decide
+the site's matches like the bracket's, but give no places.
+
+A site tournament without a Challonge link on the site gets one by hand; fetch-tournaments keeps it while the
+site has none:
+
+```bash
+venv/bin/python -m app.cli set-challonge-url "HotH: Abyss Weekend 6" https://challonge.com/hoth_fast_6   # --clear
+```
+
+### Where Challonge and the site disagree
+
+```bash
+venv/bin/python -m app.cli check-challonge
+```
+
+For every site tournament with a bracket: Challonge names matched to nobody (tie them with set-challonge-name),
+site players missing from the bracket, matches on one side only, pairs that met a different number of times
+(Challonge's result can't be paired, so the site's games decide), and matches whose Challonge winner differs from
+what the site's own games say. The site already follows Challonge for the last ones.
+
+### Tournaments played only on Challonge
+
+```bash
+venv/bin/python -m app.cli add-challonge-tournament https://challonge.com/afc_fast_5 "Abyss Fight Club: Abyss Weekend 5" \
+    --organizer "Astro Liber"            # --date 2025-07-01, --team for a team event
+```
+
+Events played before the site (or beside it) have only their bracket. Such a tournament is stored as
+`challonge-<slug>` with its bracket and a `challongetournament` row; its decided matches (bracket and group
+stage) count for players' match records, head-to-heads, tournaments and places, not for games, times or
+characters, which need drafts. A forfeit or a 0:0 result counts as a technical defeat. Its names are matched to
+the site's players like any bracket's; people who aren't on the site appear in its table and bracket without a
+link. Match pages (`/match/ch-<Challonge match id>`) show the result only. The embed page has no dates, so unless
+`--date` is given the date is estimated from the bracket's Challonge id against site tournaments' brackets (shown
+with «≈»). Team events are kept for their page and bracket only.
+
+### Tournaments from a picture of their bracket
+
+A tournament with neither drafts nor a Challonge bracket (only its published bracket, as a picture) is entered by
+hand as a JSON file under `brackets/` and stored like a Challonge-only one, with the id `manual-<slug>` and no link:
+
+```bash
+venv/bin/python -m app.cli add-manual-tournament brackets/abyss_cup_minor_1.json
+```
+
+The file holds `slug`, `title`, `started` and `ended` (YYYY-MM-DD; the rounds are spread between them), `rounds`
+(single elimination, first round first, each match `[player 1, player 2, winner]`), an optional `third_place` match,
+and optional `major`, `team` and `organizer`. Running it again replaces the tournament.
+
+### Organizers' names
+
+The site shows who created a tournament on darte.gg. An organizer can be shown under a name of their own (a league
+or brand), and two accounts running one series can count as one organizer, on every page, in the organizer filters
+and in the export:
+
+```bash
+venv/bin/python -m app.cli set-organizer "Astro Liber" --name "House of the Hearth"
+venv/bin/python -m app.cli set-organizer Xeity --name "Abyss Cup"
+venv/bin/python -m app.cli set-organizer Skiramit --into Xeity        # --clear shows them as on the site again
+```
+
+Stored in `organizeralias`, so fetch-tournaments keeps it. The `organizer` of a hand-entered or Challonge-only
+tournament can be either name.
+
+### People who never played on the site
+
+Someone known only from bracket-only tournaments (Challonge or a picture) gets a player page once added by hand, with
+their bracket names tied to them:
+
+```bash
+venv/bin/python -m app.cli add-player Invinsik Invinsik nvnsk     # name, then their names in brackets
+```
+
+Stored in `offsiteplayer` (id `offsite-<slug>`); the names are ordinary `set-challonge-name` ties. Their page has
+matches, tournaments and places, no games.
+
+### Tournaments in stages
+
+A tournament run in stages (groups, Swiss, main stage) shows as one event: the tournaments list has one row for
+it that opens to its stages, and a stage's page switches between them. Abyss Cup seasons group on their own (every
+qualifier stage with the first playoff after it, see `services/events.py`); other events are set by hand, stages
+in order, `=` naming a stage:
+
+```bash
+venv/bin/python -m app.cli set-tournament-event "Abyss Fight Club 4" challonge-afc_4_1="Group stage 1" \
+    challonge-afc_4_2="Group Stage 2" challonge-afc_4_3="Main Stage"     # --clear <tournaments> undoes it
+```
+
+Statistics still count each stage as its own tournament.
+
 ### Tournament places without Challonge
 
 The first four places of a bracket tournament without a Challonge bracket are worked out from its matches,
@@ -303,7 +402,8 @@ sheets.
 tournaments» button) count only Abyss Cup qualifiers and playoffs: tournaments whose own system on the site
 is Abyss Cup (from fetch-tournaments) and whose title has Qualification, Quals or Playoff. Fast cups and
 other series (New Gen, HotH, Abyss Ascend) are left out. The rule is `MAJOR_SYSTEM` / `MAJOR_TITLE` in
-`match_checks.py`.
+`match_checks.py`. Challonge-only tournaments count when marked major (`add-challonge-tournament --major`): the numbered
+Abyss Fight Club events (Abyss Fight Club 2, 3, 4, every stage), not the Abyss Fight Club weekends and fast cups.
 
 ### Player info: real name, birthday, avatar
 

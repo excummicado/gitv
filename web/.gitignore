@@ -6,3 +6,6 @@ references/
 # React Router
 /.react-router/
 /build/
+
+# Vite's dependency cache
+.vite/

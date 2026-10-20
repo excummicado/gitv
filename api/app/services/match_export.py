@@ -44,6 +44,7 @@ from .match_checks import (
     mode_label,
     technical_drafts,
 )
+from .organizers import organizer_resolver
 from .player_names import display_names, merges, player_key, shown_name
 from .stats import snapshot, tournament_standings
 
@@ -514,9 +515,11 @@ def export_xlsx(session: Session, path: str) -> dict[str, int]:
     )
 
     # First four places of every bracket tournament, same as the site.
+    resolve = organizer_resolver(session, shown_names)
     organizer_of = {
-        i.tournament_id: shown_names.get(i.organizer_id) or i.organizer_name
+        i.tournament_id: o.name
         for i in session.exec(select(TournamentInfo))
+        if (o := resolve(i.organizer_id, i.organizer_name))
     }
     standings_rows = [
         [s["date"], s["tournament"]["title"], organizer_of.get(s["tournament"]["id"])]

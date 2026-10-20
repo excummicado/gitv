@@ -508,6 +508,24 @@ function Stats({ player }: { player: PlayerDetail }) {
   );
 }
 
+// "Major champion ×N" next to the nickname; hovering or focusing it lists the majors won.
+function MajorChampion({ titles }: { titles: PlayerDetail["major_titles"] }) {
+  const { t, date } = useLang();
+  if (!titles?.length) return null;
+  return (
+    <span className="player-major-champion" tabIndex={0} aria-describedby="player-major-titles">
+      {t("Major champion", "Чемпион мейджора")}{titles.length > 1 && <b> ×{titles.length}</b>}
+      <span className="player-major-tip" role="tooltip" id="player-major-titles">
+        {titles.map((m) => (
+          <Link key={m.tournament_id} to={`/tournament/${m.tournament_id}`} className="player-major-tip-row">
+            <span>{m.title}</span><span className="gitv-date">{date(m.date)}</span>
+          </Link>
+        ))}
+      </span>
+    </span>
+  );
+}
+
 export function PlayerPage({ playerId }: { playerId: string }) {
   const l = useLang();
   const { t } = l;
@@ -574,7 +592,10 @@ export function PlayerPage({ playerId }: { playerId: string }) {
                     <div className="player-identity">
                       {player.profile?.avatar_url && <img className="player-avatar" src={player.profile.avatar_url} alt="" width={72} height={72} />}
                       <div className="player-identity-text">
-                        <div className="player-nickname">{player.name}</div>
+                        <div className="player-name-row">
+                          <div className="player-nickname">{player.name}</div>
+                          <MajorChampion titles={player.major_titles} />
+                        </div>
                         {(player.profile?.real_name || player.profile?.age != null) && (
                           <div className="player-realname">
                             {[player.profile.real_name, player.profile.age != null ? l.count(player.profile.age, ["y.o.", "y.o."], ["год", "года", "лет"]) : null].filter(Boolean).join(" · ")}

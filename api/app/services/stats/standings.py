@@ -78,6 +78,8 @@ def tournament_standings(snap: Snapshot) -> list[dict]:
                 }
             )
             continue
+        if tid in snap.challonge_only:
+            continue  # played only on Challonge: its bracket is all there is, and it has no winner to go by
         last = {pid: (snap.match_info[m][0], o == "W") for m in mids for pid, o in outcome[m].items()}
         sides = snap.match_sides[final]
         winner = next((p for p, o in outcome[final].items() if o == "W"), None)
@@ -171,6 +173,8 @@ def bracket_places(snap: Snapshot) -> dict[tuple[str, str], tuple[int, int, str]
             for pid in counts:
                 if pid in ch.places:
                     ranks[(pid, tid)] = (*ch.places[pid], "challonge")
+            continue
+        if tid in snap.challonge_only:
             continue
         fixed = top.get(tid, {})
         for pid, place in fixed.items():

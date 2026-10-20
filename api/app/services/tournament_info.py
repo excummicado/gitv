@@ -34,6 +34,8 @@ def fetch_tournament_info(session: Session) -> dict[str, int]:
             r = client.get(f"{API}/users/profile/{creator}")
             profile = r.json() if r.status_code == 200 else {}
             names[creator] = profile.get("fullName") or profile.get("discordName")
+    # A link set by hand (set-challonge-url) stays while the site has none.
+    links = dict(session.exec(select(TournamentInfo.tournament_id, TournamentInfo.challonge_url)).all())
     for tid, t in found.items():
         session.merge(
             TournamentInfo(
@@ -45,7 +47,7 @@ def fetch_tournament_info(session: Session) -> dict[str, int]:
                 currency=t.get("currency"),
                 is_finished=bool(t.get("isFinished")),
                 finished_at=parse_date(t.get("finishedAt")),
-                challonge_url=challonge_link(t.get("links")),
+                challonge_url=challonge_link(t.get("links")) or links.get(tid),
                 image=t.get("image"),
             )
         )

@@ -94,7 +94,8 @@ def rivalries(snap: Snapshot) -> list[dict]:
     pairs: dict[tuple[str, str], dict] = {}
     for match_id, o in snap.outcomes.items():
         sides = list(snap.match_sides.get(match_id, {}))
-        if len(sides) != 2:
+        # Both must be players: a Challonge-only match can have a side not on the site ("?<name>").
+        if len(sides) != 2 or not all(s in snap.players for s in sides):
             continue
         a, b = sorted(sides)
         row = pairs.setdefault((a, b), {"players": (a, b), "meetings": 0, "wins": [0, 0], "last": None})

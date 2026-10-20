@@ -11,9 +11,10 @@ export function Prize({ prize, currency }: { prize: number | null; currency: str
   return <>{prize.toLocaleString(locale)}{currency ? ` ${currency}` : ""}</>;
 }
 
-// "05/10/2026" or "03/10/2026 – 05/10/2026".
-export function DateRange({ first, last }: { first: string | null; last: string | null }) {
-  const { date } = useLang();
+// "05/10/2026" or "03/10/2026 – 05/10/2026"; "≈ 05/10/2026" for a date estimated from the Challonge bracket.
+export function DateRange({ first, last, estimated = false }: { first: string | null; last: string | null; estimated?: boolean }) {
+  const { date, t } = useLang();
   if (!first || !last) return <>—</>;
+  if (estimated) return <span title={t("Estimated from the Challonge bracket", "Оценка по сетке Challonge")}>≈ {date(first)}</span>;
   return <>{date(first)}{first.slice(0, 10) !== last.slice(0, 10) ? ` – ${date(last)}` : ""}</>;
 }
