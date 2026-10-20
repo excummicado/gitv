@@ -1,0 +1,22 @@
+{
+  "slug": "abyss_cup_major_1",
+  "title": "Abyss Cup Major 1 Playoff",
+  "started": "2025-03-01",
+  "ended": "2025-03-15",
+  "organizer": "Xeity",
+  "major": true,
+  "rounds": [
+    [
+      ["Mistikal", "Alou", "Alou"],
+      ["Smertikk", "gr4G", "Smertikk"]
+    ],
+    [
+      ["Spartanchick", "Alou", "Spartanchick"],
+      ["Linkle", "Smertikk", "Smertikk"]
+    ],
+    [
+      ["Spartanchick", "Smertikk", "Spartanchick"]
+    ]
+  ],
+  "third_place": ["Linkle", "Alou", "Alou"]
+}
