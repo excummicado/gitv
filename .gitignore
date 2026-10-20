@@ -8,3 +8,7 @@
 
 # Build caches
 .vite/
+
+# Local working files: Elo exports and data-check notes
+elo*.xlsx
+challonge-resolve.md
