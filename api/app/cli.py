@@ -389,17 +389,20 @@ def set_tournament_winner(tournament: str, player: str | None, source: str | Non
 
 
 def add_challonge_tournament(
-    url: str, title: str, organizer: str | None, date: str | None, team: bool, major: bool
+    url: str, title: str, organizer: str | None, date: str | None, ended: str | None, team: bool, major: bool
 ) -> None:
     from datetime import datetime
 
     from .services.challonge_import import add_challonge_tournament as add
 
     create_db_and_tables()
+    if ended and not date:
+        raise SystemExit("--ended needs --date")
     started = datetime.fromisoformat(date).replace(tzinfo=UTC) if date else None
+    last = datetime.fromisoformat(ended).replace(tzinfo=UTC) if ended else None
     with Session(engine) as session:
         try:
-            row = add(session, url, title, organizer, started, team, major=major)
+            row = add(session, url, title, organizer, started, team, major=major, ended_at=last)
         except ValueError as e:
             raise SystemExit(str(e)) from e
         when = row.started_at.date().isoformat() + (" (estimated)" if row.date_estimated else "")
@@ -623,6 +626,7 @@ def main() -> None:
     add_ch_cmd.add_argument("title", help="The title to show")
     add_ch_cmd.add_argument("--organizer", help="Organizer's name as on the site's tournaments, e.g. 'Astro Liber'")
     add_ch_cmd.add_argument("--date", help="When it was played (YYYY-MM-DD); estimated from the bracket if left out")
+    add_ch_cmd.add_argument("--ended", help="Its last day (YYYY-MM-DD) when played over several; needs --date")
     add_ch_cmd.add_argument("--team", action="store_true", help="A team event: left out of personal statistics")
     add_ch_cmd.add_argument("--major", action="store_true", help="Count it as a major tournament")
     url_cmd = commands.add_parser("set-challonge-url", help="Link a site tournament to its Challonge bracket")
@@ -694,7 +698,7 @@ def main() -> None:
             parser.error("set-tournament-winner needs a player or --clear")
         set_tournament_winner(args.tournament, None if args.clear else args.player, args.source)
     elif args.command == "add-challonge-tournament":
-        add_challonge_tournament(args.url, args.title, args.organizer, args.date, args.team, args.major)
+        add_challonge_tournament(args.url, args.title, args.organizer, args.date, args.ended, args.team, args.major)
     elif args.command == "set-challonge-url":
         if not args.clear and not args.url:
             parser.error("set-challonge-url needs a URL or --clear")

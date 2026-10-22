@@ -320,7 +320,7 @@ what the site's own games say. The site already follows Challonge for the last o
 
 ```bash
 venv/bin/python -m app.cli add-challonge-tournament https://challonge.com/afc_fast_5 "Abyss Fight Club: Abyss Weekend 5" \
-    --organizer "Astro Liber"            # --date 2025-07-01, --team for a team event
+    --organizer "Astro Liber"            # --date 2025-07-01 (--ended 2025-07-03), --team for a team event
 ```
 
 Events played before the site (or beside it) have only their bracket. Such a tournament is stored as

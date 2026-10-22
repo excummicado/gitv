@@ -98,12 +98,13 @@ def add_challonge_tournament(
     team: bool = False,
     store: dict | None = None,
     major: bool = False,
+    ended_at: datetime | None = None,
 ) -> ChallongeTournament:
     """Adds (or updates) a Challonge-only tournament with its bracket. store: the bracket's embed data when already
-    fetched; otherwise it is fetched now."""
+    fetched; otherwise it is fetched now. ended_at: its last day, to spread the rounds from started_at to it."""
     store = store if store is not None else fetch_store(url)
     tid = PREFIX + slug_of(url)
-    return save_bracket_tournament(session, tid, url, title, store, organizer, started_at, team, major)
+    return save_bracket_tournament(session, tid, url, title, store, organizer, started_at, team, major, ended_at)
 
 
 def save_bracket_tournament(
