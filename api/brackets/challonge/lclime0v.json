@@ -1,0 +1,1062 @@
+{
+ "requested_plotter": "DoubleEliminationBracketPlotter",
+ "tournament": {
+  "id": 13539739,
+  "state": "underway",
+  "tournament_type": "double elimination",
+  "quick_advance": false,
+  "hide_seeds": false,
+  "hide_identifiers": false,
+  "show_station_and_time": false,
+  "animated": true,
+  "accept_attachments": false,
+  "participant_count_to_advance": 1,
+  "owner_ids": [
+   6344610
+  ],
+  "admin_ids": [
+   6344610
+  ],
+  "participants_swappable": false,
+  "progress_meter": 58,
+  "group_stage_progress_meter": 0,
+  "grand_finals_modifier": "single match",
+  "predict_the_losers_bracket": false,
+  "voting_underway": false,
+  "is_team": false,
+  "split_participants": true,
+  "participants_per_match": 2,
+  "only_start_matches_with_stations": null
+ },
+ "rounds": [
+  {
+   "id": null,
+   "stage_type": "Tournament",
+   "stage_id": 13539739,
+   "number": 1,
+   "title": "Round 1",
+   "description": null,
+   "best_of": 1,
+   "created_at": null,
+   "updated_at": null,
+   "group_index": null,
+   "title_lines": [
+    "Round 1"
+   ],
+   "href": "/tournaments/13539739/rounds/new_or_edit?number=1&title=Round+1"
+  },
+  {
+   "id": null,
+   "stage_type": "Tournament",
+   "stage_id": 13539739,
+   "number": 2,
+   "title": "Round 2",
+   "description": null,
+   "best_of": 1,
+   "created_at": null,
+   "updated_at": null,
+   "group_index": null,
+   "title_lines": [
+    "Round 2"
+   ],
+   "href": "/tournaments/13539739/rounds/new_or_edit?number=2&title=Round+2"
+  },
+  {
+   "id": null,
+   "stage_type": "Tournament",
+   "stage_id": 13539739,
+   "number": 3,
+   "title": "Semifinals",
+   "description": null,
+   "best_of": 1,
+   "created_at": null,
+   "updated_at": null,
+   "group_index": null,
+   "title_lines": [
+    "Semifinals"
+   ],
+   "href": "/tournaments/13539739/rounds/new_or_edit?number=3&title=Semifinals"
+  },
+  {
+   "id": null,
+   "stage_type": "Tournament",
+   "stage_id": 13539739,
+   "number": 4,
+   "title": "Finals",
+   "description": null,
+   "best_of": 1,
+   "created_at": null,
+   "updated_at": null,
+   "group_index": null,
+   "title_lines": [
+    "Finals"
+   ],
+   "href": "/tournaments/13539739/rounds/new_or_edit?number=4&title=Finals"
+  },
+  {
+   "id": null,
+   "stage_type": "Tournament",
+   "stage_id": 13539739,
+   "number": -1,
+   "title": "Losers Round 1",
+   "description": null,
+   "best_of": 1,
+   "created_at": null,
+   "updated_at": null,
+   "group_index": null,
+   "title_lines": [
+    "Losers Round 1"
+   ],
+   "href": "/tournaments/13539739/rounds/new_or_edit?number=-1&title=Losers+Round+1"
+  },
+  {
+   "id": null,
+   "stage_type": "Tournament",
+   "stage_id": 13539739,
+   "number": -2,
+   "title": "Losers Round 2",
+   "description": null,
+   "best_of": 1,
+   "created_at": null,
+   "updated_at": null,
+   "group_index": null,
+   "title_lines": [
+    "Losers Round 2"
+   ],
+   "href": "/tournaments/13539739/rounds/new_or_edit?number=-2&title=Losers+Round+2"
+  },
+  {
+   "id": null,
+   "stage_type": "Tournament",
+   "stage_id": 13539739,
+   "number": -3,
+   "title": "Losers Round 3",
+   "description": null,
+   "best_of": 1,
+   "created_at": null,
+   "updated_at": null,
+   "group_index": null,
+   "title_lines": [
+    "Losers Round 3"
+   ],
+   "href": "/tournaments/13539739/rounds/new_or_edit?number=-3&title=Losers+Round+3"
+  },
+  {
+   "id": null,
+   "stage_type": "Tournament",
+   "stage_id": 13539739,
+   "number": -4,
+   "title": "Losers Round 4",
+   "description": null,
+   "best_of": 1,
+   "created_at": null,
+   "updated_at": null,
+   "group_index": null,
+   "title_lines": [
+    "Losers Round 4"
+   ],
+   "href": "/tournaments/13539739/rounds/new_or_edit?number=-4&title=Losers+Round+4"
+  },
+  {
+   "id": null,
+   "stage_type": "Tournament",
+   "stage_id": 13539739,
+   "number": -5,
+   "title": "Losers Round 5",
+   "description": null,
+   "best_of": 1,
+   "created_at": null,
+   "updated_at": null,
+   "group_index": null,
+   "title_lines": [
+    "Losers Round 5"
+   ],
+   "href": "/tournaments/13539739/rounds/new_or_edit?number=-5&title=Losers+Round+5"
+  }
+ ],
+ "third_place_match": null,
+ "consolation_matches": [],
+ "matches_by_round": {
+  "1": [
+   {
+    "id": 338109547,
+    "tournament_id": 13539739,
+    "identifier": 1,
+    "raw_identifier": "A",
+    "round": 1,
+    "state": "complete",
+    "underway_at": null,
+    "games": [
+     [
+      452,
+      454
+     ]
+    ],
+    "editable_by_user_ids": [],
+    "has_attachment": false,
+    "is_group_match": false,
+    "forfeited": null,
+    "station": null,
+    "queued_for_station": null,
+    "scheduled_time": null,
+    "shareable": false,
+    "has_chat": false,
+    "player1": {
+     "id": 213043255,
+     "seed": 1,
+     "display_name": "pmir",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player2": {
+     "id": 213043262,
+     "seed": 8,
+     "display_name": "d1vi7or_xd",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player1_prereq_identifier": null,
+    "player2_prereq_identifier": null,
+    "player1_is_prereq_match_loser": false,
+    "player2_is_prereq_match_loser": false,
+    "player1_placeholder_text": null,
+    "player2_placeholder_text": null,
+    "scores": [
+     452,
+     454
+    ],
+    "winner_id": 213043255,
+    "loser_id": 213043262,
+    "md5": "b5c2fd31d5bd12e5a476b5fbac4a93f5"
+   },
+   {
+    "id": 338109548,
+    "tournament_id": 13539739,
+    "identifier": 2,
+    "raw_identifier": "B",
+    "round": 1,
+    "state": "complete",
+    "underway_at": null,
+    "games": [
+     [
+      431,
+      464
+     ]
+    ],
+    "editable_by_user_ids": [],
+    "has_attachment": false,
+    "is_group_match": false,
+    "forfeited": null,
+    "station": null,
+    "queued_for_station": null,
+    "scheduled_time": null,
+    "shareable": false,
+    "has_chat": false,
+    "player1": {
+     "id": 213043258,
+     "seed": 4,
+     "display_name": "badirak",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player2": {
+     "id": 213043259,
+     "seed": 5,
+     "display_name": "alouxd",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player1_prereq_identifier": null,
+    "player2_prereq_identifier": null,
+    "player1_is_prereq_match_loser": false,
+    "player2_is_prereq_match_loser": false,
+    "player1_placeholder_text": null,
+    "player2_placeholder_text": null,
+    "scores": [
+     431,
+     464
+    ],
+    "winner_id": 213043258,
+    "loser_id": 213043259,
+    "md5": "aedf343ec39cc16fcbfece29af07452e"
+   },
+   {
+    "id": 338109549,
+    "tournament_id": 13539739,
+    "identifier": 3,
+    "raw_identifier": "C",
+    "round": 1,
+    "state": "complete",
+    "underway_at": null,
+    "games": [
+     [
+      454,
+      410
+     ]
+    ],
+    "editable_by_user_ids": [],
+    "has_attachment": false,
+    "is_group_match": false,
+    "forfeited": null,
+    "station": null,
+    "queued_for_station": null,
+    "scheduled_time": null,
+    "shareable": false,
+    "has_chat": false,
+    "player1": {
+     "id": 213043256,
+     "seed": 2,
+     "display_name": "dze_n",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player2": {
+     "id": 213043261,
+     "seed": 7,
+     "display_name": "sakuraba_yue",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player1_prereq_identifier": null,
+    "player2_prereq_identifier": null,
+    "player1_is_prereq_match_loser": false,
+    "player2_is_prereq_match_loser": false,
+    "player1_placeholder_text": null,
+    "player2_placeholder_text": null,
+    "scores": [
+     454,
+     410
+    ],
+    "winner_id": 213043261,
+    "loser_id": 213043256,
+    "md5": "d9e981ee4ebb10fb983a9e146ab322d7"
+   },
+   {
+    "id": 338109550,
+    "tournament_id": 13539739,
+    "identifier": 4,
+    "raw_identifier": "D",
+    "round": 1,
+    "state": "complete",
+    "underway_at": null,
+    "games": [
+     [
+      498,
+      553
+     ]
+    ],
+    "editable_by_user_ids": [],
+    "has_attachment": false,
+    "is_group_match": false,
+    "forfeited": null,
+    "station": null,
+    "queued_for_station": null,
+    "scheduled_time": null,
+    "shareable": false,
+    "has_chat": false,
+    "player1": {
+     "id": 213043257,
+     "seed": 3,
+     "display_name": "astro_liber",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player2": {
+     "id": 213043260,
+     "seed": 6,
+     "display_name": "bshka_",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player1_prereq_identifier": null,
+    "player2_prereq_identifier": null,
+    "player1_is_prereq_match_loser": false,
+    "player2_is_prereq_match_loser": false,
+    "player1_placeholder_text": null,
+    "player2_placeholder_text": null,
+    "scores": [
+     498,
+     553
+    ],
+    "winner_id": 213043257,
+    "loser_id": 213043260,
+    "md5": "368ca7878b16d9a99a1174799724fc8b"
+   }
+  ],
+  "2": [
+   {
+    "id": 338109551,
+    "tournament_id": 13539739,
+    "identifier": 9,
+    "raw_identifier": "E",
+    "round": 2,
+    "state": "complete",
+    "underway_at": null,
+    "games": [
+     [
+      505,
+      450
+     ]
+    ],
+    "editable_by_user_ids": [],
+    "has_attachment": false,
+    "is_group_match": false,
+    "forfeited": null,
+    "station": null,
+    "queued_for_station": null,
+    "scheduled_time": null,
+    "shareable": false,
+    "has_chat": false,
+    "player1": {
+     "id": 213043255,
+     "seed": 1,
+     "display_name": "pmir",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player2": {
+     "id": 213043258,
+     "seed": 4,
+     "display_name": "badirak",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player1_prereq_identifier": 1,
+    "player2_prereq_identifier": 2,
+    "player1_is_prereq_match_loser": false,
+    "player2_is_prereq_match_loser": false,
+    "player1_placeholder_text": null,
+    "player2_placeholder_text": null,
+    "scores": [
+     505,
+     450
+    ],
+    "winner_id": 213043258,
+    "loser_id": 213043255,
+    "md5": "9eb1d0c11f48e6b6278b2516326a49ef"
+   },
+   {
+    "id": 338109552,
+    "tournament_id": 13539739,
+    "identifier": 10,
+    "raw_identifier": "F",
+    "round": 2,
+    "state": "complete",
+    "underway_at": null,
+    "games": [
+     [
+      563,
+      444
+     ]
+    ],
+    "editable_by_user_ids": [],
+    "has_attachment": false,
+    "is_group_match": false,
+    "forfeited": null,
+    "station": null,
+    "queued_for_station": null,
+    "scheduled_time": null,
+    "shareable": false,
+    "has_chat": false,
+    "player1": {
+     "id": 213043261,
+     "seed": 7,
+     "display_name": "sakuraba_yue",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player2": {
+     "id": 213043257,
+     "seed": 3,
+     "display_name": "astro_liber",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player1_prereq_identifier": 3,
+    "player2_prereq_identifier": 4,
+    "player1_is_prereq_match_loser": false,
+    "player2_is_prereq_match_loser": false,
+    "player1_placeholder_text": null,
+    "player2_placeholder_text": null,
+    "scores": [
+     563,
+     444
+    ],
+    "winner_id": 213043257,
+    "loser_id": 213043261,
+    "md5": "dcce88e8c23e463b3aeb406e53135525"
+   }
+  ],
+  "3": [
+   {
+    "id": 338109553,
+    "tournament_id": 13539739,
+    "identifier": 14,
+    "raw_identifier": "G",
+    "round": 3,
+    "state": "open",
+    "underway_at": null,
+    "games": [],
+    "editable_by_user_ids": [],
+    "has_attachment": false,
+    "is_group_match": false,
+    "forfeited": null,
+    "station": null,
+    "queued_for_station": null,
+    "scheduled_time": null,
+    "shareable": false,
+    "has_chat": false,
+    "player1": {
+     "id": 213043258,
+     "seed": 4,
+     "display_name": "badirak",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player2": {
+     "id": 213043257,
+     "seed": 3,
+     "display_name": "astro_liber",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player1_prereq_identifier": 9,
+    "player2_prereq_identifier": 10,
+    "player1_is_prereq_match_loser": false,
+    "player2_is_prereq_match_loser": false,
+    "player1_placeholder_text": null,
+    "player2_placeholder_text": null,
+    "scores": [],
+    "winner_id": null,
+    "loser_id": null,
+    "md5": "6b78771ed5970fc752538841f100b860"
+   }
+  ],
+  "-1": [
+   {
+    "id": 338109554,
+    "tournament_id": 13539739,
+    "identifier": 6,
+    "raw_identifier": "J",
+    "round": -1,
+    "state": "complete",
+    "underway_at": null,
+    "games": [
+     [
+      1,
+      -1
+     ]
+    ],
+    "editable_by_user_ids": [],
+    "has_attachment": false,
+    "is_group_match": false,
+    "forfeited": null,
+    "station": null,
+    "queued_for_station": null,
+    "scheduled_time": null,
+    "shareable": false,
+    "has_chat": false,
+    "player1": {
+     "id": 213043260,
+     "seed": 6,
+     "display_name": "bshka_",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player2": {
+     "id": 213043263,
+     "seed": 9,
+     "display_name": "alicechek",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player1_prereq_identifier": 4,
+    "player2_prereq_identifier": null,
+    "player1_is_prereq_match_loser": true,
+    "player2_is_prereq_match_loser": false,
+    "player1_placeholder_text": null,
+    "player2_placeholder_text": null,
+    "scores": [
+     1,
+     -1
+    ],
+    "winner_id": 213043260,
+    "loser_id": 213043263,
+    "md5": "cbcaa696c8f480147529642a14b901cd"
+   },
+   {
+    "id": 338109555,
+    "tournament_id": 13539739,
+    "identifier": 5,
+    "raw_identifier": "K",
+    "round": -1,
+    "state": "complete",
+    "underway_at": null,
+    "games": [
+     [
+      1,
+      -1
+     ]
+    ],
+    "editable_by_user_ids": [],
+    "has_attachment": false,
+    "is_group_match": false,
+    "forfeited": null,
+    "station": null,
+    "queued_for_station": null,
+    "scheduled_time": null,
+    "shareable": false,
+    "has_chat": false,
+    "player1": {
+     "id": 213043259,
+     "seed": 5,
+     "display_name": "alouxd",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player2": {
+     "id": 213043264,
+     "seed": 10,
+     "display_name": "icephoenixxx",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player1_prereq_identifier": 2,
+    "player2_prereq_identifier": null,
+    "player1_is_prereq_match_loser": true,
+    "player2_is_prereq_match_loser": false,
+    "player1_placeholder_text": null,
+    "player2_placeholder_text": null,
+    "scores": [
+     1,
+     -1
+    ],
+    "winner_id": 213043259,
+    "loser_id": 213043264,
+    "md5": "27cb1c6d2283c1630a392928f98f81e2"
+   }
+  ],
+  "-2": [
+   {
+    "id": 338109556,
+    "tournament_id": 13539739,
+    "identifier": 8,
+    "raw_identifier": "L",
+    "round": -2,
+    "state": "complete",
+    "underway_at": null,
+    "games": [
+     [
+      374,
+      500
+     ]
+    ],
+    "editable_by_user_ids": [],
+    "has_attachment": false,
+    "is_group_match": false,
+    "forfeited": null,
+    "station": null,
+    "queued_for_station": null,
+    "scheduled_time": null,
+    "shareable": false,
+    "has_chat": false,
+    "player1": {
+     "id": 213043256,
+     "seed": 2,
+     "display_name": "dze_n",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player2": {
+     "id": 213043260,
+     "seed": 6,
+     "display_name": "bshka_",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player1_prereq_identifier": 3,
+    "player2_prereq_identifier": 6,
+    "player1_is_prereq_match_loser": true,
+    "player2_is_prereq_match_loser": false,
+    "player1_placeholder_text": null,
+    "player2_placeholder_text": null,
+    "scores": [
+     374,
+     500
+    ],
+    "winner_id": 213043256,
+    "loser_id": 213043260,
+    "md5": "9b97ecd625ac0509678dc86dd1ab9aef"
+   },
+   {
+    "id": 338109557,
+    "tournament_id": 13539739,
+    "identifier": 7,
+    "raw_identifier": "M",
+    "round": -2,
+    "state": "complete",
+    "underway_at": null,
+    "games": [
+     [
+      921,
+      452
+     ]
+    ],
+    "editable_by_user_ids": [],
+    "has_attachment": false,
+    "is_group_match": false,
+    "forfeited": null,
+    "station": null,
+    "queued_for_station": null,
+    "scheduled_time": null,
+    "shareable": false,
+    "has_chat": false,
+    "player1": {
+     "id": 213043262,
+     "seed": 8,
+     "display_name": "d1vi7or_xd",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player2": {
+     "id": 213043259,
+     "seed": 5,
+     "display_name": "alouxd",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player1_prereq_identifier": 1,
+    "player2_prereq_identifier": 5,
+    "player1_is_prereq_match_loser": true,
+    "player2_is_prereq_match_loser": false,
+    "player1_placeholder_text": null,
+    "player2_placeholder_text": null,
+    "scores": [
+     921,
+     452
+    ],
+    "winner_id": 213043259,
+    "loser_id": 213043262,
+    "md5": "0b0b15e99da7b431e4caaefe3ed6b38a"
+   }
+  ],
+  "-3": [
+   {
+    "id": 338109558,
+    "tournament_id": 13539739,
+    "identifier": 11,
+    "raw_identifier": "N",
+    "round": -3,
+    "state": "open",
+    "underway_at": null,
+    "games": [],
+    "editable_by_user_ids": [],
+    "has_attachment": false,
+    "is_group_match": false,
+    "forfeited": null,
+    "station": null,
+    "queued_for_station": null,
+    "scheduled_time": null,
+    "shareable": false,
+    "has_chat": false,
+    "player1": {
+     "id": 213043255,
+     "seed": 1,
+     "display_name": "pmir",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player2": {
+     "id": 213043256,
+     "seed": 2,
+     "display_name": "dze_n",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player1_prereq_identifier": 9,
+    "player2_prereq_identifier": 8,
+    "player1_is_prereq_match_loser": true,
+    "player2_is_prereq_match_loser": false,
+    "player1_placeholder_text": null,
+    "player2_placeholder_text": null,
+    "scores": [],
+    "winner_id": null,
+    "loser_id": null,
+    "md5": "b49ef98cbf3137eecdf7c20e881f6561"
+   },
+   {
+    "id": 338109559,
+    "tournament_id": 13539739,
+    "identifier": 12,
+    "raw_identifier": "O",
+    "round": -3,
+    "state": "open",
+    "underway_at": null,
+    "games": [],
+    "editable_by_user_ids": [],
+    "has_attachment": false,
+    "is_group_match": false,
+    "forfeited": null,
+    "station": null,
+    "queued_for_station": null,
+    "scheduled_time": null,
+    "shareable": false,
+    "has_chat": false,
+    "player1": {
+     "id": 213043261,
+     "seed": 7,
+     "display_name": "sakuraba_yue",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player2": {
+     "id": 213043259,
+     "seed": 5,
+     "display_name": "alouxd",
+     "portrait_url": null,
+     "participant_id": null,
+     "quick_added": false,
+     "team_members": null,
+     "active": true,
+     "misc": null,
+     "integration_uids": null
+    },
+    "player1_prereq_identifier": 10,
+    "player2_prereq_identifier": 7,
+    "player1_is_prereq_match_loser": true,
+    "player2_is_prereq_match_loser": false,
+    "player1_placeholder_text": null,
+    "player2_placeholder_text": null,
+    "scores": [],
+    "winner_id": null,
+    "loser_id": null,
+    "md5": "9722db4e94c93724846eec9e40ef2a3b"
+   }
+  ],
+  "-4": [
+   {
+    "id": 338109560,
+    "tournament_id": 13539739,
+    "identifier": 13,
+    "raw_identifier": "P",
+    "round": -4,
+    "state": "pending",
+    "underway_at": null,
+    "games": [],
+    "editable_by_user_ids": [],
+    "has_attachment": false,
+    "is_group_match": false,
+    "forfeited": null,
+    "station": null,
+    "queued_for_station": null,
+    "scheduled_time": null,
+    "shareable": false,
+    "has_chat": false,
+    "player1": null,
+    "player2": null,
+    "player1_prereq_identifier": 11,
+    "player2_prereq_identifier": 12,
+    "player1_is_prereq_match_loser": false,
+    "player2_is_prereq_match_loser": false,
+    "player1_placeholder_text": null,
+    "player2_placeholder_text": null,
+    "scores": [],
+    "winner_id": null,
+    "loser_id": null,
+    "md5": "e9109c20191fd393adfc102d0b2aea16"
+   }
+  ],
+  "-5": [
+   {
+    "id": 338109561,
+    "tournament_id": 13539739,
+    "identifier": 15,
+    "raw_identifier": "Q",
+    "round": -5,
+    "state": "pending",
+    "underway_at": null,
+    "games": [],
+    "editable_by_user_ids": [],
+    "has_attachment": false,
+    "is_group_match": false,
+    "forfeited": null,
+    "station": null,
+    "queued_for_station": null,
+    "scheduled_time": null,
+    "shareable": false,
+    "has_chat": false,
+    "player1": null,
+    "player2": null,
+    "player1_prereq_identifier": 14,
+    "player2_prereq_identifier": 13,
+    "player1_is_prereq_match_loser": true,
+    "player2_is_prereq_match_loser": false,
+    "player1_placeholder_text": "Loser of 14",
+    "player2_placeholder_text": null,
+    "scores": [],
+    "winner_id": null,
+    "loser_id": null,
+    "md5": "ad36b9f29bd9c05be314ca04533d60c1"
+   }
+  ],
+  "4": [
+   {
+    "id": 338109562,
+    "tournament_id": 13539739,
+    "identifier": 16,
+    "raw_identifier": "H",
+    "round": 4,
+    "state": "pending",
+    "underway_at": null,
+    "games": [],
+    "editable_by_user_ids": [],
+    "has_attachment": false,
+    "is_group_match": false,
+    "forfeited": null,
+    "station": null,
+    "queued_for_station": null,
+    "scheduled_time": null,
+    "shareable": false,
+    "has_chat": false,
+    "player1": null,
+    "player2": null,
+    "player1_prereq_identifier": 14,
+    "player2_prereq_identifier": 15,
+    "player1_is_prereq_match_loser": false,
+    "player2_is_prereq_match_loser": false,
+    "player1_placeholder_text": null,
+    "player2_placeholder_text": "Winner of Losers Bracket",
+    "scores": [],
+    "winner_id": null,
+    "loser_id": null,
+    "md5": "ecd4a8e2775b37530ec5e6af88ca7069"
+   }
+  ]
+ },
+ "groups": []
+}

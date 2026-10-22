@@ -12,6 +12,7 @@ estimated from the bracket's id against the brackets of site tournaments, whose 
 import json
 import re
 from datetime import UTC, datetime
+from pathlib import Path
 
 import httpx
 from sqlmodel import Session, func, select
@@ -73,6 +74,13 @@ def fetch_store(url: str) -> dict:
         r = client.get(module_url(url))
         r.raise_for_status()
         return parse_store(r.text)
+
+
+def store_from_file(path: str) -> dict:
+    """A bracket saved by hand when Challonge can't be reached: its page (HTML, e.g. <bracket>/module saved from the
+    browser) or the TournamentStore JSON alone (e.g. with results filled in that Challonge never got)."""
+    text = Path(path).read_text(encoding="utf-8")
+    return json.loads(text) if text.lstrip().startswith("{") else parse_store(text)
 
 
 def organizer_of(session: Session, name: str | None) -> tuple[str | None, str | None]:
