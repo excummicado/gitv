@@ -21,6 +21,7 @@ import httpx
 from sqlmodel import Session, select
 
 from ..models import IgnoredTournament, Tournament
+from .abyss import maybe_fetch_abyss
 from .challonge import fetch_challonge
 from .draft_actions import fetch_draft_actions
 from .draft_links import fetch_draft_links
@@ -90,6 +91,13 @@ def sync(session: Session, cookie: str | None = None) -> SyncResult:
         fetch_tournament_info(session)
         # Their Challonge brackets, once each: the source of results and places.
         result.errors += fetch_challonge(session).errors
+    # New Spiral Abyss phases from alioth.wiki, at most once a day.
+    try:
+        abyss = maybe_fetch_abyss(session)
+        if abyss:
+            result.errors += abyss.errors
+    except (httpx.HTTPError, ValueError, KeyError) as e:
+        result.errors.append(f"abyss: {e}")
     return result
 
 

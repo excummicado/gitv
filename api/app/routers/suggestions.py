@@ -1,4 +1,4 @@
-"""Tournament players' real name, birthday and avatar.
+"""Tournament players' real name and birthday.
 
 Members suggest; admins and super admins accept or reject suggestions and can stop a member from suggesting.
 Event organizers, admins and super admins can also write the name and birthday directly. Every change is
@@ -9,7 +9,7 @@ shows on the player page.
 from datetime import UTC, date, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlmodel import func, select
 
@@ -25,7 +25,6 @@ from ..models import (
     User,
 )
 from ..rate_limit import rate_limit
-from ..services.media import delete_media, media_url, save_avatar
 from ..services.player_names import display_names
 from .admin import find_by_nickname
 
@@ -87,16 +86,15 @@ class PlayerInfo(BaseModel):
     real_name: str | None
     birth_date: date | None
     age: int | None
-    avatar_url: str | None
 
 
 def player_info(session: SessionDep, player_id: str) -> PlayerInfo | None:
     p = session.get(PlayerProfile, player_id)
     if p is None:
         return None
-    return PlayerInfo(
-        real_name=p.real_name, birth_date=p.birth_date, age=age(p.birth_date), avatar_url=media_url(p.avatar)
-    )
+    if p.real_name is None and p.birth_date is None:
+        return None
+    return PlayerInfo(real_name=p.real_name, birth_date=p.birth_date, age=age(p.birth_date))
 
 
 def set_field(
@@ -140,10 +138,10 @@ class ProfileChangeOut(BaseModel):
 
 
 def profile_history(session: SessionDep, player_id: str, limit: int = 20) -> list[ProfileChangeOut]:
-    """Latest changes first. Avatar values are left out (file names mean nothing to a reader)."""
+    """Latest changes first, of the name and birthday."""
     rows = session.exec(
         select(PlayerProfileChange)
-        .where(PlayerProfileChange.player_id == player_id)
+        .where(PlayerProfileChange.player_id == player_id, PlayerProfileChange.field.in_(["real_name", "birth_date"]))
         .order_by(PlayerProfileChange.created_at.desc())
         .limit(limit)
     ).all()
@@ -156,14 +154,11 @@ def profile_history(session: SessionDep, player_id: str, limit: int = 20) -> lis
     ids = {r.changed_by for r in rows} | set(suggestions.values())
     nicknames = {u.id: u.nickname for u in session.exec(select(User).where(User.id.in_(ids)))}
 
-    def hide(r, v):
-        return None if r.field == "avatar" else v
-
     return [
         ProfileChangeOut(
             field=r.field,
-            old_value=hide(r, r.old_value),
-            new_value=hide(r, r.new_value),
+            old_value=r.old_value,
+            new_value=r.new_value,
             changed_by=nicknames.get(r.changed_by, "deleted member"),
             suggested_by=nicknames.get(suggestions.get(r.suggestion_id)) if r.suggestion_id else None,
             created_at=r.created_at,
@@ -227,13 +222,12 @@ class SuggestionCreated(BaseModel):
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(rate_limit("suggest", 10, 3600, per="user"))],
 )
-async def suggest(
+def suggest(
     player_id: str,
     session: SessionDep,
     user: Annotated[User, Depends(get_current_active_user)],
     real_name: Annotated[str | None, Form(max_length=200)] = None,
     birth_date: Annotated[date | None, Form()] = None,
-    avatar: Annotated[UploadFile | None, File()] = None,
 ):
     if user.role.can_edit_players:
         raise HTTPException(
@@ -244,11 +238,8 @@ async def suggest(
     require_player(session, player_id)
     name = clean_name(real_name)
     birth = check_birth_date(birth_date)
-    has_avatar = avatar is not None and bool(avatar.filename)
-    if name is None and birth is None and not has_avatar:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Suggest a name, a birthday or an avatar."
-        )
+    if name is None and birth is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Suggest a name or a birthday.")
     pending = session.exec(
         select(PlayerSuggestion).where(
             PlayerSuggestion.author_id == user.id, PlayerSuggestion.status == SuggestionStatus.pending
@@ -269,7 +260,6 @@ async def suggest(
         author_id=user.id,
         real_name=name,
         birth_date=birth,
-        avatar=await save_avatar(avatar) if has_avatar else None,
         created_at=now(),
     )
     session.add(suggestion)
@@ -293,7 +283,6 @@ class SuggestionOut(BaseModel):
     real_name: str | None
     birth_date: date | None
     age: int | None
-    avatar_url: str | None
     status: SuggestionStatus
     created_at: datetime
     # What the player page shows now, to compare against
@@ -320,12 +309,12 @@ def list_suggestions(
             real_name=r.real_name,
             birth_date=r.birth_date,
             age=age(r.birth_date),
-            avatar_url=media_url(r.avatar),
             status=r.status,
             created_at=r.created_at,
             current=player_info(session, r.player_id),
         )
         for r in rows
+        if r.real_name is not None or r.birth_date is not None
     ]
 
 
@@ -353,9 +342,6 @@ def accept(suggestion_id: int, session: SessionDep, actor: Annotated[User, Depen
         set_field(session, profile, "real_name", s.real_name, actor, s.id)
     if s.birth_date is not None:
         set_field(session, profile, "birth_date", s.birth_date, actor, s.id)
-    if s.avatar is not None:
-        delete_media(profile.avatar)
-        set_field(session, profile, "avatar", s.avatar, actor, s.id)
     s.status, s.reviewed_by, s.reviewed_at = SuggestionStatus.accepted, actor.id, now()
     session.add(profile)
     session.add(s)
@@ -370,8 +356,6 @@ def accept(suggestion_id: int, session: SessionDep, actor: Annotated[User, Depen
 )
 def reject(suggestion_id: int, session: SessionDep, actor: Annotated[User, Depends(get_current_staff)]):
     s = pending_suggestion(session, suggestion_id)
-    delete_media(s.avatar)
-    s.avatar = None
     s.status, s.reviewed_by, s.reviewed_at = SuggestionStatus.rejected, actor.id, now()
     session.add(s)
     session.commit()

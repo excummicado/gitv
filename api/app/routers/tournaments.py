@@ -21,6 +21,7 @@ from ..services.stats import (
     tournament_table,
 )
 from ..services.sync import live_tournaments
+from .abyss import TournamentAbyss, tournament_abyss
 from .matches import Character, Organizer, organizers
 
 router = APIRouter(prefix="/tournaments", tags=["tournaments"])
@@ -144,6 +145,8 @@ class StageRef(BaseModel):
 class TournamentDetail(TournamentRow):
     # Every stage of the tournament's event, in order (this one included); empty when it isn't a stage
     stages: list[StageRef] = []
+    # The Spiral Abyss phases (floor 12) its matches were played on, in order
+    abyss: list[TournamentAbyss] = []
     table: list[TableRow]
     stats: TournamentStats
     bracket: list[BracketRound] | None
@@ -343,6 +346,7 @@ def read_tournament(tournament_id: str, session: SessionDep):
     return TournamentDetail(
         **found[0].model_dump(),
         stages=stages,
+        abyss=tournament_abyss(session, tournament_id),
         table=tournament_table(snap, tournament_id),
         stats=stats,
         bracket=tournament_bracket(snap, tournament_id),

@@ -180,7 +180,7 @@ class PlayerDetail(PlayerSummary):
     tournament_list: list[PlayedTournament]
     # The tournament the statistics are limited to, if one was picked
     tournament: str | None
-    # Real name, birthday and avatar from accepted suggestions
+    # Real name and birthday from accepted suggestions
     profile: PlayerInfo | None
     # Who changed the profile and when, newest first
     profile_history: list[ProfileChangeOut]

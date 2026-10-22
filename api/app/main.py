@@ -14,6 +14,7 @@ from .config import settings
 from .database import create_db_and_tables, engine
 from .messages import request_lang, translate
 from .routers import (
+    abyss,
     admin,
     analytics,
     characters,
@@ -26,7 +27,7 @@ from .routers import (
     tournaments,
     users,
 )
-from .services.media import MEDIA_DIR
+from .services.abyss import ASSETS as ABYSS_ASSETS
 from .services.stats.snapshot import warm_up
 from .services.sync import run_forever
 
@@ -71,7 +72,8 @@ app.include_router(schedule.router, prefix=settings.api_prefix)
 app.include_router(tournaments.router, prefix=settings.api_prefix)
 app.include_router(characters.router, prefix=settings.api_prefix)
 app.include_router(analytics.router, prefix=settings.api_prefix)
+app.include_router(abyss.router, prefix=settings.api_prefix)
 
-# Uploaded avatars. Only images checked by their bytes are ever written there (services/media.py).
-MEDIA_DIR.mkdir(parents=True, exist_ok=True)
-app.mount(f"{settings.api_prefix}/media", StaticFiles(directory=MEDIA_DIR), name="media")
+# Spiral Abyss icons downloaded from alioth.wiki (services/abyss.py): game assets only, never uploads.
+ABYSS_ASSETS.mkdir(parents=True, exist_ok=True)
+app.mount(f"{settings.api_prefix}/abyss-assets", StaticFiles(directory=ABYSS_ASSETS), name="abyss-assets")

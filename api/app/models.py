@@ -302,7 +302,7 @@ class ChallongeTournament(SQLModel, table=True):
     created_at: datetime
 
 
-# Real names, birthdays and avatars of tournament players come from site members: anyone signed in
+# Real names and birthdays of tournament players come from site members: anyone signed in
 # suggests, admins accept or reject (routers/suggestions.py).
 
 
@@ -313,8 +313,6 @@ class PlayerProfile(SQLModel, table=True):
     player_id: str = Field(primary_key=True)
     real_name: str | None = None
     birth_date: date | None = None
-    # Path under the media folder, e.g. "avatars/<uuid>.png"
-    avatar: str | None = None
     updated_at: datetime
     updated_by: uuid.UUID | None = Field(default=None, foreign_key="user.id")
 
@@ -332,7 +330,6 @@ class PlayerSuggestion(SQLModel, table=True):
     # Only the fields the author filled in; at least one is set.
     real_name: str | None = None
     birth_date: date | None = None
-    avatar: str | None = None
     status: SuggestionStatus = Field(default=SuggestionStatus.pending, index=True)
     created_at: datetime
     reviewed_by: uuid.UUID | None = Field(default=None, foreign_key="user.id")
@@ -352,7 +349,7 @@ class PlayerProfileChange(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     player_id: str = Field(index=True)
-    field: str  # real_name, birth_date or avatar
+    field: str  # real_name or birth_date
     old_value: str | None = None
     new_value: str | None = None
     # The member who made the change: an editor writing directly, or the admin who accepted a suggestion
@@ -372,6 +369,24 @@ class TournamentEvent(SQLModel, table=True):
     stage: str | None = None  # the stage's name within it, e.g. "Group stage 1"; the tournament's title if None
     position: int = 0  # order of the stage within the event
     created_at: datetime
+
+
+class AbyssPhase(SQLModel, table=True):
+    """One rotation of Genshin Impact's Spiral Abyss, floor 12 only, from alioth.wiki (services/abyss.py). Tournaments
+    are played on the live Abyss, so a match belongs to the phase running on its date."""
+
+    id: int = Field(primary_key=True)  # alioth's phase number, 1 = version 1.0
+    version: str  # e.g. "7.1-7.2"
+    starts_on: date  # the phase runs from this day (inclusive) ...
+    ends_on: date  # ... to this one (exclusive); phases change on the 16th
+    hp_ratio: float | None = None  # floor 12 enemy HP multiplier, e.g. 4.75
+    total_hp: int | None = None  # floor 12, all chambers
+    blessings: str = "[]"  # JSON: [{name, desc}] (several in early phases)
+    disorder: str | None = None  # floor 12 Ley Line Disorder, as on alioth ("P1 ...<br>P2 ...")
+    chambers: str = "[]"  # JSON: floor 12 chambers with their waves and monsters (alioth's shape)
+    monsters: str = "{}"  # JSON: {monster id: {Name, Icon, Color, RES}} for floor 12's monsters
+    guides: str = "{}"  # JSON: {monster id: [{Title, DescList}]} mechanics of floor 12's monsters
+    fetched_at: datetime
 
 
 class TournamentWinner(SQLModel, table=True):

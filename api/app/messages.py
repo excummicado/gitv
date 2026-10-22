@@ -49,14 +49,12 @@ RU = {
     "Send a name or a birthday.": "Укажите имя или день рождения.",
     "You can edit players directly instead of suggesting.": "Вы можете редактировать игроков напрямую, без предложений.",
     "You can't make suggestions.": "Вам нельзя отправлять предложения.",
-    "Suggest a name, a birthday or an avatar.": "Предложите имя, день рождения или аватар.",
+    "Suggest a name or a birthday.": "Предложите имя или день рождения.",
     "You already have a suggestion for this player waiting for review.": "У вас уже есть предложение по этому игроку на проверке.",
     "No such suggestion.": "Такого предложения нет.",
     "Admins review suggestions; there's nothing to stop.": "Админы сами проверяют предложения — запрещать нечего.",
     "This member already can't suggest.": "Этому участнику уже запрещены предложения.",
     "This member can already suggest.": "Этому участнику уже разрешены предложения.",
-    "The avatar must be 2 MB or smaller.": "Аватар должен быть не больше 2 МБ.",
-    "The avatar must be a PNG, JPEG or WebP image.": "Аватар должен быть картинкой PNG, JPEG или WebP.",
 }
 
 # Messages with numbers or dates in them.

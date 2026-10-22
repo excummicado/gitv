@@ -550,6 +550,17 @@ def add_player(name: str, challonge_names: list[str]) -> None:
         set_challonge_name(n, pid)
 
 
+def run_fetch_abyss(refetch: bool) -> None:
+    from .services.abyss import fetch_abyss
+
+    create_db_and_tables()
+    with Session(engine) as session:
+        result = fetch_abyss(session, refetch)
+    print(f"Abyss: {len(result.phases)} phases stored, {result.icons} icons downloaded.")
+    for error in result.errors:
+        print("Error:", error)
+
+
 def check_challonge() -> None:
     from .services.challonge_check import find_issues, print_report
 
@@ -630,6 +641,8 @@ def main() -> None:
     url_cmd.add_argument("url", nargs="?", help="The Challonge bracket")
     url_cmd.add_argument("--clear", action="store_true", help="Remove the link and the stored bracket")
     commands.add_parser("check-challonge", help="List where Challonge brackets and the site's matches disagree")
+    abyss_cmd = commands.add_parser("fetch-abyss", help="Import Spiral Abyss phases (floor 12) from alioth.wiki")
+    abyss_cmd.add_argument("--refetch", action="store_true", help="Fetch every phase again")
     player_cmd = commands.add_parser("add-player", help="Add a person who played only in bracket-only tournaments")
     player_cmd.add_argument("name", help="The name to show")
     player_cmd.add_argument("challonge_names", nargs="*", help="Their names in brackets, tied to them")
@@ -712,6 +725,8 @@ def main() -> None:
         set_organizer(args.organizer, args.name, args.into, args.clear)
     elif args.command == "add-player":
         add_player(args.name, args.challonge_names)
+    elif args.command == "fetch-abyss":
+        run_fetch_abyss(args.refetch)
     elif args.command == "check-challonge":
         check_challonge()
     elif args.command == "delete-tournaments":

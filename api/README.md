@@ -372,6 +372,29 @@ venv/bin/python -m app.cli add-player Invinsik Invinsik nvnsk     # name, then t
 Stored in `offsiteplayer` (id `offsite-<slug>`); the names are ordinary `set-challonge-name` ties. Their page has
 matches, tournaments and places, no games.
 
+### Spiral Abyss
+
+```bash
+venv/bin/python -m app.cli fetch-abyss            # --refetch for every phase again; sync runs it daily
+```
+
+Tournaments are played on the live Spiral Abyss floor 12, so a match belongs to the phase running on its date
+(phases change on the 16th). `fetch-abyss` reads every phase from alioth.wiki (`/en/gi/abyss/<n>`, the data is the
+page's embedded Nuxt payload) and keeps floor 12 only in `abyssphase`: dates, moon blessings, Ley Line Disorder,
+the HP multiplier, every chamber's waves and monsters (HP, element, resistances, shields) and the bosses'
+mechanics. Monster and element icons (© HoYoverse) are downloaded once into `data/abyss/` (not in git) and served
+at `/api/v1/abyss-assets/`, so visitors never load them from alioth. Requests are a second apart, and the sync
+asks alioth at most once a day; only new phases (and the current one) are fetched.
+
+Russian texts of the bosses' mechanics (moon blessings and Ley Line Disorder stay in English) are in
+`app/data/abyss_ru.json`, keyed by the English text; a new
+phase shows English until its texts are added there. Names of monsters and moons stay as in the English game.
+
+Endpoints: `GET /api/v1/abyss` (every phase, newest first, with tournament matches), `GET /api/v1/abyss/current`,
+`GET /api/v1/abyss/{id}` (floor 12 in full, the tournaments played on it and their median clear time); a
+tournament's page data has `abyss`, every phase its matches fall in. The site shows them at `/abyss`,
+`/abyss/<id>` and on each tournament page.
+
 ### Tournaments in stages
 
 A tournament run in stages (groups, Swiss, main stage) shows as one event: the tournaments list has one row for
@@ -405,13 +428,14 @@ other series (New Gen, HotH, Abyss Ascend) are left out. The rule is `MAJOR_SYST
 `match_checks.py`. Challonge-only tournaments count when marked major (`add-challonge-tournament --major`): the numbered
 Abyss Fight Club events (Abyss Fight Club 2, 3, 4, every stage), not the Abyss Fight Club weekends and fast cups.
 
-### Player info: real name, birthday, avatar
+### Player info: real name, birthday
 
-Shown under the nickname on the player page (real name, age, avatar), from `playerprofile`.
+Shown under the nickname on the player page (real name, age), from `playerprofile`. The site has no player
+pictures: nothing is uploaded or served.
 
 | Who | Can |
 | --- | --- |
-| members, writers | suggest a name, birthday and/or avatar (bottom of the player page) |
+| members, writers | suggest a name and/or birthday (bottom of the player page) |
 | event organizers | write the name and birthday directly; no suggesting, no reviewing |
 | admins, super admins | write directly, accept or reject suggestions (their profile page), stop a member from suggesting |
 
@@ -427,10 +451,8 @@ the suggestion it came from (so its author too). The player page lists these cha
 
 A member has at most one pending suggestion per player and 10 in all. Names are letters (any alphabet)
 with spaces, hyphens, apostrophes and dots, up to 80 characters; birthdays from 1950 up to 8 years ago.
-Avatars are PNG, JPEG or WebP up to 2 MB, recognised by their bytes rather than the file name, stored
-under `media/avatars` (not in git) and served at `/api/v1/media/`. Rejected and replaced avatars are deleted.
 
-Endpoints: `POST /api/v1/players/{id}/suggestions` (multipart: `real_name`, `birth_date`, `avatar`),
+Endpoints: `POST /api/v1/players/{id}/suggestions` (form fields: `real_name`, `birth_date`),
 `GET /api/v1/suggestions/me`, `PUT /api/v1/players/{id}/profile` (editors; JSON, only the fields sent change,
 null clears); staff: `GET /api/v1/admin/suggestions?status=pending`, `POST /api/v1/admin/suggestions/{id}/accept|reject`,
 `GET|POST /api/v1/admin/suggestion-bans`, `DELETE /api/v1/admin/suggestion-bans/{nickname}`.
