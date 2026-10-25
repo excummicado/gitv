@@ -89,9 +89,10 @@ def filters(
     cons_max: int,
 ) -> Filters:
     """What the table and the per-character players both apply: scope and dates (major: Abyss Cup qualifiers and
-    playoffs; since: tournaments that started on or after the date), tournaments of excluded organizers left out,
-    prize winners ("players": their picks, bans and games; "versus": only games between two of them; prize
-    winners are whoever ever finished in a top four, whatever the filters) and constellations (picks only)."""
+    playoffs and the numbered Abyss Fight Club events; since: tournaments that started on or after the date),
+    tournaments of excluded organizers left out, prize winners ("players": their picks, bans and games; "versus":
+    only games between two of them; prize winners are whoever ever finished in a top four, whatever the filters) and
+    constellations (picks only)."""
     snap = snapshot(session, scope, since)
     in_scope = {snap.match_tournament[m] for pd in snap.players.values() for m in pd.matches}
     infos = {i.tournament_id: i for i in session.exec(select(TournamentInfo))}

@@ -70,10 +70,10 @@ function PlayerPanel({ player, game }: { player: GamePlayer; game: Game }) {
 
       <div className="match-team">
         {player.team.map((member, index) => (
-          <div className="match-member" key={index} title={`${name(member.character)} C${member.constellation}${member.weapon ? ` · ${name(member.weapon)} R${member.refinement ?? "?"}` : ""}`}>
+          <div className="match-member" key={index} title={`${name(member.character)}${member.constellation == null ? "" : ` C${member.constellation}`}${member.weapon ? ` · ${name(member.weapon)} R${member.refinement ?? "?"}` : ""}`}>
             <div className="match-member-art">
               <Portrait character={member.character} />
-              <span className="match-badge">C{member.constellation}</span>
+              {member.constellation != null && <span className="match-badge">C{member.constellation}</span>}
               {member.weapon?.icon && <img className="match-weapon" src={member.weapon.icon} alt="" width={22} height={22} loading="lazy" />}
             </div>
             <span className="match-member-name">{name(member.character)}</span>

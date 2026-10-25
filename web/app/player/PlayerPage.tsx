@@ -5,7 +5,9 @@ import { Brand } from "../components/Brand";
 import { MajorToggle } from "./MajorToggle";
 import { SuggestBox } from "../suggestions/SuggestBox";
 import { useLang } from "../i18n";
-import { fetchPlayer, fetchRosters, type CharacterCount, type CharacterRate, type Finish, type PlayedTournament, type PlayerDetail, type PlayerMatch, type RosterVersion, type Split } from "./api";
+import { EloBadge } from "../components/EloBadge";
+import { EloChart } from "./EloChart";
+import { distinctNames, fetchPlayer, fetchRosters, type CharacterCount, type CharacterRate, type Finish, type PlayedTournament, type PlayerDetail, type PlayerMatch, type RosterVersion, type Split } from "./api";
 import "./player-page.css";
 import "./compare.css";
 import { CharactersTab } from "./CharactersTab";
@@ -61,7 +63,7 @@ function Placements({ finishes }: { finishes: Finish[] }) {
       {finishes.length ? (
         <div className="player-places">
           {finishes.map((f) => (
-            <Link className="player-place" to={`/matches?tournament=${f.tournament.id}`} key={f.tournament.id}
+            <Link className="player-place" to={`/tournament/${f.tournament.id}`} key={f.tournament.id}
               title={`${l.t(...PLACE_LABELS[f.place - 1])} ${l.t("place", "место")} · ${l.date(f.date)}`}>
               <span className={`player-place-badge place-${f.place}`}>{f.place}</span>
               <span className="player-ellipsis">{f.tournament.title}</span>
@@ -90,7 +92,7 @@ function TopFour({ player }: { player: PlayerDetail }) {
             <span className="player-top4-popover" role="tooltip">
               <span className="player-top4-heading">{label} · {l.count(finishes.length, ...TOURNAMENTS)}</span>
               {finishes.map((f) => (
-                <Link className="player-top4-row" to={`/matches?tournament=${f.tournament.id}`} key={f.tournament.id}>
+                <Link className="player-top4-row" to={`/tournament/${f.tournament.id}`} key={f.tournament.id}>
                   <span className="player-ellipsis">{f.tournament.title}</span>
                   <span className="gitv-date">{l.date(f.date)}</span>
                 </Link>
@@ -447,6 +449,8 @@ function Stats({ player }: { player: PlayerDetail }) {
   const { t } = l;
   const times = player.times;
   return (
+    <>
+    <EloChart playerId={player.id} />
     <div className="player-columns">
       <aside className="player-column">
         <StatBox title={t("Streaks", "Серии")}>
@@ -478,6 +482,13 @@ function Stats({ player }: { player: PlayerDetail }) {
         </StatBox>
         <StatBox title={t("Results", "Результаты")}>
           <StatRows rows={[
+            ...(player.elo ? [[t("Elo", "Эло"), (
+              <>
+                <EloBadge rating={player.elo.rating} rank={player.elo.rank} tier={player.elo.tier} active={player.elo.active} />
+                {` · ${player.elo.active ? `#${player.elo.rank}` : t("inactive", "неактивен")} · ${t("peak", "пик")} `}
+                <EloBadge rating={player.elo.peak} active={player.elo.active} />
+              </>
+            )] as [string, ReactNode]] : []),
             [t("Matches", "Матчи"), `${player.matches} · ${player.match_winrate ?? "—"}% ${t("won", "побед")}`],
             [t("Winrate", "Винрейт"), player.winrate == null ? "—" : `${player.winrate}% · ${wl(l, player.wins, player.losses)}`],
             [t("First pick winrate", "Винрейт на первом пике"), split(l, player.first_pick)],
@@ -505,6 +516,7 @@ function Stats({ player }: { player: PlayerDetail }) {
         <FrequentOpponents player={player} />
       </aside>
     </div>
+    </>
   );
 }
 
@@ -590,7 +602,6 @@ export function PlayerPage({ playerId }: { playerId: string }) {
               : <>
                   <header className="player-box player-header">
                     <div className="player-identity">
-                      {player.profile?.avatar_url && <img className="player-avatar" src={player.profile.avatar_url} alt="" width={72} height={72} />}
                       <div className="player-identity-text">
                         <div className="player-name-row">
                           <div className="player-nickname">{player.name}</div>
@@ -602,8 +613,14 @@ export function PlayerPage({ playerId }: { playerId: string }) {
                           </div>
                         )}
                       </div>
+                      {player.elo && (
+                        <div className="player-elo">
+                          <EloBadge rating={player.elo.rating} rank={player.elo.rank} tier={player.elo.tier} active={player.elo.active} className="is-large" />
+                          <span className="player-label">{player.elo.active ? `${t("Elo", "Эло")} · #${player.elo.rank}` : t("Elo · inactive", "Эло · неактивен")}</span>
+                        </div>
+                      )}
                     </div>
-                    <div className="player-fullname">{player.other_names.length ? `${t("Also played as", "Также играл как")} ${player.other_names.join(", ")}` : " "}</div>
+                    <div className="player-fullname">{distinctNames(player.name, player.other_names).length ? `${t("Also played as", "Также играл как")} ${distinctNames(player.name, player.other_names).join(", ")}` : " "}</div>
                     <Records player={player} />
                     <StatRow label={t("Most picked character", "Чаще всего берёт")} value={characterCount(l, player.most_picked)} />
                     <StatRow label={t("Most banned character by opponent", "Чаще всего банят соперники")} value={characterCount(l, player.most_banned_against)} />

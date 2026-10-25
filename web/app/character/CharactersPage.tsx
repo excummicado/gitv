@@ -145,7 +145,7 @@ function PlayersPopover({ character, count, filters, label, className = "" }: {
   }
 
   if (!count) return <span className={className}>{count === 0 ? "—" : count}</span>;
-  const cons = (p: CharacterPlayer) => (p.min_constellation === p.max_constellation ? `C${p.min_constellation}`
+  const cons = (p: CharacterPlayer) => (p.min_constellation == null ? "C?" : p.min_constellation === p.max_constellation ? `C${p.min_constellation}`
     : `C${p.min_constellation}–C${p.max_constellation}`);
   const title = label ? `${name(character)} · ${label}` : name(character);
   return (
@@ -166,7 +166,7 @@ function PlayersPopover({ character, count, filters, label, className = "" }: {
             : !list ? <p className="player-message">{t("Loading…", "Загрузка…")}</p>
             : list.map((p) => (
               <Link key={p.player.id} to={`/player/${p.player.id}?tab=characters`} className="chars-players-row"
-                title={t(`${p.wins} won, ${p.losses} lost; latest at C${p.last_constellation}`, `${p.wins} побед, ${p.losses} поражений; последний раз на C${p.last_constellation}`)}>
+                title={t(`${p.wins} won, ${p.losses} lost; latest at C${p.last_constellation ?? "?"}`, `${p.wins} побед, ${p.losses} поражений; последний раз на C${p.last_constellation ?? "?"}`)}>
                 <b className="player-ellipsis">{p.player.name}</b>
                 <span>{p.picks}</span>
                 <span className={p.winrate == null ? "" : p.winrate >= 52 ? "is-good" : p.winrate <= 48 ? "is-bad" : ""}>{p.winrate == null ? "—" : `${p.winrate}%`}</span>
@@ -269,8 +269,17 @@ export function CharactersPage() {
   const [data, setData] = useState<CharacterTable | null>(null);
   const [error, setError] = useState("");
   const [organizersOpen, setOrganizersOpen] = useState(exclude.length > 0);
-  // The character whose constellation split is open (one at a time).
-  const [openId, setOpenId] = useState<string | null>(null);
+  // The character whose constellation split is open (one at a time); ?open=<id> opens one on arrival (from the
+  // home page's popular characters), scrolled into view once the table is there.
+  const [openId, setOpenId] = useState<string | null>(params.get("open"));
+  const scrolledTo = useRef<string | null>(null);
+  useEffect(() => {
+    const wanted = params.get("open");
+    if (!wanted || !data || scrolledTo.current === wanted) return;
+    scrolledTo.current = wanted;
+    setOpenId(wanted);
+    document.getElementById(`char-${wanted}`)?.scrollIntoView({ block: "center" });
+  }, [data, params]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -403,7 +412,7 @@ export function CharactersPage() {
                     <span className="players-sort hide-md">{t("Top player", "Чаще всех")}</span>
                   </div>
                   {rows.map((c) => (
-                    <div key={c.character.id} className="chars-table-item">
+                    <div key={c.character.id} className="chars-table-item" id={`char-${c.character.id}`}>
                     <div className={`chars-table-row is-clickable${openId === c.character.id ? " is-open" : ""}`} role="button" tabIndex={0}
                       aria-expanded={openId === c.character.id}
                       title={t("Show constellations", "Показать по констам")}

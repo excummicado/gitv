@@ -2,6 +2,7 @@
 
 import { getJson } from "../api";
 import type { Character, Organizer } from "../match/api";
+import type { TournamentAbyss } from "../abyss/api";
 
 export type TournamentKind = "bracket" | "groups" | "qualifier" | "team";
 export type PlayerRef = { id: string; name: string };
@@ -12,6 +13,8 @@ export type TournamentRow = {
   winner: PlayerRef | null; places_source: "challonge" | "matches" | null;
   // Played only on Challonge (matches and places, no games or drafts); its date is then usually an estimate
   challonge_only: boolean; date_estimated: boolean;
+  // Still being played: no places or winner until its final has one
+  live: boolean;
   // The event this tournament is a stage of (Abyss Fight Club 4, an Abyss Cup season)
   event: EventRef | null;
 };
@@ -22,6 +25,8 @@ export type TableRow = {
   player: { id: string | null; name: string }; place: [number, number] | null; place_source: "challonge" | "estimate" | null;
   match_wins: number; match_losses: number; match_draws: number; games_won: number; games_lost: number;
   tech_losses: number; avg_time: number | null; best_time: number | null; qualification: "passed" | "failed" | "pending" | null;
+  // In a stage of several qualifier groups: the player's group ("A & B")
+  group?: string | null;
 };
 export type TournamentStats = {
   games: number; decided_games: number; technical_games: number; avg_time: number | null;
@@ -33,7 +38,16 @@ export type BracketSide = { name: string; id: string | null; challonge_name: str
 export type BracketMatch = { player1: BracketSide | null; player2: BracketSide | null; scores: number[]; winner: 1 | 2 | null };
 // round: 1, 2, ... main bracket; negative: losers' bracket; 0: third-place match
 export type BracketRound = { round: number; matches: BracketMatch[] };
-export type TournamentDetail = TournamentRow & { stages: StageRef[]; table: TableRow[]; stats: TournamentStats; bracket: BracketRound[] | null; unmatched: string[] };
+// Who had which character in their pool, from the players' rosters in the drafts; constellations: C0..C6 counts.
+// holders: who had it at C0, C1, ... C6 (id null: no player page yet)
+export type PoolPlayer = { id: string | null; name: string };
+export type PoolCharacter = { character: Character; owned: number; rate: number | null; constellations: number[]; holders: PoolPlayer[][] };
+// unplayed: players of a running tournament counted with the roster of a draft they haven't played yet
+export type TournamentPool = { players: number; unplayed: number; characters: PoolCharacter[] };
+export type TournamentDetail = TournamentRow & {
+  stages: StageRef[]; abyss: TournamentAbyss[]; table: TableRow[]; stats: TournamentStats; bracket: BracketRound[] | null; unmatched: string[];
+  pool: TournamentPool;
+};
 
 export function fetchTournamentList(signal?: AbortSignal) {
   return getJson<TournamentRow[]>("/api/v1/tournaments", { signal });

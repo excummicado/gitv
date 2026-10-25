@@ -1,19 +1,22 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import "./home.css";
 
 import { Link } from "react-router";
 import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
 import { fetchChampions, fetchElClasico, type Champion, type ElClasico } from "../player/api";
-import { fetchLiveTournaments, fetchPopularCharacters, fetchTopPick, type LiveTournament, type PopularCharacters, type TopPick } from "../match/api";
-import { listScheduled, localDay, type ScheduledMatch } from "../schedule/api";
-import { fetchFeaturedTournament, fetchTournamentList, type FeaturedTournament, type TournamentRow } from "../tournament/api";
+import { fetchLiveMatches, fetchLiveTournaments, fetchPopularCharacters, fetchTopPick, type LiveMatch, type LiveTournament, type PopularCharacters, type TopPick } from "../match/api";
+import { LiveMatchRow } from "../match/LiveMatches";
+import { EloBadge } from "../components/EloBadge";
+import { excerpt, inLang, listNews, NEWS_WRITER_ROLES, type NewsPost } from "../news/api";
+import { listScheduled, localDay, streamMatches, type ScheduledMatch, type StreamDay } from "../schedule/api";
+import { fetchFeaturedTournament, type FeaturedTournament } from "../tournament/api";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import { PLAYER_EDITOR_ROLES } from "../auth/client";
 import { useLang } from "../i18n";
 
 const CHAMPIONS = 5;
-const NEWS = 6;
+const NEWS = 5;
 
 function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <section className={`gitv-card ${className}`}>{children}</section>;
@@ -38,7 +41,8 @@ function TopPickPromo() {
   const art = pick.character.splash ?? pick.character.card ?? pick.character.icon;
   return (
     <Card>
-      <Link to={`/matches?tournament=${pick.tournament.id}`} className="gitv-promo gitv-top-pick">
+      {/* Opens the tournament's Stats tab, where its picks and bans are. */}
+      <Link to={`/tournament/${pick.tournament.id}?tab=stats`} className="gitv-promo gitv-top-pick">
         {art && <img src={art} alt="" className="gitv-top-pick-art" />}
         <span className="gitv-top-pick-text">
           <small>{t("Most picked", "Самый частый пик")} · {pick.tournament.title}</small>
@@ -133,7 +137,8 @@ function PopularCharactersCard() {
         {data.characters.map((c, i) => {
           const art = c.character.icon;
           return (
-            <div className={`gitv-popular-item rarity-${c.character.rarity ?? 4}`} key={c.character.id}
+            // Opens the Characters page with this character's breakdown already open.
+            <Link to={`/characters?open=${encodeURIComponent(c.character.id)}`} className={`gitv-popular-item rarity-${c.character.rarity ?? 4}`} key={c.character.id}
               title={t(`${c.picks} picks, ${c.bans} bans; in ${c.presence ?? 0}% of games; ${c.pick_winrate ?? "—"}% winrate when picked; average C${c.avg_constellation ?? "—"}`,
                        `${c.picks} пиков, ${c.bans} банов; в ${c.presence ?? 0}% игр; винрейт в пиках ${c.pick_winrate ?? "—"}%; средняя конста C${c.avg_constellation ?? "—"}`)}>
               <div className="gitv-popular-art">
@@ -146,7 +151,7 @@ function PopularCharactersCard() {
               <strong className="gitv-popular-name">{name(c.character)}</strong>
               <span className="gitv-popular-presence">{c.presence ?? 0}%</span>
               <small><span className="gitv-popular-pick">{c.picks}P</span> · <span className="gitv-popular-ban">{c.bans}B</span></small>
-            </div>
+            </Link>
           );
         })}
       </div>
@@ -156,73 +161,118 @@ function PopularCharactersCard() {
   );
 }
 
-// "3 days ago", in the site's language.
-function ago(value: string, locale: string) {
-  const days = Math.round((Date.now() - new Date(value).getTime()) / 86400000);
-  const format = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
-  if (days < 1) return format.format(-Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 3600000)), "hour");
-  if (days < 30) return format.format(-days, "day");
-  return format.format(-Math.round(days / 30), "month");
-}
-
-// News: the latest finished tournaments and who won them.
+// News: written by writers, event organizers and admins (imported from a document on /news); nothing is added
+// automatically. The latest few, each opening its page.
 function News() {
-  const [items, setItems] = useState<TournamentRow[] | null>(null);
-  const { t, locale, count } = useLang();
+  const [items, setItems] = useState<NewsPost[] | null>(null);
+  const { t, date, lang } = useLang();
+  const user = useCurrentUser();
+  const writer = user ? NEWS_WRITER_ROLES.includes(user.role) : false;
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchTournamentList(controller.signal).then((rows) => setItems(rows.slice(0, NEWS))).catch(() => { if (!controller.signal.aborted) setItems([]); });
+    listNews(NEWS, controller.signal).then(setItems).catch(() => { if (!controller.signal.aborted) setItems([]); });
     return () => controller.abort();
   }, []);
 
   return (
     <Card>
-      {!items ? <Rows count={NEWS}>{(i) => <div className="gitv-row gitv-headline" key={i}><small>…</small></div>}</Rows>
-        : !items.length ? <div className="gitv-row"><small>{t("No tournaments yet.", "Турниров пока нет.")}</small></div>
+      {!items ? <div className="gitv-row"><small>…</small></div>
+        : !items.length ? <div className="gitv-row"><small>{t("No news yet.", "Новостей пока нет.")}</small></div>
         : items.map((item) => (
-            <Link to={`/tournament/${item.id}`} className="gitv-row gitv-row-link gitv-headline" key={item.id}>
+            <Link to={`/news/${item.id}`} className="gitv-row gitv-row-link gitv-headline" key={item.id}>
               <span className="gitv-champion-text">
-                <span>{item.winner
-                  ? <><b>{item.winner.name}</b> {t("wins", "побеждает в")} {item.title}</>
-                  : <>{item.title} {t("is over", "завершён")}</>}</span>
-                <small className="gitv-champion-tournament">
-                  {count(item.players, ["player", "players"], ["игрок", "игрока", "игроков"])} · {count(item.matches, ["match", "matches"], ["матч", "матча", "матчей"])}
-                  {item.organizer && ` · ${t("by", "орг.")} ${item.organizer.name}`}
-                </small>
+                <span>{inLang(item, lang).title}</span>
+                <small className="gitv-champion-tournament">{excerpt(inLang(item, lang).body, 120)}</small>
               </span>
-              <small className="push">{item.last_match ? ago(item.last_match, locale) : ""}</small>
+              <small className="push">{date(item.created_at)}</small>
             </Link>
           ))}
+      {(writer || (items && items.length > 0)) && (
+        <div className="gitv-foot">
+          <Link to="/news" className="gitv-row-link">{writer ? t("All news · add", "Все новости · добавить") : t("All news", "Все новости")}</Link>
+        </div>
+      )}
     </Card>
   );
 }
 
-// Matches announced for the viewer's local day (event organizers and admins add them on /schedule).
+// The same two players, in either order
+function samePair(a: [string, string], b: [string, string]) {
+  const key = (p: [string, string]) => p.map((n) => n.toLowerCase()).sort().join("|");
+  return key(a) === key(b);
+}
+
+// Matches for the viewer's local day: the ones on stream (each stream's, announced in its Telegram channel, with
+// whether the stream and each match is on) first, then the ones event organizers and admins added on /schedule.
 function TodaysMatches() {
   const [items, setItems] = useState<ScheduledMatch[] | null>(null);
+  const [streams, setStreams] = useState<StreamDay[]>([]);
   const { t, locale } = useLang();
   const user = useCurrentUser();
   const editor = user ? PLAYER_EDITOR_ROLES.includes(user.role) : false;
 
   useEffect(() => {
     const controller = new AbortController();
-    const [start, end] = localDay();
-    listScheduled(start, end, controller.signal).then(setItems).catch(() => { if (!controller.signal.aborted) setItems([]); });
-    return () => controller.abort();
+    const load = () => {
+      const [start, end] = localDay();
+      listScheduled(start, end, controller.signal).then(setItems).catch(() => { if (!controller.signal.aborted) setItems([]); });
+      streamMatches(start, end, controller.signal).then(setStreams).catch(() => {});
+    };
+    load();
+    // The API reads the channels and Twitch every minute
+    const timer = window.setInterval(load, 60 * 1000);
+    return () => { controller.abort(); window.clearInterval(timer); };
   }, []);
 
-  const player = (p: ScheduledMatch["player1"]) =>
-    p.id ? <Link to={`/player/${p.id}`} className="gitv-row-link">{p.name}</Link> : <span>{p.name}</span>;
+  const time = (iso: string) => new Date(iso).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+  const player = (p: ScheduledMatch["player1"], won = false) => (
+    <>
+      {p.id ? <Link to={`/player/${p.id}`} className={`gitv-row-link${won ? " gitv-winner" : ""}`}>{p.name}</Link>
+        : <span className={won ? "gitv-winner" : undefined}>{p.name}</span>}
+      {p.elo != null && <EloBadge rating={p.elo} rank={p.elo_rank} tier={p.elo_tier} active={p.elo_active} />}
+    </>
+  );
+  const onStream = streams.flatMap((s) => s.matches);
+  const scheduled = (items ?? []).filter((m) => !onStream.some((s) => samePair([s.player1.name, s.player2.name], [m.player1.name, m.player2.name])));
   return (
     <Card><div className="gitv-card-title tinted">{t("Today's Matches", "Матчи дня")}</div>
+      {streams.map((stream) => (
+        <Fragment key={stream.url}>
+          <div className="gitv-row gitv-stream">
+            <a href={stream.url} target="_blank" rel="noreferrer" className="gitv-row-link gitv-stream-link" title={stream.title ?? undefined}>
+              {stream.live && <b className="gitv-badge gitv-stream-live">{t("Live", "В эфире")}</b>}
+              <span>{stream.name} · Twitch · {stream.url.replace(/^https?:\/\/(www\.)?(twitch\.tv\/)?/, "")}</span>
+            </a>
+            {stream.live && stream.title && <small className="gitv-stream-title">{stream.title}</small>}
+            <small className="gitv-champion-tournament">
+              {stream.started_at && `${stream.live ? t("since", "с") : t("starts", "начало")} ${time(stream.started_at)}`}
+              {stream.viewers != null && ` · ${stream.viewers} ${t("watching", "зрителей")}`}
+              {stream.casters && ` · ${t("casters", "ведут")} ${stream.casters}`}
+            </small>
+          </div>
+          {stream.matches.map((m) => (
+            <div className="gitv-row gitv-match" key={`${m.post_url}-${m.player1.name}-${m.player2.name}`}>
+              <div className="gitv-matchline"><span>{player(m.player1, m.winner === 0)}</span>
+                {m.live ? <b className="gitv-badge gitv-stream-live">{t("On air", "Идёт")}</b>
+                  : m.finished_at ? <small>{t("finished", "сыгран")}</small>
+                  : <small>{t("on stream", "на стриме")}</small>}</div>
+              <div className="gitv-matchline"><span>{player(m.player2, m.winner === 1)}</span>
+                {(m.live_at ?? m.starts_at) && <b>{time((m.live_at ?? m.starts_at)!)}</b>}</div>
+              <small className="gitv-champion-tournament">
+                {m.tournament_title}{m.casters && m.casters !== stream.casters && ` · ${t("casters", "ведут")} ${m.casters}`}
+              </small>
+            </div>
+          ))}
+        </Fragment>
+      ))}
       {!items ? <div className="gitv-row"><small>…</small></div>
-        : !items.length ? <div className="gitv-row"><small>{t("No matches scheduled today.", "На сегодня матчей нет.")}</small></div>
-        : items.map((m) => (
+        : !scheduled.length && !onStream.length ? <div className="gitv-row"><small>{t("No matches scheduled today.", "На сегодня матчей нет.")}</small></div>
+        : scheduled.map((m) => (
             <div className="gitv-row gitv-match" key={m.id}>
-              <div className="gitv-matchline"><span><i className="gitv-line" />{player(m.player1)}</span>
+              <div className="gitv-matchline"><span>{player(m.player1)}</span>
                 <b>{new Date(m.starts_at).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}</b></div>
-              <div className="gitv-matchline"><span><i className="gitv-line" />{player(m.player2)}</span></div>
+              <div className="gitv-matchline"><span>{player(m.player2)}</span></div>
               <small className="gitv-champion-tournament">{m.tournament_title}</small>
             </div>
           ))}
@@ -275,14 +325,20 @@ function ElClasicoCard() {
   );
 }
 
-// Tournaments running now on the site; their finished matches come in with `app.cli sync`.
+// Tournaments running now on the site (their finished matches come in with the live poll), with the drafts being
+// played now.
 function LiveTournaments() {
   const [items, setItems] = useState<LiveTournament[] | null>(null);
+  // Their matches being played now, each game linking to its draft on the tournament site
+  const [matches, setMatches] = useState<LiveMatch[]>([]);
   const { t, count } = useLang();
 
   useEffect(() => {
     const controller = new AbortController();
-    const load = () => fetchLiveTournaments(controller.signal).then(setItems).catch(() => { if (!controller.signal.aborted) setItems([]); });
+    const load = () => {
+      fetchLiveTournaments(controller.signal).then(setItems).catch(() => { if (!controller.signal.aborted) setItems([]); });
+      fetchLiveMatches(undefined, controller.signal).then(setMatches).catch(() => {});
+    };
     load();
     // The list is cached for a minute on the API, so checking again every minute is enough.
     const timer = setInterval(load, 60000);
@@ -294,17 +350,19 @@ function LiveTournaments() {
       {!items ? <div className="gitv-row"><small>…</small></div>
         : !items.length ? <div className="gitv-row"><small>{t("No tournaments running right now.", "Сейчас турниров нет.")}</small></div>
         : items.map((item) => (
-            <div className="gitv-row" key={item.id}>
-              {item.image ? <img src={item.image} alt="" className="gitv-square gitv-live-image" /> : <i className="gitv-square" />}
-              <span className="gitv-champion-text">
-                {item.imported_matches
-                  ? <Link to={`/matches?tournament=${item.id}`} className="gitv-row-link">{item.title}</Link>
-                  : <span>{item.title}</span>}
-                <small className="gitv-champion-tournament">
-                  {item.imported_matches ? count(item.imported_matches, ["match played", "matches played"], ["матч сыгран", "матча сыграно", "матчей сыграно"]) : t("No matches finished yet", "Матчей пока нет")}
-                </small>
-              </span>
-              <b className="gitv-badge push">{t("Live", "Идёт")}</b>
+            <div key={item.id}>
+              <div className="gitv-row">
+                <span className="gitv-champion-text">
+                  {item.imported_matches
+                    ? <Link to={`/tournament/${item.id}`} className="gitv-row-link">{item.title}</Link>
+                    : <span>{item.title}</span>}
+                  <small className="gitv-champion-tournament">
+                    {item.imported_matches ? count(item.imported_matches, ["match played", "matches played"], ["матч сыгран", "матча сыграно", "матчей сыграно"]) : t("No matches finished yet", "Матчей пока нет")}
+                  </small>
+                </span>
+                <b className="gitv-badge push">{t("Live", "Идёт")}</b>
+              </div>
+              {matches.filter((m) => m.started && m.tournament_id === item.id).map((m) => <LiveMatchRow match={m} onlyLive key={m.id} />)}
             </div>
           ))}
     </Card>
@@ -326,13 +384,15 @@ function RecentChampions() {
   return (
     <Card><div className="gitv-card-title">{t("Recent Champions", "Последние чемпионы")}</div>
       {failed ? <div className="gitv-row"><small>{t("Couldn't load the champions.", "Не удалось загрузить чемпионов.")}</small></div>
-        : !champions ? <Rows count={CHAMPIONS}>{(i) => <div className="gitv-row" key={i}><small>{i + 1}.</small><i className="gitv-square" /><small>…</small></div>}</Rows>
+        : !champions ? <Rows count={CHAMPIONS}>{(i) => <div className="gitv-row" key={i}><small>{i + 1}.</small><small>…</small></div>}</Rows>
         : champions.map((c, i) => (
             <div className="gitv-row gitv-champion" key={c.player.id}>
               <small>{i + 1}.</small>
-              <i className="gitv-square" />
               <span className="gitv-champion-text">
-                <Link to={`/player/${c.player.id}`} className="gitv-row-link">{c.player.name}</Link>
+                <span className="gitv-champion-name">
+                  <Link to={`/player/${c.player.id}`} className="gitv-row-link">{c.player.name}</Link>
+                  {c.elo && <EloBadge rating={c.elo.rating} rank={c.elo.rank} tier={c.elo.tier} active={c.elo.active} />}
+                </span>
                 <Link to={`/match/${c.final_match_id}`} className="gitv-row-link gitv-champion-tournament">{c.tournament.title}</Link>
               </span>
             </div>

@@ -14,20 +14,24 @@ from .config import settings
 from .database import create_db_and_tables, engine
 from .messages import request_lang, translate
 from .routers import (
+    abyss,
     admin,
     analytics,
     characters,
     discord,
     health,
     matches,
+    news,
     players,
     schedule,
     suggestions,
     tournaments,
     users,
 )
+from .services.abyss import ASSETS as ABYSS_ASSETS
 from .services.media import MEDIA_DIR
 from .services.stats.snapshot import warm_up
+from .services.stream import run_stream_forever
 from .services.sync import run_forever, run_live_forever
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -40,11 +44,12 @@ async def lifespan(app: FastAPI):
     # Statistics are built in the background straight away instead of on the first request.
     warming = asyncio.create_task(asyncio.to_thread(warm_up, engine))
     # Background sync with the tournament site, when SYNC_INTERVAL is set (off by default): the hourly one and the
-    # live poll of running tournaments every five minutes.
+    # live poll of running tournaments every five minutes, and the stream (Telegram channel, Twitch) every minute.
     tasks = (
         [
             asyncio.create_task(run_forever(engine, settings.sync_interval)),
             asyncio.create_task(run_live_forever(engine)),
+            asyncio.create_task(run_stream_forever(engine)),
         ]
         if settings.sync_interval > 0
         else []
@@ -76,9 +81,15 @@ app.include_router(matches.router, prefix=settings.api_prefix)
 app.include_router(players.router, prefix=settings.api_prefix)
 app.include_router(suggestions.router, prefix=settings.api_prefix)
 app.include_router(schedule.router, prefix=settings.api_prefix)
+app.include_router(news.router, prefix=settings.api_prefix)
 app.include_router(tournaments.router, prefix=settings.api_prefix)
 app.include_router(characters.router, prefix=settings.api_prefix)
 app.include_router(analytics.router, prefix=settings.api_prefix)
+app.include_router(abyss.router, prefix=settings.api_prefix)
+
+# Spiral Abyss icons downloaded from alioth.wiki (services/abyss.py): game assets only, never uploads.
+ABYSS_ASSETS.mkdir(parents=True, exist_ok=True)
+app.mount(f"{settings.api_prefix}/abyss-assets", StaticFiles(directory=ABYSS_ASSETS), name="abyss-assets")
 
 # Uploaded avatars. Only images checked by their bytes are ever written there (services/media.py).
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)

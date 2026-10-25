@@ -1,0 +1,10 @@
+/* 404 and error page: one centered box, the code large in the display face. */
+.not-found { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 40px 20px 32px; text-align: center; }
+.not-found-code { margin: 0; font: 800 clamp(72px, 14vw, 128px)/0.9 var(--gitv-font-display, var(--gitv-font)); letter-spacing: -0.02em; color: var(--gitv-gold); }
+.not-found-title { margin: 6px 0 0; font: 600 22px/1.3 var(--gitv-font); color: var(--gitv-text); text-wrap: balance; }
+.not-found-text { max-width: 52ch; margin: 0; color: var(--gitv-text-soft); font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.not-found-text code { padding: 1px 6px; background: var(--gitv-surface-hover); border: 1px solid var(--gitv-border); font: 500 13px/1.4 ui-monospace, monospace; color: var(--gitv-text); }
+.not-found-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 10px; }
+.not-found-link { padding: 7px 14px; border: 1px solid var(--gitv-border); background: var(--gitv-surface); color: var(--gitv-text); font-size: 13px; text-decoration: none; }
+.not-found-link:hover, .not-found-link:focus-visible { border-color: var(--gitv-accent); color: var(--gitv-accent); outline: none; }
+.not-found-hint { margin: 6px 0 0; }

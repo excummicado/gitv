@@ -32,6 +32,7 @@ from sqlmodel import Session, delete, select
 
 from ..models import IgnoredTournament, LiveMatch, LiveRoster, MatchPlayer, Tournament, TournamentInfo
 from . import match_import
+from .abyss import maybe_fetch_abyss
 from .challonge import challonge_link, fetch_challonge
 from .draft_actions import fetch_draft_actions, fetch_init
 from .draft_links import fetch_draft_links, fetch_match
@@ -39,7 +40,6 @@ from .draft_systems import fetch_draft_systems
 from .match_checks import tidy_title
 from .match_import import ImportResult, import_from_urls, import_matches, is_finished, parse_date
 from .rosters import build_rosters
-from .stream import poll_stream
 from .tournament_info import fetch_tournament_info
 
 log = logging.getLogger("gitv.sync")
@@ -114,6 +114,13 @@ def sync(session: Session, cookie: str | None = None) -> SyncResult:
         fetch_tournament_info(session)
         # Their Challonge brackets, once each: the source of results and places.
         result.errors += fetch_challonge(session).errors
+    # New Spiral Abyss phases from alioth.wiki, at most once a day.
+    try:
+        abyss = maybe_fetch_abyss(session)
+        if abyss:
+            result.errors += abyss.errors
+    except (httpx.HTTPError, ValueError, KeyError) as e:
+        result.errors.append(f"abyss: {e}")
     return result
 
 
@@ -349,8 +356,6 @@ def poll_live_once(engine) -> SyncResult | None:
         write_state(last_live_poll=time.time())
         with Session(engine) as session:
             result = poll_live(session)
-            # The matches on stream, from its Telegram channel, and whether it's live on Twitch
-            result.errors += poll_stream(session)
     if result.matches_saved:
         log.info(
             "live poll: %d matches, %d draft links, %d drafts%s",

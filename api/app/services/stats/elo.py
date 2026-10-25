@@ -24,9 +24,26 @@ from .snapshot import Snapshot, major_tournament_ids
 
 START, K_NEW, K_SETTLED, NEW_MATCHES = 1500.0, 40, 20, 10
 ACTIVE_DAYS = 183  # six months
+# Colour tiers by place: the top three their medals, then the rest of the top ten, then down to the thirtieth. A
+# player level (rounded) with the last place of a tier is in it too.
+MEDALS = ("gold", "silver", "bronze")
+TIERS = ((10, "top10"), (30, "top30"))
 FAST = re.compile(r"fast soup|fast beer|weekend|fast cup|322\s*cup", re.IGNORECASE)
 MEDIA = re.compile(r"abyss cup media", re.IGNORECASE)
 LESSER_SERIES = ("Abyss Ascend", "Abyss New Gen")
+
+
+@dataclass
+class EloStep:
+    """A player's rating after one match."""
+
+    at: datetime
+    match_id: str
+    tournament_id: str
+    opponent: str  # player id, or "?<name>" for someone not on the site
+    result: float  # 1 won, 0 lost, 0.5 drawn
+    elo: float
+    change: float
 
 
 @dataclass
@@ -38,6 +55,10 @@ class Rating:
     last_match: datetime
     active: bool
     rank: int | None  # among active players, best first; None when inactive
+    rank_all: int  # among everyone, inactive players included
+    tier: str | None  # colour tier among active players (see TIERS); None when inactive or below them
+    tier_all: str | None  # the same among everyone
+    history: list[EloStep]  # after each of their matches, in order
 
 
 def weight(title: str, organizer: str, major: bool) -> float:
@@ -74,6 +95,7 @@ def elo_ratings(session: Session, snap: Snapshot, now: datetime | None = None) -
     played: dict[str, int] = defaultdict(int)
     last: dict[str, datetime] = {}
     peak: dict[str, tuple[float, datetime]] = {}
+    history: dict[str, list[EloStep]] = defaultdict(list)
     matches = sorted(
         (m for m, o in snap.outcomes.items() if o.decided and len(snap.match_sides.get(m, {})) == 2),
         key=lambda m: (snap.match_info[m][0], m),
@@ -94,8 +116,11 @@ def elo_ratings(session: Session, snap: Snapshot, now: datetime | None = None) -
         ea = 1 / (1 + 10 ** ((rating[b] - rating[a]) / 400))
         ka = (K_NEW if played[a] < NEW_MATCHES else K_SETTLED) * w
         kb = (K_NEW if played[b] < NEW_MATCHES else K_SETTLED) * w
-        rating[a], rating[b] = rating[a] + ka * (sa - ea), rating[b] + kb * (ea - sa)
+        da, db = ka * (sa - ea), kb * (ea - sa)
+        rating[a], rating[b] = rating[a] + da, rating[b] + db
         when = snap.match_info[mid][0]
+        history[a].append(EloStep(when, mid, tid, b_side, sa, rating[a], da))
+        history[b].append(EloStep(when, mid, tid, a_side, 1 - sa, rating[b], db))
         for k in (a, b):
             played[k] += 1
             last[k] = when
@@ -108,7 +133,10 @@ def elo_ratings(session: Session, snap: Snapshot, now: datetime | None = None) -
 
     listed = [k for k in rating if k in snap.players]
     ranked = sorted((k for k in listed if is_active(k)), key=lambda k: -rating[k])
+    everyone = sorted(listed, key=lambda k: -rating[k])
     rank = {k: n for n, k in enumerate(ranked, start=1)}
+    rank_all = {k: n for n, k in enumerate(everyone, start=1)}
+    tier, tier_all = tiers(ranked, rating), tiers(everyone, rating)
     snap.elo = {
         k: Rating(
             elo=round(rating[k]),
@@ -118,7 +146,26 @@ def elo_ratings(session: Session, snap: Snapshot, now: datetime | None = None) -
             last_match=last[k],
             active=k in rank,
             rank=rank.get(k),
+            rank_all=rank_all[k],
+            tier=tier.get(k),
+            tier_all=tier_all.get(k),
+            history=history[k],
         )
         for k in listed
     }
     return snap.elo
+
+
+def tiers(ranked: list[str], rating: dict[str, float]) -> dict[str, str]:
+    """{player: colour tier} for players in rank order (see TIERS)."""
+    shown = [round(rating[k]) for k in ranked]
+    out = {k: MEDALS[n] for n, k in enumerate(ranked[: len(MEDALS)])}
+    for last, name in TIERS:
+        if len(ranked) < last:
+            cut = shown[-1] if shown else None
+        else:
+            cut = shown[last - 1]
+        for n, k in enumerate(ranked):
+            if k not in out and (n < last or shown[n] == cut):
+                out[k] = name
+    return out

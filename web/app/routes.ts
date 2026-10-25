@@ -7,6 +7,8 @@ export default [
   route("player/:playerId/compare/:otherId?", "routes/compare.tsx"),
   route("matches", "routes/matches.tsx"),
   route("schedule", "routes/schedule.tsx"),
+  route("news", "routes/news.tsx"),
+  route("news/:newsId", "routes/news.post.tsx"),
   route("match/:matchId", "routes/match.tsx"),
   route("tournaments", "routes/tournaments.tsx"),
   route("characters", "routes/characters.tsx"),
@@ -15,4 +17,8 @@ export default [
   route("profile", "routes/profile.tsx"),
   route("analytics", "routes/site-stats.tsx"),
   route("auth/discord", "routes/auth.discord.tsx"),
+  route("abyss", "routes/abyss.tsx"),
+  route("abyss/:phaseId", "routes/abyss.phase.tsx"),
+  // Last: every other address is the 404 page.
+  route("*", "routes/not-found.tsx"),
 ] satisfies RouteConfig;

@@ -70,14 +70,6 @@
   text-decoration: underline;
 }
 
-.gitv-square {
-  display: inline-block;
-  flex: none;
-  width: 20px;
-  height: 20px;
-  background: #334155;
-}
-
 .gitv-foot {
   padding: 7px;
   background: var(--gitv-surface-hover);
@@ -145,14 +137,6 @@
   color: var(--gitv-muted);
 }
 
-.gitv-line {
-  display: inline-block;
-  flex: none;
-  width: 16px;
-  height: 11px;
-  background: #334155;
-}
-
 .gitv-headline {
   min-height: 38px;
 }
@@ -199,11 +183,6 @@
   padding: 0 2px 6px;
 }
 
-.gitv-square.large {
-  width: 26px;
-  height: 26px;
-}
-
 @media (max-width: 760px) {
 
   .gitv-columns {
@@ -248,6 +227,8 @@
 .gitv-champion-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
 .gitv-champion-text > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gitv-champion-tournament { color: var(--gitv-muted); font-size: 11px; }
+.gitv-champion-name { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.gitv-champion-name > a { overflow: hidden; text-overflow: ellipsis; }
 
 /* Promo: most picked character of the latest tournament over its splash art. */
 .gitv-top-pick { position: relative; display: flex; align-items: flex-end; overflow: hidden; background: var(--gitv-surface-hover); color: var(--gitv-text); text-decoration: none; }
@@ -256,7 +237,6 @@
 .gitv-top-pick-text small { color: var(--gitv-muted); font-size: 11px; }
 .gitv-top-pick-text strong { font-size: 16px; font-weight: 600; }
 .gitv-top-pick:hover strong { text-decoration: underline; }
-.gitv-live-image { object-fit: cover; }
 
 /* Event banner: the newest tournament's art with its title over a dark fade. */
 .gitv-banner-event { display: block; height: auto; aspect-ratio: 16 / 6; overflow: hidden; background: var(--gitv-surface-hover); color: var(--gitv-text); text-decoration: none; }
@@ -273,7 +253,9 @@
 .gitv-popular-title { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .gitv-popular-title .gitv-row-link { font-size: 11px; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gitv-popular { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; padding: 10px; }
-.gitv-popular-item { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; text-align: center; }
+.gitv-popular-item { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; text-align: center; color: inherit; text-decoration: none; }
+.gitv-popular-item:hover .gitv-popular-name, .gitv-popular-item:focus-visible .gitv-popular-name { text-decoration: underline; }
+.gitv-popular-item:hover .gitv-popular-art { border-color: var(--gitv-accent); }
 .gitv-popular-art { position: relative; width: 100%; aspect-ratio: 1; overflow: hidden; background: var(--gitv-surface-hover); border: 1px solid var(--gitv-border); }
 .gitv-popular-item.rarity-5 .gitv-popular-art { border-color: rgba(245, 197, 66, .6); }
 .gitv-popular-item.rarity-4 .gitv-popular-art { border-color: rgba(167, 139, 250, .55); }
@@ -307,3 +289,10 @@
 .gitv-clasico-meeting span.is-loss { color: var(--gitv-loss); }
 .gitv-clasico-meeting small { font-size: 9px; color: var(--gitv-faint); }
 .gitv-popular-cons { position: absolute; right: 4px; bottom: 4px; padding: 1px 4px; background: rgba(11, 18, 32, .82); color: var(--gitv-gold); font-size: 10px; }
+
+/* Today's matches: the stream */
+.gitv-stream { display: flex; flex-direction: column; align-items: stretch; gap: 2px; }
+.gitv-stream-link { display: flex; align-items: center; gap: 6px; }
+.gitv-badge.gitv-stream-live { background: #ef4444; color: #fff; }
+.gitv-stream-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.gitv-winner { color: var(--gitv-win); }

@@ -1,0 +1,26 @@
+/* EloChart: one line on a recessive grid; the start (1500) dashed, the peak marked; crosshair + tooltip on hover */
+.elo-chart-box { margin-bottom: 16px; }
+.elo-chart { position: relative; padding: 4px 8px 0; min-height: 60px; }
+.elo-chart svg { display: block; touch-action: pan-y; }
+.elo-grid { stroke: var(--gitv-border-muted); stroke-width: 1; }
+.elo-axis { fill: var(--gitv-muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+.elo-start { stroke: var(--gitv-muted); stroke-width: 1; stroke-dasharray: 3 4; }
+.elo-line { fill: none; stroke: var(--gitv-accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.elo-peak { fill: var(--gitv-accent); stroke: var(--gitv-surface, var(--gitv-bg)); stroke-width: 2; }
+.elo-label { fill: var(--gitv-text); font-size: 10px; }
+.elo-cross { stroke: var(--gitv-muted); stroke-width: 1; }
+.elo-dot { fill: var(--gitv-accent); stroke: var(--gitv-surface, var(--gitv-bg)); stroke-width: 2; }
+.elo-tip {
+  position: absolute; transform: translate(-50%, -100%); pointer-events: none; z-index: 2;
+  padding: 6px 8px; background: var(--gitv-surface-2, var(--gitv-bg)); border: 1px solid var(--gitv-border);
+  color: var(--gitv-text); font-size: 12px; line-height: 1.4; white-space: nowrap;
+}
+.elo-tip-meta { color: var(--gitv-muted); font-size: 11px; }
+.elo-up { color: var(--gitv-win); }
+.elo-down { color: var(--gitv-loss, #f87171); }
+.elo-table { padding: 0 12px 10px; }
+.elo-table summary { cursor: pointer; padding: 4px 0; }
+.elo-table table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.elo-table th, .elo-table td { padding: 3px 6px; text-align: right; border-top: 1px dotted var(--gitv-border-muted); }
+.elo-table th:nth-child(-n+3), .elo-table td:nth-child(-n+3) { text-align: left; }
+.elo-table th { color: var(--gitv-muted); font-weight: 600; font-size: 11px; }

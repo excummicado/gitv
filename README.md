@@ -14,7 +14,9 @@ and standings. The site is bilingual (English and Russian).
 - **Characters** — pick rate, ban rate, presence and winrate for every character, split by constellation, with
   filters by organizer, date, major tournaments and prize winners.
 - **Matches** — every game with team compositions, room times, draft order and technical-defeat detection.
-- **Community** — Discord sign-in; members suggest players' real names, birthdays and avatars, admins review them;
+- **Spiral Abyss** — floor 12 of every Abyss phase since 1.0 (enemies, HP, resistances, moon blessings, boss
+  mechanics; data from alioth.wiki), and on each tournament page the Abyss it was played on.
+- **Community** — Discord sign-in; members suggest players' real names and birthdays, admins review them;
   event organizers schedule matches of the day.
 
 ## How it works
@@ -43,13 +45,14 @@ Challonge embed page ─┘     (api/app/services)
 - **Accounts.** Sign-in is Discord only, no passwords. Stored: Discord id and username, the verified email Discord
   returns, the chosen nickname and the role. Discord's access token is used once to read the profile and is not
   stored. The site token is kept in the browser's local storage.
-- **Players.** Tournament data is public on darte.gg. Real names, birthdays and avatars appear only after an admin
+- **Players.** Tournament data is public on darte.gg. Real names and birthdays appear only after an admin
   accepts a member's suggestion; every change is logged with who made it.
 - **Outbound requests.** The server only calls the darte.gg public API and draft websocket, Challonge's public
-  embed pages and Discord OAuth. Automatic syncing never runs more than once an hour and never bypasses bot
-  protection.
-- **Hardening.** Rate limits on sign-in and every write, role checks on each request, uploads checked by their
-  file signature, parametrized SQL. Secrets live in `.env`, which is not committed.
+  embed pages, alioth.wiki's Spiral Abyss pages (at most once a day) and Discord OAuth. Automatic syncing runs
+  once an hour, except that the matches and Challonge brackets of tournaments running now are polled every five
+  minutes, and it never bypasses bot protection.
+- **Hardening.** Rate limits on sign-in and every write, role checks on each request, parametrized SQL.
+  Secrets live in `.env`, which is not committed.
 
 ## Tech stack
 

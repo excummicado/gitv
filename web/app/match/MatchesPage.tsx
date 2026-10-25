@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
 import { fetchMatchesByTournament, fetchTournaments, type GroupedMatches, type MatchSummary, type TournamentGroup, type TournamentItem } from "./api";
@@ -27,7 +27,8 @@ export function MatchRow({ match }: { match: MatchSummary }) {
   );
 }
 
-function TournamentSection({ group, onPick, filtered }: { group: TournamentGroup; onPick: (id: string) => void; filtered: boolean }) {
+// A tournament's title opens its page, which has its matches and everything else about it.
+function TournamentSection({ group }: { group: TournamentGroup }) {
   const { tournament, items, places } = group;
   const first = items[items.length - 1]?.created_at;
   const last = items[0]?.created_at;
@@ -35,8 +36,7 @@ function TournamentSection({ group, onPick, filtered }: { group: TournamentGroup
   return (
     <section className="player-box">
       <h2 className="player-box-title match-game-title">
-        {filtered ? <span>{tournament.title}</span>
-          : <button type="button" className="match-section-link" onClick={() => onPick(tournament.id)}>{tournament.title}</button>}
+        <Link className="match-section-link" to={`/tournament/${tournament.id}`}>{tournament.title}</Link>
         {tournament.organizer && <span className="match-game-meta">{t("by", "орг.")} <OrganizerName organizer={tournament.organizer} /></span>}
         <span className="match-game-meta">{count(tournament.matches, ["match", "matches"], ["матч", "матча", "матчей"])}</span>
         {first && last && <span className="gitv-date match-section-dates">{date(first)}{first.slice(0, 10) !== last.slice(0, 10) ? ` – ${date(last)}` : ""}</span>}
@@ -58,8 +58,8 @@ function TournamentSection({ group, onPick, filtered }: { group: TournamentGroup
 export function MatchesPage() {
   const [params, setParams] = useSearchParams();
   const q = params.get("q") ?? "";
-  const tournament = params.get("tournament") ?? "";
   const page = Math.max(1, Number(params.get("page")) || 1);
+  const navigate = useNavigate();
 
   const [search, setSearch] = useState(q);
   const [tournaments, setTournaments] = useState<TournamentItem[]>([]);
@@ -96,11 +96,11 @@ export function MatchesPage() {
   useEffect(() => {
     const controller = new AbortController();
     setError("");
-    fetchMatchesByTournament({ q, tournament, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }, controller.signal)
+    fetchMatchesByTournament({ q, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }, controller.signal)
       .then(setList)
       .catch((err) => { if (!controller.signal.aborted) setError(err instanceof Error ? err.message : t("Couldn't load the matches.", "Не удалось загрузить матчи.")); });
     return () => controller.abort();
-  }, [q, tournament, page]);
+  }, [q, page]);
 
   const pages = list ? Math.max(1, Math.ceil(list.total / PAGE_SIZE)) : 1;
 
@@ -113,8 +113,9 @@ export function MatchesPage() {
           <div className="player-content match-content">
             <div className="player-box match-filters">
               <input className="match-input" type="search" placeholder={t("Player or tournament", "Игрок или турнир")} aria-label={t("Search by player or tournament", "Поиск по игроку или турниру")} value={search} onChange={(e) => setSearch(e.target.value)} />
-              <select className="match-input" aria-label={t("Tournament", "Турнир")} value={tournament} onChange={(e) => update({ tournament: e.target.value, page: "" })}>
-                <option value="">{t("All tournaments", "Все турниры")}</option>
+              {/* Picking a tournament opens its page rather than filtering this list. */}
+              <select className="match-input" aria-label={t("Open a tournament", "Открыть турнир")} value="" onChange={(e) => { if (e.target.value) navigate(`/tournament/${e.target.value}`); }}>
+                <option value="">{t("Open a tournament…", "Открыть турнир…")}</option>
                 {tournaments.map((item) => <option value={item.id} key={item.id}>{item.title} ({item.matches})</option>)}
               </select>
             </div>
@@ -128,8 +129,7 @@ export function MatchesPage() {
               : !list ? <p className="player-box match-empty">{t("Loading matches…", "Загрузка матчей…")}</p>
               : !list.groups.length ? <p className="player-box match-empty">{t("No matches found.", "Матчи не найдены.")}</p>
               : list.groups.map((group) => (
-                  <TournamentSection group={group} filtered={Boolean(tournament)} key={group.tournament.id}
-                    onPick={(id) => { update({ tournament: id, page: "" }); window.scrollTo(0, 0); }} />
+                  <TournamentSection group={group} key={group.tournament.id} />
                 ))}
 
             {list && pages > 1 && (

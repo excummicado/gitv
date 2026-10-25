@@ -20,6 +20,8 @@
 .tourney-kicker { display: flex; align-items: center; gap: 6px; font-size: 12px; margin-bottom: 4px; }
 .tourney-table-row { display: grid; grid-template-columns: 70px minmax(0, 2fr) repeat(5, minmax(0, 1fr)); gap: 10px; align-items: center; padding: 7px 14px; border-top: 1px dotted var(--gitv-border-muted); font-size: 13px; color: var(--gitv-text); }
 .tourney-table-row > :nth-child(n + 3) { text-align: right; }
+/* A group's heading in a stage of several qualifier groups. */
+.tourney-group-head { padding: 10px 14px 6px; border-top: 1px solid var(--gitv-border); font-size: 12px; font-weight: 600; }
 .tourney-table-head { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
 .tourney-player { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tourney-note { margin: 0; padding: 8px 14px; font-size: 12px; color: var(--gitv-muted); }
@@ -39,6 +41,20 @@
 .tourney-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
 .tourney-char { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto 48px; gap: 8px; align-items: center; padding: 5px 12px; border-top: 1px dotted var(--gitv-border-muted); font-size: 12px; color: var(--gitv-text); }
 .tourney-char > :last-child { text-align: right; font-weight: 600; }
+/* Character pool: who had each character, by constellation; narrow screens keep the totals (their popover lists the constellations). */
+.tourney-pool-filter { display: inline-flex; align-items: center; gap: 6px; margin: 0 14px 8px; font-size: 12px; color: var(--gitv-text-soft); cursor: pointer; }
+.tourney-pool-row { display: grid; grid-template-columns: 28px minmax(0, 2fr) 90px repeat(7, minmax(26px, 1fr)); gap: 8px; align-items: center; padding: 5px 12px; border-top: 1px dotted var(--gitv-border-muted); font-size: 12px; color: var(--gitv-text); }
+.tourney-pool-row > :nth-child(n + 3) { text-align: right; }
+.tourney-pool-zero { color: var(--gitv-faint); }
+/* Who had it (the characters page's popover, see characters.css): player and constellation. */
+.tourney-pool-pop { width: 280px; }
+.tourney-pool-players { grid-template-columns: minmax(0, 1fr) 48px; }
+.tourney-pool-players-head { display: grid; gap: 8px; padding: 4px 10px; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--gitv-border); }
+.tourney-pool-players > :last-child { text-align: right; }
+.tourney-pool-sort { padding: 0; border: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; text-align: inherit; cursor: pointer; }
+.tourney-pool-sort:hover, .tourney-pool-sort:focus-visible, .tourney-pool-sort.active { color: var(--gitv-text); }
+.tourney-pool-more { display: block; width: 100%; padding: 8px; border: 0; border-top: 1px solid var(--gitv-border-muted); background: none; color: var(--gitv-accent); font: inherit; font-size: 12px; cursor: pointer; }
+.tourney-pool-more:hover, .tourney-pool-more:focus-visible { background: var(--gitv-surface-hover); }
 .tourney-char-icon { width: 28px; height: 28px; background: var(--gitv-surface-hover); border: 1px solid var(--gitv-border); }
 .tourney-char-icon.rarity-5 { border-color: rgba(245, 197, 66, .6); }
 .tourney-char-icon.rarity-4 { border-color: rgba(167, 139, 250, .55); }
@@ -56,4 +72,9 @@
   .tourneys-row > :first-child { display: none; }
   .tourney-table-row { grid-template-columns: 44px minmax(0, 2fr) minmax(0, 1fr); }
   .tourneys-row .hide-xs, .tourney-table-row .hide-xs { display: none; }
+}
+
+@media (max-width: 640px) {
+  .tourney-pool-row { grid-template-columns: 28px minmax(0, 1fr) 90px; }
+  .tourney-pool-row .hide-sm { display: none; }
 }

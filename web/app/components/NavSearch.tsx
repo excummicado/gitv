@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { fetchTournaments, type TournamentItem } from "../match/api";
-import { fetchPlayers, type PlayerSummary } from "../player/api";
+import { distinctNames, fetchPlayers, type PlayerSummary } from "../player/api";
 import { useLang } from "../i18n";
 
 const LIMIT = 5;
@@ -25,8 +25,10 @@ function search(query: string, players: PlayerSummary[], tournaments: Tournament
   const rank = (text: string) => (text.toLowerCase().startsWith(q) ? 0 : 1);
   const foundPlayers = players
     .map((p) => {
-      const alias = p.other_names.find((n) => n.toLowerCase().includes(q));
-      return p.name.toLowerCase().includes(q) ? { p, alias: null, r: rank(p.name) } : alias ? { p, alias, r: 2 } : null;
+      const aliases = p.other_names.filter((n) => n.toLowerCase().includes(q));
+      if (p.name.toLowerCase().includes(q)) return { p, alias: null, r: rank(p.name) };
+      // Found by an old nick: shown unless it only spells the name differently
+      return aliases.length ? { p, alias: distinctNames(p.name, aliases)[0] ?? null, r: 2 } : null;
     })
     .filter((x) => x !== null)
     .sort((a, b) => a.r - b.r || b.p.matches - a.p.matches)
@@ -36,7 +38,7 @@ function search(query: string, players: PlayerSummary[], tournaments: Tournament
     .filter((t) => t.title.toLowerCase().includes(q))
     .sort((a, b) => rank(a.title) - rank(b.title))
     .slice(0, LIMIT)
-    .map((t): Result => ({ kind: "tournament", id: t.id, label: t.title, alias: null, matches: t.matches, to: `/matches?tournament=${t.id}` }));
+    .map((t): Result => ({ kind: "tournament", id: t.id, label: t.title, alias: null, matches: t.matches, to: `/tournament/${t.id}` }));
   return [...foundPlayers, ...foundTournaments];
 }
 

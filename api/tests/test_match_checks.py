@@ -70,6 +70,8 @@ class TestTechnicalLoser:
 
     def test_neither_entered_more_restarts_loses(self):
         assert technical_loser(["missing", "missing"], [2, 7])[0] == 1
+        # 0/0/0 against 71/0/0 with a restart: the one who recorded nothing loses
+        assert technical_loser(["missing", "missing"], [0, 1], None, [0, 1])[0] == 0
 
     def test_neither_entered_same_restarts_is_unclear(self):
         assert technical_loser(["missing", "missing"], [3, 3]) == (None, None)

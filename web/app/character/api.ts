@@ -33,7 +33,7 @@ function filterQuery(options: TableFilters) {
 
 export type CharacterPlayer = {
   player: { id: string; name: string }; picks: number; wins: number; losses: number; winrate: number | null;
-  min_constellation: number; max_constellation: number; last_constellation: number; first: string; last: string;
+  min_constellation: number | null; max_constellation: number | null; last_constellation: number | null; first: string; last: string;
 };
 
 // Who picked the character and when, under the same filters as the table; most picks first.

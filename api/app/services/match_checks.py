@@ -166,10 +166,14 @@ def gave_up_at(r: tuple[int, ...]) -> int | None:
 
 
 def technical_loser(
-    statuses: list[str | None], restarts: list[int], gave_up: list[int | None] | None = None
+    statuses: list[str | None],
+    restarts: list[int],
+    gave_up: list[int | None] | None = None,
+    played: list[int] | None = None,
 ) -> tuple[int | None, str | None]:
     """The technical defeat goes to whoever entered 300 s from some room to the end; else to whoever left their time out
-    while the other has it; else, when neither entered it, to whoever restarted more. A negative room time
+    while the other has it; else, when neither entered it all, to whoever recorded fewer rooms (played: rooms with a
+    time), then to whoever restarted more. A negative room time
     is a typo, not a defeat: such a game has no result."""
     if "invalid" in statuses:
         return None, None
@@ -184,6 +188,8 @@ def technical_loser(
     missing = [i for i, s in enumerate(statuses) if s == "missing"]
     if len(missing) == 1:
         return missing[0], "не записал время"
+    if len(missing) == 2 and played and played[0] != played[1]:
+        return (0 if played[0] < played[1] else 1), "оба не записали, сыграл меньше комнат"
     if len(missing) == 2 and restarts[0] != restarts[1]:
         return (0 if restarts[0] > restarts[1] else 1), "оба не записали, больше рестартов"
     return None, None
@@ -223,7 +229,12 @@ def technical_game(players: list[MatchPlayer], rooms: dict[int, tuple[int, ...] 
             reasons.append(f"{p.full_name}: {why} ({'/'.join(map(str, r))}, рестартов {p.restarts})")
     if not reasons:
         return None
-    loser, rule = technical_loser(statuses, [p.restarts for p in dp], [gave_up_at(rooms[p.slot]) for p in dp])
+    loser, rule = technical_loser(
+        statuses,
+        [p.restarts for p in dp],
+        [gave_up_at(rooms[p.slot]) for p in dp],
+        [sum(1 for t in rooms[p.slot] if t > 0) for p in dp],
+    )
     return TechnicalGame(reasons, loser, rule)
 
 

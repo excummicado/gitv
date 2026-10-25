@@ -4,7 +4,7 @@ import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
 import { MajorToggle } from "./MajorToggle";
 import { useLang } from "../i18n";
-import { fetchComparison, fetchPlayers, type CharacterCount, type Comparison, type CompareSide, type MeetingSide, type PlayerSummary } from "./api";
+import { distinctNames, fetchComparison, fetchPlayers, type CharacterCount, type Comparison, type CompareSide, type MeetingSide, type PlayerSummary } from "./api";
 import "./compare.css";
 
 type L = ReturnType<typeof useLang>;
@@ -104,7 +104,7 @@ function PlayerPicker({ players, exclude, onPick, autoFocus }: { players: Player
         <ul className="cmp-picker-list">
           {found.map((p) => (
             <li key={p.id}><button type="button" onClick={() => { onPick(p.id); setQ(""); }}>
-              <b>{p.name}</b><span className="player-label">{p.matches} {t("matches", "матчей")}{p.other_names.length ? ` · ${p.other_names.slice(0, 2).join(", ")}` : ""}</span>
+              <b>{p.name}</b><span className="player-label">{p.matches} {t("matches", "матчей")}{distinctNames(p.name, p.other_names).length ? ` · ${distinctNames(p.name, p.other_names).slice(0, 2).join(", ")}` : ""}</span>
             </button></li>
           ))}
         </ul>
@@ -118,7 +118,6 @@ function PlayerHead({ side, fallback, id, align }: { side: CompareSide | null; f
   const age = side?.profile?.age;
   return (
     <div className={`cmp-head ${align}`}>
-      {side?.profile?.avatar_url && <img className="cmp-avatar" src={side.profile.avatar_url} alt="" width={56} height={56} />}
       <div className="cmp-head-text">
         <Link className="player-match-link cmp-name" to={`/player/${id}`}>{side?.name ?? fallback}</Link>
         <span className="player-label">{[side?.profile?.real_name, age ? t(`${age} y.o.`, `${age} лет`) : null].filter(Boolean).join(" · ") || " "}</span>

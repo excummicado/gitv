@@ -8,6 +8,8 @@ export type PlayerSummary = {
   id: string; name: string; other_names: string[]; tournaments: number; matches: number; match_wins: number; match_winrate: number | null;
   games: number; wins: number; losses: number; draws: number; winrate: number | null; avg_time: number | null; best_time: number | null;
   tech_losses: number; tech_loss_rate: number | null; avg_restarts: number | null; last_played: string | null;
+  // From all tournaments; inactive (no match in six months) players keep it but have no rank
+  elo: { rating: number; peak: number; peak_at: string; active: boolean; rank: number | null; rank_all: number; tier: string | null; tier_all: string | null } | null;
 };
 export type CharacterCount = { character: Character; games: number };
 export type CharacterRate = { character: Character; winrate: number | null; games: number };
@@ -55,7 +57,7 @@ export type FrequentOpponent = {
   meetings: { match_id: string; date: string; tournament: string; games_won: number; games_lost: number; result: "W" | "L" | "D" | "—"; source: "challonge" | "technical" | "time" | null }[];
 };
 
-// "major": only Abyss Cup qualifiers and playoffs count.
+// "major": only Abyss Cup qualifiers and playoffs and House of the Hearth's Abyss Fight Club count.
 export type Scope = "all" | "major";
 
 export function fetchPlayers(signal?: AbortSignal, scope: Scope = "all") {
@@ -67,7 +69,7 @@ export function fetchPlayers(signal?: AbortSignal, scope: Scope = "all") {
 export function fetchPlayer(id: string, signal?: AbortSignal, scope: Scope = "all", tournament?: string, since?: string) {
   const notFound: Message = tournament ? ["This player didn't play that tournament.", "Игрок не участвовал в этом турнире."]
     : since ? ["No games in tournaments since that date.", "Нет игр в турнирах с этой даты."]
-    : scope === "major" ? ["No games in major tournaments (Abyss Cup qualifiers and playoffs).", "Нет игр в мейджор-турнирах (квалификации и плей-офф Abyss Cup)."]
+    : scope === "major" ? ["No games in major tournaments (Abyss Cup qualifiers and playoffs, Abyss Fight Club).", "Нет игр в мейджор-турнирах (квалификации и плей-офф Abyss Cup, Abyss Fight Club)."]
     : ["This player hasn't played an imported match.", "У игрока нет импортированных матчей."];
   const query = new URLSearchParams({ scope });
   if (tournament) query.set("tournament", tournament);
@@ -75,7 +77,7 @@ export function fetchPlayer(id: string, signal?: AbortSignal, scope: Scope = "al
   return getJson<PlayerDetail>(`/api/v1/players/${encodeURIComponent(id)}?${query}`, { signal, notFound });
 }
 
-export type Champion = { player: { id: string; name: string }; tournament: { id: string; title: string }; date: string; final_match_id: string };
+export type Champion = { player: { id: string; name: string }; tournament: { id: string; title: string }; date: string; final_match_id: string; elo: PlayerSummary["elo"] };
 
 // Winners of the latest tournaments, one entry per player (older tournaments fill in repeats).
 export function fetchChampions(limit = 5, signal?: AbortSignal) {
@@ -86,6 +88,16 @@ export function fetchChampions(limit = 5, signal?: AbortSignal) {
 export function fetchRosters(playerId: string, tournamentId: string, signal?: AbortSignal) {
   return getJson<RosterVersion[]>(`/api/v1/players/${encodeURIComponent(playerId)}/rosters/${encodeURIComponent(tournamentId)}`,
     { signal, notFound: ["No roster for this tournament.", "Нет ростера на этом турнире."] });
+}
+
+// A player's Elo after each rated match (GET /api/v1/players/{id}/elo), for the chart on their page.
+export type EloPoint = {
+  date: string; elo: number; change: number; result: number; opponent: { id: string; name: string }; tournament: string; match_id: string | null;
+};
+export type EloHistory = { elo: NonNullable<PlayerSummary["elo"]>; points: EloPoint[] };
+
+export function fetchEloHistory(playerId: string, signal?: AbortSignal) {
+  return getJson<EloHistory>(`/api/v1/players/${encodeURIComponent(playerId)}/elo`, { signal, notFound: ["No rated matches.", "Нет рейтинговых матчей."] });
 }
 
 // Comparison (GET /api/v1/players/{a}/compare/{b}): both players' statistics and their meetings.
@@ -152,4 +164,40 @@ export function fetchCharacterRoster(playerId: string, tournament?: string, sign
   return getJson<CharacterRoster>(`/api/v1/players/${encodeURIComponent(playerId)}/characters${query}`, {
     signal, notFound: ["No roster for this tournament.", "Нет ростера на этом турнире."],
   });
+}
+
+// A nickname reduced to compare spellings: lower case, letters and digits only, trailing digits dropped
+// ("Rpyt02", "rpyt" and "R_pyt" all become "rpyt"; a nick of digits only keeps them).
+function nickKey(name: string) {
+  const plain = name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+  return plain.replace(/\d+$/, "") || plain;
+}
+
+function editDistance(a: string, b: string) {
+  let row = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const next = [i];
+    for (let j = 1; j <= b.length; j++) next[j] = Math.min(row[j] + 1, next[j - 1] + 1, row[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    row = next;
+  }
+  return row[b.length];
+}
+
+// Other nicknames worth showing next to the name: spellings of the same nick (case, digits, decorations, a letter
+// or two, a longer or shorter form) are left out, as are spellings of a nick already seen.
+export function distinctNames(name: string, others: string[]) {
+  const seen = [nickKey(name)];
+  const shown: string[] = [];
+  for (const other of others) {
+    const a = nickKey(other);
+    const similar = !a || seen.some((b) => {
+      if (a === b) return true;
+      const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+      if (short.length >= 4 && long.includes(short)) return true;
+      return editDistance(a, b) <= (short.length >= 8 ? 2 : short.length >= 4 ? 1 : 0);
+    });
+    if (!similar) shown.push(other);
+    seen.push(a);
+  }
+  return shown;
 }

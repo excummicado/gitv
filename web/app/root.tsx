@@ -1,4 +1,5 @@
 import {
+  isRouteErrorResponse,
   Links,
   Meta,
   Outlet,
@@ -18,6 +19,7 @@ import "./styles/stats.css";
 import "./styles/matches.css";
 import "./styles/forms.css";
 import { LangProvider, langFromCookie, type Lang } from "./i18n";
+import { NotFoundPage } from "./not-found/NotFoundPage";
 
 // Page views for the site's own analytics (api/app/services/analytics.py): only the path and, on the first page,
 // the referring site; no cookies; nothing at all for browsers asking not to be tracked. Kept here rather than in a
@@ -81,4 +83,13 @@ export default function App() {
     first.current = false;
   }, [pathname]);
   return <LangProvider initial={lang}><Outlet /></LangProvider>;
+}
+
+// A page that failed (or a 404 thrown by a loader) shows the site's own error page instead of React Router's
+// bare one. The App above, and so its language provider, isn't rendered here, hence the provider again.
+export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
+  const lang = useRouteLoaderData<{ lang: Lang }>("root")?.lang ?? "en";
+  const status = isRouteErrorResponse(error) ? error.status : 500;
+  if (import.meta.env.DEV && !isRouteErrorResponse(error)) console.error(error);
+  return <LangProvider initial={lang}><NotFoundPage status={status} /></LangProvider>;
 }

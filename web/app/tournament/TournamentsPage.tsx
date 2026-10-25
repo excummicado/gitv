@@ -121,7 +121,8 @@ export function TournamentsPage() {
                             {last.organizer && <small className="player-label">{t("by", "орг.")} <OrganizerName organizer={last.organizer} /></small>}
                           </span>
                           <span className="hide-sm">{count(event.stages, ["stage", "stages"], ["стадия", "стадии", "стадий"])}</span>
-                          <span className="hide-xs">{final?.players ?? "—"}</span>
+                          {/* The event's players: its widest stage (the first qualifier round has everyone) */}
+                          <span className="hide-xs">{stages.length ? Math.max(...stages.map((s) => s.players)) : "—"}</span>
                           <span className="hide-sm"><Prize prize={(final ?? last).prize} currency={(final ?? last).currency} /></span>
                           <span className="tourneys-winner">{final?.winner ? <Link to={`/player/${final.winner.id}`} className="player-match-link">{final.winner.name}</Link> : "—"}</span>
                         </div>

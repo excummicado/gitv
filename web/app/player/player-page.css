@@ -51,9 +51,11 @@
 .player-top4-row:hover { background: var(--gitv-surface-hover); }
 /* Adjust for major tournaments toggle. */
 .player-scope { display: flex; justify-content: flex-end; margin-bottom: 8px; }
-/* Avatar, nickname and real name (accepted suggestions). */
+/* Nickname and real name (accepted suggestions). */
 .player-identity { display: flex; align-items: center; gap: 14px; }
 .player-identity-text { min-width: 0; }
+.player-elo { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex: none; align-self: flex-start; }
+.player-elo .player-label { font-size: 11px; white-space: nowrap; }
 .player-name-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
 /* Major champion badge, yellow like a 1st place; the tooltip lists the majors won. */
 .player-major-champion { position: relative; display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border: 1px solid rgba(245, 197, 66, .6); background: rgba(245, 197, 66, .12); color: var(--gitv-gold); font: 700 11px/1.4 var(--gitv-font); letter-spacing: .08em; text-transform: uppercase; cursor: default; }
@@ -64,7 +66,6 @@
 .player-major-champion:hover .player-major-tip, .player-major-champion:focus-within .player-major-tip { display: block; }
 .player-major-tip-row { display: flex; justify-content: space-between; gap: 12px; padding: 6px 12px; color: var(--gitv-text); font: 500 13px/1.4 var(--gitv-font); text-decoration: none; }
 .player-major-tip-row:hover { background: var(--gitv-surface-hover); color: var(--gitv-gold); }
-.player-avatar { flex: none; width: 72px; height: 72px; object-fit: cover; background: var(--gitv-surface); border: 1px solid var(--gitv-border); }
 .player-realname { margin-top: 2px; color: var(--gitv-text-soft); font: 500 15px/1.4 var(--gitv-font); }
 /* Tournament picker next to the majors switch. */
 .player-scope { gap: 8px; flex-wrap: wrap; }

@@ -6,9 +6,7 @@ import { editProfile, mySuggestions, suggest, type MySuggestions, type PlayerInf
 import "./suggestions.css";
 import { useLang } from "../i18n";
 
-const MAX_AVATAR = 2 * 1024 * 1024;
-const AVATAR_TYPES = ["image/png", "image/jpeg", "image/webp"];
-const FIELD_LABELS: Record<ProfileChange["field"], [string, string]> = { real_name: ["name", "имя"], birth_date: ["birthday", "дату рождения"], avatar: ["avatar", "аватар"] };
+const FIELD_LABELS: Record<ProfileChange["field"], [string, string]> = { real_name: ["name", "имя"], birth_date: ["birthday", "дату рождения"] };
 
 // The API's youngest allowed age is 8.
 function latestBirthday() {
@@ -35,10 +33,8 @@ function History({ history }: { history: ProfileChange[] }) {
           <li key={i}>
             <span className="gitv-date">{l.date(h.created_at)}</span>{" "}
             <strong>{h.changed_by}</strong>{" "}
-            {h.field === "avatar"
-              ? t("changed the avatar", "сменил(а) аватар")
-              : `${t("set the", "изменил(а)")} ${t(...FIELD_LABELS[h.field])} ${t("to", "на")} ${showValue(l, h.field, h.new_value)}`}
-            {h.field !== "avatar" && h.old_value != null && <span className="suggest-was"> ({t("was", "было")} {showValue(l, h.field, h.old_value)})</span>}
+            {`${t("set the", "изменил(а)")} ${t(...FIELD_LABELS[h.field])} ${t("to", "на")} ${showValue(l, h.field, h.new_value)}`}
+            {h.old_value != null && <span className="suggest-was"> ({t("was", "было")} {showValue(l, h.field, h.old_value)})</span>}
             {h.suggested_by && <span className="suggest-was"> · {t("suggested by", "предложил(а)")} {h.suggested_by}</span>}
           </li>
         ))}
@@ -92,14 +88,12 @@ function EditForm({ playerId, profile, onEdited }: { playerId: string; profile: 
   );
 }
 
-// Everyone else: suggest a name, birthday or avatar for an admin to review.
+// Everyone else: suggest a name or birthday for an admin to review.
 function SuggestForm({ playerId, playerName }: { playerId: string; playerName: string }) {
   const [status, setStatus] = useState<MySuggestions | null>(null);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [birthday, setBirthday] = useState("");
-  const [avatar, setAvatar] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -109,27 +103,12 @@ function SuggestForm({ playerId, playerName }: { playerId: string; playerName: s
     mySuggestions().then(setStatus).catch(() => setStatus(null));
   }, []);
 
-  useEffect(() => {
-    if (!avatar) return setPreview(null);
-    const url = URL.createObjectURL(avatar);
-    setPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [avatar]);
-
-  function pickAvatar(file: File | null) {
-    setError("");
-    if (file && !AVATAR_TYPES.includes(file.type)) return setError(t("The avatar must be a PNG, JPEG or WebP image.", "Аватар должен быть картинкой PNG, JPEG или WebP."));
-    if (file && file.size > MAX_AVATAR) return setError(t("The avatar must be 2 MB or smaller.", "Аватар должен весить не больше 2 МБ."));
-    setAvatar(file);
-  }
-
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!name.trim() && !birthday && !avatar) return setError(t("Fill in at least one field.", "Заполните хотя бы одно поле."));
+    if (!name.trim() && !birthday) return setError(t("Fill in at least one field.", "Заполните хотя бы одно поле."));
     const form = new FormData();
     if (name.trim()) form.set("real_name", name.trim());
     if (birthday) form.set("birth_date", birthday);
-    if (avatar) form.set("avatar", avatar);
     setSaving(true);
     setError("");
     try {
@@ -138,7 +117,6 @@ function SuggestForm({ playerId, playerName }: { playerId: string; playerName: s
       setOpen(false);
       setName("");
       setBirthday("");
-      setAvatar(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("Couldn't send the suggestion. Try again.", "Не удалось отправить предложение. Попробуйте ещё раз."));
     } finally {
@@ -151,7 +129,7 @@ function SuggestForm({ playerId, playerName }: { playerId: string; playerName: s
   if (!open) {
     return (
       <div className="suggest-row">
-        <p className="suggest-text">{t(`Know ${playerName}'s real name, birthday or have a better avatar?`, `Знаете настоящее имя или дату рождения ${playerName} или есть аватар получше?`)}</p>
+        <p className="suggest-text">{t(`Know ${playerName}'s real name or birthday?`, `Знаете настоящее имя или дату рождения ${playerName}?`)}</p>
         <button type="button" className="suggest-button" onClick={() => setOpen(true)}>{t("Suggest", "Предложить")}</button>
       </div>
     );
@@ -166,13 +144,6 @@ function SuggestForm({ playerId, playerName }: { playerId: string; playerName: s
         <span className="player-label">{t("Birthday", "Дата рождения")}</span>
         <input className="suggest-input" type="date" min="1950-01-01" max={latestBirthday()} value={birthday} onChange={(e) => { setBirthday(e.target.value); setError(""); }} />
       </label>
-      <label className="suggest-field">
-        <span className="player-label">{t("Avatar (PNG, JPEG or WebP, up to 2 MB)", "Аватар (PNG, JPEG или WebP, до 2 МБ)")}</span>
-        <span className="suggest-avatar">
-          {preview && <img src={preview} alt="" width={48} height={48} />}
-          <input className="suggest-input" type="file" accept={AVATAR_TYPES.join(",")} onChange={(e) => pickAvatar(e.target.files?.[0] ?? null)} />
-        </span>
-      </label>
       {error && <p className="suggest-error" role="alert">{error}</p>}
       <div className="suggest-actions">
         <button type="submit" className="suggest-button" disabled={saving}>{saving ? t("Sending…", "Отправка…") : t("Send suggestion", "Отправить")}</button>
@@ -183,7 +154,7 @@ function SuggestForm({ playerId, playerName }: { playerId: string; playerName: s
   );
 }
 
-// Bottom of a player page: their real name, birthday and avatar. Members suggest; event organizers and
+// Bottom of a player page: their real name and birthday. Members suggest; event organizers and
 // admins write directly (admins also review suggestions on their profile); the change log is public.
 export function SuggestBox({ playerId, playerName, profile, history, onEdited }: {
   playerId: string; playerName: string; profile: PlayerInfo | null; history: ProfileChange[]; onEdited: () => void;
@@ -196,13 +167,13 @@ export function SuggestBox({ playerId, playerName, profile, history, onEdited }:
 
   let body;
   if (!user) {
-    body = <p className="suggest-text">{t(`Know who ${playerName} is?`, `Знаете, кто такой ${playerName}?`)} <Link to="/login" className="suggest-link">{t("Sign in", "Войдите")}</Link>{t(" to suggest their real name, birthday or avatar.", ", чтобы предложить настоящее имя, дату рождения или аватар.")}</p>;
+    body = <p className="suggest-text">{t(`Know who ${playerName} is?`, `Знаете, кто такой ${playerName}?`)} <Link to="/login" className="suggest-link">{t("Sign in", "Войдите")}</Link>{t(" to suggest their real name or birthday.", ", чтобы предложить настоящее имя или дату рождения.")}</p>;
   } else if (editor) {
     body = (
       <>
         {/* Keyed on the saved values, so the form shows them again after a save elsewhere. */}
         <EditForm key={`${profile?.real_name}|${profile?.birth_date}`} playerId={playerId} profile={profile} onEdited={onEdited} />
-        {staff && <p className="suggest-note">{t("Members' suggestions, avatars included, are reviewed on ", "Предложения пользователей, включая аватары, проверяются в ")}<Link to="/profile" className="suggest-link">{t("your profile", "вашем профиле")}</Link>.</p>}
+        {staff && <p className="suggest-note">{t("Members' suggestions are reviewed on ", "Предложения пользователей проверяются в ")}<Link to="/profile" className="suggest-link">{t("your profile", "вашем профиле")}</Link>.</p>}
       </>
     );
   } else {

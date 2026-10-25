@@ -2,17 +2,19 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
+import { EloBadge } from "../components/EloBadge";
 import { MajorToggle } from "./MajorToggle";
-import { fetchPlayers, type PlayerSummary } from "./api";
+import { distinctNames, fetchPlayers, type PlayerSummary } from "./api";
 import "./player-page.css";
 import "./players-page.css";
 import { useLang } from "../i18n";
 
-type SortKey = "name" | "tournaments" | "matches" | "match_winrate" | "games" | "winrate" | "avg_time" | "best_time" | "avg_restarts" | "tech_losses" | "tech_loss_rate" | "last_played";
+type SortKey = "name" | "elo" | "tournaments" | "matches" | "match_winrate" | "games" | "winrate" | "avg_time" | "best_time" | "avg_restarts" | "tech_losses" | "tech_loss_rate" | "last_played";
 
 // Lower is better for times, so they sort ascending first; everything else starts with the highest.
 const COLUMNS: { key: SortKey; label: [string, string]; ascending?: boolean; className?: string }[] = [
   { key: "name", label: ["Player", "Игрок"], ascending: true },
+  { key: "elo", label: ["Elo", "Эло"] },
   { key: "tournaments", label: ["Tourn.", "Турн."], className: "hide-sm" },
   { key: "matches", label: ["Matches", "Матчи"] },
   { key: "match_winrate", label: ["Match WR", "ВР матчей"] },
@@ -44,8 +46,17 @@ const ACTIVITY: { value: string; label: [string, string] }[] = [
   { value: "365", label: ["Last year", "Последний год"] },
 ];
 
-function value(player: PlayerSummary, key: SortKey) {
-  return key === "name" ? player.name.toLowerCase() : player[key];
+// withInactive: inactive players are ranked with everyone instead of after all active ones
+function value(player: PlayerSummary, key: SortKey, withInactive = false) {
+  if (key === "name") return player.name.toLowerCase();
+  // Inactive players keep their rating but rank after everyone active, as in chess
+  // (equal rounded ratings keep the order of the ranks, which come from the exact ones)
+  if (key === "elo") {
+    if (!player.elo) return null;
+    if (withInactive) return player.elo.rating - player.elo.rank_all / 100000;
+    return player.elo.rating - (player.elo.active ? (player.elo.rank ?? 0) / 100000 : 100000);
+  }
+  return player[key];
 }
 
 function percent(value: number | null) {
@@ -59,6 +70,7 @@ export function PlayersPage() {
   const [search, setSearch] = useState(params.get("q") ?? "");
   const active = params.get("active") ?? "";
   const major = params.get("major") === "1";
+  const withInactive = params.get("inactive") === "1";
   const bounds = FILTERS.map((f) => ({ ...f, value: params.get(f.param) ?? "" }));
   const filtersOn = Boolean(active) || bounds.some((b) => b.value !== "");
   const [players, setPlayers] = useState<PlayerSummary[] | null>(null);
@@ -116,12 +128,12 @@ export function PlayersPage() {
     });
     // Players without a value (no timed games) always go last.
     return [...filtered].sort((a, b) => {
-      const x = value(a, sort), y = value(b, sort);
+      const x = value(a, sort, withInactive), y = value(b, sort, withInactive);
       if (x == null || y == null) return x == null ? (y == null ? 0 : 1) : -1;
       const order = x < y ? -1 : x > y ? 1 : 0;
       return ascending ? order : -order;
     });
-  }, [players, search, sort, ascending, active, ...bounds.map((b) => b.value)]);
+  }, [players, search, sort, ascending, active, withInactive, ...bounds.map((b) => b.value)]);
 
   return (
     <main className="gitv-page">
@@ -150,6 +162,10 @@ export function PlayersPage() {
               </div>
               <div className="players-actions">
                 <MajorToggle on={major} onChange={(on) => update({ major: on ? "1" : "" })} />
+                <button type="button" className={`player-major${withInactive ? " active" : ""}`} aria-pressed={withInactive} onClick={() => update({ inactive: withInactive ? "" : "1" })}
+                  title={t("Rank players who haven't played for six months by Elo with everyone else", "Ставить в рейтинг Эло и тех, кто не играл полгода")}>
+                  {withInactive ? t("Inactive players included", "Неактивные в рейтинге") : t("Include inactive players", "Включить неактивных")}
+                </button>
                 {(filtersOn || search) && <button type="button" className="match-input players-reset" onClick={resetFilters}>{t("Reset filters", "Сбросить фильтры")}</button>}
               </div>
             </div>
@@ -176,8 +192,16 @@ export function PlayersPage() {
                       <Link className="players-row" role="row" to={`/player/${p.id}${major ? "?major=1" : ""}`} key={p.id}>
                         <span className="players-name">
                           {p.name}
-                          {p.other_names.length > 0 && <span className="players-aka player-label">aka {p.other_names.slice(0, 2).join(", ")}</span>}
+                          {distinctNames(p.name, p.other_names).length > 0 && <span className="players-aka player-label">aka {distinctNames(p.name, p.other_names).slice(0, 2).join(", ")}</span>}
                         </span>
+                        {p.elo ? (
+                          <span className="players-elo">
+                            {withInactive
+                              ? <EloBadge rating={p.elo.rating} rank={p.elo.rank_all} tier={p.elo.tier_all} dormant={!p.elo.active} />
+                              : <EloBadge rating={p.elo.rating} rank={p.elo.rank} tier={p.elo.tier} active={p.elo.active} />}
+                            {sort === "elo" && (withInactive ? p.elo.rank_all : p.elo.rank) && <span className="players-elo-rank player-label">#{withInactive ? p.elo.rank_all : p.elo.rank}</span>}
+                          </span>
+                        ) : <span>—</span>}
                         <span className="hide-sm">{p.tournaments}</span>
                         <span>{p.matches}</span>
                         <span>{percent(p.match_winrate)}</span>

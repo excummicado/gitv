@@ -1,0 +1,73 @@
+/* Spiral Abyss: chambers as boxes of two halves, monsters as icon + name + HP + resistances. */
+.abyss-now { color: var(--gitv-win); border-color: rgba(74, 222, 128, .45); }
+.abyss-rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.abyss-rule { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; background: var(--gitv-surface); border: 1px solid var(--gitv-border); min-width: 0; }
+.abyss-rule p { margin: 0; color: var(--gitv-text-soft); font-size: 13px; line-height: 1.5; }
+.abyss-moon { color: var(--gitv-gold); font-size: 15px; }
+.abyss-rule-hp b { font: 700 24px/1.1 var(--gitv-font-display); color: var(--gitv-text); }
+
+.abyss-chambers { display: grid; gap: 12px; margin-bottom: 12px; }
+.abyss-chamber-title { display: flex; justify-content: space-between; align-items: baseline; }
+.abyss-halves { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.abyss-half { padding: 10px 14px; min-width: 0; }
+.abyss-half + .abyss-half { border-left: 1px solid var(--gitv-border); }
+.abyss-half-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-size: 13px; }
+.abyss-wave { display: flex; flex-direction: column; gap: 8px; }
+.abyss-wave + .abyss-wave { margin-top: 10px; padding-top: 10px; border-top: 1px dotted var(--gitv-border-muted); }
+.abyss-wave-label { font-size: 11px; }
+.abyss-monster { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 10px; align-items: center; }
+.abyss-monster-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.abyss-monster-name { font-weight: 600; font-size: 13px; color: var(--gitv-text); overflow-wrap: anywhere; }
+.abyss-count { color: var(--gitv-muted); font-weight: 500; }
+.abyss-monster-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; color: var(--gitv-text-soft); font-variant-numeric: tabular-nums; }
+.abyss-shield { color: var(--gitv-muted); }
+.abyss-res { font-size: 11px; color: var(--gitv-muted); }
+.abyss-res .is-high { color: #f6a35c; }
+.abyss-res .is-low { color: var(--gitv-win); }
+.abyss-element { flex: none; vertical-align: middle; }
+.abyss-monster-icon { flex: none; border-radius: 50%; background: var(--gitv-surface-hover); border: 2px solid var(--gitv-border); object-fit: cover; }
+.abyss-monster-icon.el-pyro { border-color: #ef7a35; }
+.abyss-monster-icon.el-hydro { border-color: #4cc2f1; }
+.abyss-monster-icon.el-cryo { border-color: #9fd6e3; }
+.abyss-monster-icon.el-electro { border-color: #b38dc1; }
+.abyss-monster-icon.el-anemo { border-color: #74c2a8; }
+.abyss-monster-icon.el-geo { border-color: #f0b232; }
+.abyss-monster-icon.el-dendro { border-color: #a5c83b; }
+
+.abyss-guide { border-top: 1px dotted var(--gitv-border-muted); }
+.abyss-guide-head { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; padding: 8px 14px; background: none; border: 0; color: var(--gitv-text); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.abyss-guide-head img { border-radius: 50%; }
+.abyss-guide-head:hover { background: var(--gitv-surface-hover); }
+.abyss-guide-toggle { color: var(--gitv-muted); font-size: 16px; }
+.abyss-guide-body { display: grid; gap: 10px; padding: 4px 14px 14px 52px; font-size: 13px; }
+.abyss-guide-body b { color: var(--gitv-gold); }
+.abyss-guide-body p { margin: 4px 0 0; color: var(--gitv-text-soft); line-height: 1.5; }
+
+.abyss-tourney, .abyss-archive-row { display: grid; align-items: center; gap: 10px; padding: 7px 14px; border-top: 1px dotted var(--gitv-border-muted); color: var(--gitv-text); text-decoration: none; font-size: 13px; }
+.abyss-tourney { grid-template-columns: minmax(0, 1fr) auto; }
+.abyss-archive-row { grid-template-columns: 70px 170px auto minmax(0, 1fr) 80px 90px; }
+.abyss-tourney:hover, .abyss-archive-row:hover { background: var(--gitv-surface-hover); }
+.abyss-archive-row.is-current { background: rgba(245, 197, 66, .06); }
+.abyss-archive-ver { font-weight: 700; }
+.abyss-archive-bosses { display: flex; gap: 2px; }
+.abyss-archive-moon { color: var(--gitv-gold); }
+.abyss-more { margin: 8px 14px 12px; }
+.abyss-credit { margin: 4px 0 0; color: var(--gitv-muted); }
+
+/* Tournament page block. */
+.abyss-tournament-phase { padding: 10px 14px; }
+.abyss-tournament-phase + .abyss-tournament-phase { border-top: 1px solid var(--gitv-border); }
+.abyss-tournament-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; margin-bottom: 8px; font-size: 13px; }
+.abyss-tournament-ver { font-weight: 700; }
+.abyss-tournament-bosses { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.abyss-tournament-boss { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.abyss-tournament-boss small { font-size: 10px; }
+.abyss-tournament-facts { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 4px 10px; margin: 0; font-size: 13px; }
+.abyss-tournament-facts dd { margin: 0; display: flex; flex-direction: column; gap: 2px; color: var(--gitv-text-soft); }
+
+@media (max-width: 760px) {
+  .abyss-halves { grid-template-columns: minmax(0, 1fr); }
+  .abyss-half + .abyss-half { border-left: 0; border-top: 1px solid var(--gitv-border); }
+  .abyss-archive-row { grid-template-columns: 60px minmax(0, 1fr) auto; }
+  .abyss-archive-row > :nth-child(2), .abyss-archive-row > :nth-child(4) { display: none; }
+}

@@ -3,7 +3,7 @@
 import { getJson } from "../api";
 
 export type Character = { id: string; name: string; name_ru?: string | null; icon: string | null; rarity: number | null };
-export type TeamMember = { character: Character; level: number | null; constellation: number; weapon: Character | null; weapon_level: number | null; refinement: number | null };
+export type TeamMember = { character: Character; level: number | null; constellation: number | null; weapon: Character | null; weapon_level: number | null; refinement: number | null };
 export type Result = "W" | "L" | "D" | "—";
 export type GamePlayer = { slot: number; name: string; user_id: string | null; clear_time: number; adjusted_time: number; restarts: number; rooms: number[] | null; result: Result; team: TeamMember[] };
 export type DraftMove = { seq: number; slot: number | null; type: string; character: Character | null; at: string | null; pick_s_left: number | null; reserve_s_left: number | null };
@@ -88,4 +88,19 @@ export type LiveTournament = { id: string; title: string; system: string | null;
 // Tournaments running on the site now (the API asks the site for them at most once an hour).
 export function fetchLiveTournaments(signal?: AbortSignal) {
   return getJson<LiveTournament[]>("/api/v1/matches/live-tournaments", { signal });
+}
+
+// A game's status is the site's: NOT_STARTED, FINISHED, or the draft or game under way; url opens its draft there.
+export type LiveGame = { game_no: number; status: string; url: string | null };
+export type LiveMatch = {
+  id: string; tournament_id: string; tournament: string; created_at: string;
+  players: { id: string | null; name: string }[]; games: LiveGame[];
+  // One of its games is being drafted or played now
+  started: boolean;
+};
+
+// Unfinished matches of the running tournaments (at most five minutes old), the ones being played first.
+export function fetchLiveMatches(tournament?: string, signal?: AbortSignal) {
+  const query = tournament ? `?tournament=${encodeURIComponent(tournament)}` : "";
+  return getJson<LiveMatch[]>(`/api/v1/matches/live-matches${query}`, { signal });
 }

@@ -27,3 +27,6 @@ media/
 # Held while a sync runs
 .sync.lock
 .sync-state.json
+
+# Spiral Abyss icons downloaded from alioth.wiki (app.cli fetch-abyss)
+data/abyss/

@@ -177,15 +177,41 @@ running tournaments (`GET /api/v1/matches/live-tournaments`) come from the site'
 so they can be up to an hour old, and so can the live poll's idea of which tournaments are running: a new one
 is picked up within an hour of starting, then followed every five minutes.
 
+### News
+
+News on the home page are written by people, never added automatically: a writer, event organizer or admin opens
+`/news` and imports a Word document (.docx, up to 100 MB) or a Google document shared as "anyone with the link can view" (Google
+exports it as .docx). `services/news.py` turns it into HTML with mammoth (headings, paragraphs, lists, bold and
+italics, links, tables, pictures) and cleans it with nh3, so a post holds only that formatting: no scripts,
+styles or event handlers, links only to the web or mail. Its pictures (PNG, JPEG, GIF, WebP, checked by their bytes)
+are saved as files under `media/news` and removed with the post. A reverse proxy in front of the API must let
+100 MB requests through (nginx: `client_max_body_size 100m;`). The title is the one given, else the document's first
+heading or line. `GET /api/v1/news` lists them; the author or an admin removes one.
+
+### Translating news
+
+A news post can carry a translation into the other language (English <-> Russian): its importer or an admin uploads
+the translated document (.docx or a Google Docs link) on the post's page, or `app.cli set-news-translation <news id>
+<file.docx>`. It's cleaned like any document; the page shows the post in the reader's language with a "show the
+original" switch. `glossary.json` lists the game terms as the Russian version of the game says them, for whoever
+translates.
+
 ### The stream
 
 The home page's matches of the day show the matches played on stream, from the stream's Telegram channel
 (`STREAM_TELEGRAM_CHANNEL`, `abysscup` by default), read from its public page `t.me/s/<channel>` with no
 Telegram keys: the day's post ("Матчи на сегодня: A vs B …", posted as the stream starts, with the casters and
-the Twitch link), each match's post when it goes on air and its results post (who won). The live poll reads it
-every five minutes into `streammatch`; `GET /api/v1/schedule/stream?from=&to=` gives a day's matches, with
+the Twitch link), each match's post when it goes on air and its results post (who won). With background syncing
+on the API reads it every minute (`STREAM_INTERVAL`) into `streammatch`; `GET /api/v1/schedule/stream?from=&to=` gives a day's matches, with
 whether each is on air and whether the stream is. A results post of a match the day's post didn't announce
 (played off stream) is left out.
+
+House of the Hearth's stream is read the same way, from `HOTH_TELEGRAM_CHANNEL` (`hoth_abyss`) and
+`HOTH_TWITCH_CHANNEL` (`abyss_hoth`). Its posts differ: the morning post lists each match with its time and casters
+("💰 A VS B — 17:00 МСК", "Комментаторы: X & Y"; "TBD VS TBD" for a match whose players come later), "Игра A VS B
+переносится на 17:30 МСК" moves one, and "Результат матча A VS B" ends it (it names no winner; a TBD match takes
+its players from it). A match counts as on air from its time until its result, while the stream is live. The
+endpoint gives one entry per stream with matches that day.
 
 Whether the stream is live comes from Twitch (`TWITCH_CHANNEL`, `abyss__cup`) when an app's keys are set:
 create an application at dev.twitch.tv (any OAuth redirect, e.g. `http://localhost`) and put its client id and
@@ -428,6 +454,29 @@ venv/bin/python -m app.cli add-player Invinsik Invinsik nvnsk     # name, then t
 
 Stored in `offsiteplayer` (id `offsite-<slug>`); the names are ordinary `set-challonge-name` ties. Their page has
 matches, tournaments and places, no games.
+
+### Spiral Abyss
+
+```bash
+venv/bin/python -m app.cli fetch-abyss            # --refetch for every phase again; sync runs it daily
+```
+
+Tournaments are played on the live Spiral Abyss floor 12, so a match belongs to the phase running on its date
+(phases change on the 16th). `fetch-abyss` reads every phase from alioth.wiki (`/en/gi/abyss/<n>`, the data is the
+page's embedded Nuxt payload) and keeps floor 12 only in `abyssphase`: dates, moon blessings, Ley Line Disorder,
+the HP multiplier, every chamber's waves and monsters (HP, element, resistances, shields) and the bosses'
+mechanics. Monster and element icons (© HoYoverse) are downloaded once into `data/abyss/` (not in git) and served
+at `/api/v1/abyss-assets/`, so visitors never load them from alioth. Requests are a second apart, and the sync
+asks alioth at most once a day; only new phases (and the current one) are fetched.
+
+Russian texts of the bosses' mechanics (moon blessings and Ley Line Disorder stay in English) are in
+`app/data/abyss_ru.json`, keyed by the English text; a new
+phase shows English until its texts are added there. Names of monsters and moons stay as in the English game.
+
+Endpoints: `GET /api/v1/abyss` (every phase, newest first, with tournament matches), `GET /api/v1/abyss/current`,
+`GET /api/v1/abyss/{id}` (floor 12 in full, the tournaments played on it and their median clear time); a
+tournament's page data has `abyss`, every phase its matches fall in. The site shows them at `/abyss`,
+`/abyss/<id>` and on each tournament page.
 
 ### Tournaments in stages
 

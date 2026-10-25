@@ -1,13 +1,16 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
 import { OrganizerName } from "../match/OrganizerName";
 import { MatchRow } from "../match/MatchesPage";
-import { fetchMatchesByTournament, type MatchSummary } from "../match/api";
+import { fetchLiveMatches, fetchMatchesByTournament, type LiveMatch, type MatchSummary } from "../match/api";
+import { LiveMatchRow } from "../match/LiveMatches";
 import { useLang } from "../i18n";
-import { fetchTournament, type BracketRound, type BracketSide, type TableRow, type TournamentDetail } from "./api";
+import { fetchTournament, type BracketRound, type BracketSide, type PoolCharacter, type PoolPlayer, type TableRow, type TournamentDetail } from "./api";
 import { DateRange, KIND_LABELS, Prize } from "./common";
+import { TournamentAbyssBox } from "../abyss/TournamentAbyss";
+import "../character/characters.css";
 import "./tournaments.css";
 
 type Tab = "standings" | "bracket" | "matches" | "stats";
@@ -51,19 +54,25 @@ function Standings({ tournament }: { tournament: TournamentDetail }) {
         <span className="hide-sm">{t("Best", "Лучшее")}</span><span className="hide-xs">{qualifier ? t("Qualifiers", "Квалы") : t("Tech L", "Тех. пор.")}</span>
       </div>
       {tournament.table.map((row, i) => (
-        <div className="tourney-table-row" key={row.player.id ?? `?${row.player.name}`}>
-          {bracket ? <Place row={row} manual={tournament.challonge_only && !tournament.challonge_url} /> : <span className="player-label">{i + 1}</span>}
-          {row.player.id
-            ? <Link className="player-match-link tourney-player" to={`/player/${row.player.id}?tournament=${tournament.id}`}>{row.player.name}</Link>
-            : <span className="tourney-player player-ellipsis" title={t("Not on the site: matched to no player", "Нет на сайте: не сопоставлен с игроком")}>{row.player.name}</span>}
-          <span>{row.match_wins} – {row.match_losses}{row.match_draws ? ` – ${row.match_draws}` : ""}</span>
-          <span className="hide-xs">{row.games_won} – {row.games_lost}</span>
-          <span className="hide-sm">{s(row.avg_time)}</span>
-          <span className="hide-sm">{s(row.best_time)}</span>
-          <span className="hide-xs">{qualifier
-            ? (row.qualification ? <span className={`player-qual ${row.qualification}`}>{t(...QUAL[row.qualification])}</span> : "—")
-            : row.tech_losses || "—"}</span>
-        </div>
+        <Fragment key={row.player.id ?? `?${row.player.name}`}>
+          {row.group && row.group !== tournament.table[i - 1]?.group && (
+            <div className="tourney-group-head player-label">{t("Group", "Группа")} {row.group}</div>
+          )}
+          <div className="tourney-table-row">
+            {bracket ? <Place row={row} manual={tournament.challonge_only && !tournament.challonge_url} />
+              : <span className="player-label">{i + 1 - (row.group ? tournament.table.findIndex((r) => r.group === row.group) : 0)}</span>}
+            {row.player.id
+              ? <Link className="player-match-link tourney-player" to={`/player/${row.player.id}?tournament=${tournament.id}`}>{row.player.name}</Link>
+              : <span className="tourney-player player-ellipsis" title={t("Not on the site: matched to no player", "Нет на сайте: не сопоставлен с игроком")}>{row.player.name}</span>}
+            <span>{row.match_wins} – {row.match_losses}{row.match_draws ? ` – ${row.match_draws}` : ""}</span>
+            <span className="hide-xs">{row.games_won} – {row.games_lost}</span>
+            <span className="hide-sm">{s(row.avg_time)}</span>
+            <span className="hide-sm">{s(row.best_time)}</span>
+            <span className="hide-xs">{qualifier
+              ? (row.qualification ? <span className={`player-qual ${row.qualification}`}>{t(...QUAL[row.qualification])}</span> : "—")
+              : row.tech_losses || "—"}</span>
+          </div>
+        </Fragment>
       ))}
       {tournament.challonge_only && !tournament.challonge_url && (
         <p className="player-note tourney-note">{t("Played before the site: matches and places come from its published bracket; there are no games, times or drafts. Names without a link aren't matched to a player on the site.",
@@ -73,7 +82,11 @@ function Standings({ tournament }: { tournament: TournamentDetail }) {
         <p className="player-note tourney-note">{t("Played only on Challonge: matches and places come from its bracket; there are no games, times or drafts. Names without a link aren't matched to a player on the site.",
           "Турнир проходил только на Challonge: матчи и места взяты из его сетки, игр, времени и драфтов нет. Имена без ссылки не сопоставлены с игроками сайта.")}</p>
       )}
-      {bracket && !tournament.challonge_only && tournament.places_source !== "challonge" && (
+      {tournament.live && (
+        <p className="player-note tourney-note">{t("The tournament is still being played: places appear once the final has a winner.",
+          "Турнир ещё идёт: места появятся, когда в финале определится победитель.")}</p>
+      )}
+      {bracket && !tournament.live && !tournament.challonge_only && tournament.places_source !== "challonge" && (
         <p className="player-note tourney-note">{t("No Challonge bracket: places below the top four are estimated from matches won (≈).",
           "Сетки Challonge нет: места ниже четвёртого оценены по выигранным матчам (≈).")}</p>
       )}
@@ -133,20 +146,153 @@ function Bracket({ rounds, unmatched, challonge }: { rounds: BracketRound[]; unm
 
 function Matches({ tournamentId }: { tournamentId: string }) {
   const { t } = useLang();
-  const [items, setItems] = useState<MatchSummary[] | null>(null);
+  const [groups, setGroups] = useState<{ title: string; items: MatchSummary[] }[] | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
     const controller = new AbortController();
-    fetchMatchesByTournament({ tournament: tournamentId, limit: 1, offset: 0 }, controller.signal)
-      .then((r) => setItems(r.groups[0]?.items ?? []))
+    // A stage of qualifier groups comes back as one list per group.
+    fetchMatchesByTournament({ tournament: tournamentId, limit: 20, offset: 0 }, controller.signal)
+      .then((r) => setGroups(r.groups.map((g) => ({ title: g.tournament.title, items: g.items }))))
       .catch((err) => { if (!controller.signal.aborted) setError(err instanceof Error ? err.message : t("Couldn't load the matches.", "Не удалось загрузить матчи.")); });
     return () => controller.abort();
   }, [tournamentId]);
   return (
     <Box title={t("Matches", "Матчи")}>
       {error ? <p className="player-message">{error}</p>
-        : !items ? <p className="player-message">{t("Loading matches…", "Загрузка матчей…")}</p>
-        : items.map((m) => <MatchRow match={m} key={m.id} />)}
+        : !groups ? <p className="player-message">{t("Loading matches…", "Загрузка матчей…")}</p>
+        : groups.length > 1
+          ? [...groups].sort((a, b) => a.title.localeCompare(b.title)).map((g) => (
+              <Fragment key={g.title}>
+                <div className="tourney-group-head player-label">{g.title}</div>
+                {g.items.map((m) => <MatchRow match={m} key={m.id} />)}
+              </Fragment>
+            ))
+          : (groups[0]?.items ?? []).map((m) => <MatchRow match={m} key={m.id} />)}
+    </Box>
+  );
+}
+
+// The tournament's unfinished matches while it runs, each game linking to its draft on the tournament site;
+// nothing once it's over. Checked again every minute (the API refreshes them every five).
+function LiveMatches({ tournamentId }: { tournamentId: string }) {
+  const { t } = useLang();
+  const [items, setItems] = useState<LiveMatch[]>([]);
+  useEffect(() => {
+    const controller = new AbortController();
+    const load = () => fetchLiveMatches(tournamentId, controller.signal).then(setItems).catch(() => {});
+    load();
+    const timer = setInterval(load, 60000);
+    return () => { controller.abort(); clearInterval(timer); };
+  }, [tournamentId]);
+  if (!items.length) return null;
+  return (
+    <Box title={t("Being played and upcoming", "Идут и предстоят")}>
+      {items.map((m) => <LiveMatchRow match={m} key={m.id} />)}
+      <p className="player-note tourney-note">{t("Games open their draft on abyss.darte.gg. Updated every few minutes.",
+        "Игры открывают драфт на abyss.darte.gg. Обновляется раз в несколько минут.")}</p>
+    </Box>
+  );
+}
+
+const POOL_SHOWN = 20;
+// A pool count; hovering (or focusing) it lists who had the character, as on the characters page: each player
+// with the constellation they had it at, linked to their page when they have one.
+function PoolPlayers({ title, players, children, className = "" }: {
+  title: string; players: { player: PoolPlayer; constellation: number }[]; children: ReactNode; className?: string;
+}) {
+  const { t } = useLang();
+  return (
+    <span className={`${className} chars-players`} tabIndex={0} aria-label={t(`${title}: ${players.length} players`, `${title}: игроков ${players.length}`)}>
+      <span className="chars-players-count">{children}</span>
+      <div className="chars-players-pop tourney-pool-pop" role="tooltip">
+        <div className="chars-games-head">
+          <b>{title}</b>
+          <span className="player-label">{t(`${players.length} players`, `игроков: ${players.length}`)}</span>
+        </div>
+        <div className="tourney-pool-players tourney-pool-players-head player-label">
+          <span>{t("Player", "Игрок")}</span><span>{t("Const.", "Конста")}</span>
+        </div>
+        <div className="chars-games-list">
+          {players.map(({ player, constellation }, i) => player.id
+            ? <Link key={player.id} to={`/player/${player.id}?tab=characters`} className="tourney-pool-players chars-players-row">
+                <b className="player-ellipsis">{player.name}</b><span>C{constellation}</span>
+              </Link>
+            : <span key={`?${player.name}${i}`} className="tourney-pool-players chars-players-row"
+                title={t("Not on the site yet: no player page", "Ещё не играл на сайте: страницы игрока нет")}>
+                <b className="player-ellipsis">{player.name}</b><span>C{constellation}</span>
+              </span>)}
+        </div>
+      </div>
+    </span>
+  );
+}
+
+// The pool's sort: by how many have it, or by how many have it at one constellation (0-6); null is the default.
+type PoolSort = { by: "owned" | number; desc: boolean } | null;
+
+// Every character that was in the players' pools, with how many had it at each constellation.
+function Pool({ pool }: { pool: TournamentDetail["pool"] }) {
+  const { t, name, count } = useLang();
+  const [all, setAll] = useState(false);
+  const [sort, setSort] = useState<PoolSort>(null);
+  const [fiveOnly, setFiveOnly] = useState(false);
+  const value = (c: PoolCharacter) => (sort?.by === "owned" ? c.owned : c.constellations[sort?.by ?? 0]);
+  // By default 5★ first (4★ are in nearly every pool, at C6), each by how many players had them; a column's header
+  // sorts by it, most first, and again the other way round.
+  const sorted = pool.characters.filter((c) => !fiveOnly || c.character.rarity === 5).sort((a, b) =>
+    sort ? (value(b) - value(a)) * (sort.desc ? 1 : -1) || b.owned - a.owned
+      : (b.character.rarity ?? 0) - (a.character.rarity ?? 0) || b.owned - a.owned);
+  const shown = all ? sorted : sorted.slice(0, POOL_SHOWN);
+  const header = (by: "owned" | number, label: string, className = "") => {
+    const active = sort?.by === by;
+    return (
+      <button type="button" className={`tourney-pool-sort${active ? " active" : ""} ${className}`} aria-pressed={active}
+        title={t("Sort", "Сортировать")} onClick={() => setSort(active ? { by, desc: !sort.desc } : { by, desc: true })}>
+        {label}{active ? (sort.desc ? " ↓" : " ↑") : ""}
+      </button>
+    );
+  };
+  return (
+    <Box title={t("Character pool", "Пул персонажей")}>
+      {pool.players === 0 ? <p className="player-message">{t("No draft data.", "Нет данных драфтов.")}</p> : <>
+        <p className="player-note tourney-note">{t(`Characters in the pools of the ${count(pool.players, ["player", "players"], ["игрок", "игрока", "игроков"])} with draft data (each player's last roster), by constellation.`,
+          `Персонажи в пулах ${count(pool.players, ["player", "players"], ["игрока", "игроков", "игроков"])} с данными драфтов (последний ростер каждого), по созвездиям.`)}
+          {pool.unplayed > 0 && " " + t(`${pool.unplayed} of them haven't played yet: their roster is from their draft to come.`,
+            `${pool.unplayed} из них ещё не играли: их ростер взят из предстоящего драфта.`)}</p>
+        <label className="tourney-pool-filter">
+          <input type="checkbox" checked={fiveOnly} onChange={(e) => setFiveOnly(e.target.checked)} />
+          {t("Only 5★", "Только 5★")}
+        </label>
+        <div className="tourney-pool">
+          <div className="tourney-pool-row tourney-table-head player-label">
+            <span />
+            <button type="button" className={`tourney-pool-sort${sort ? "" : " active"}`} title={t("5★ first, by how many have them", "Сначала 5★, по числу владельцев")}
+              onClick={() => setSort(null)}>{t("Character", "Персонаж")}</button>
+            {header("owned", t("Have it", "Есть"))}
+            {[0, 1, 2, 3, 4, 5, 6].map((c) => <Fragment key={c}>{header(c, `C${c}`, "hide-sm")}</Fragment>)}
+          </div>
+          {shown.map((c) => (
+            <div className="tourney-pool-row" key={c.character.id}>
+              {c.character.icon ? <img src={c.character.icon} alt="" width={28} height={28} loading="lazy" className={`tourney-char-icon rarity-${c.character.rarity ?? 4}`} /> : <span className="tourney-char-icon" />}
+              <span className="player-ellipsis">{name(c.character)}</span>
+              <PoolPlayers title={name(c.character)}
+                players={c.holders.flatMap((players, i) => players.map((player) => ({ player, constellation: i })))
+                  .sort((a, b) => b.constellation - a.constellation || a.player.name.localeCompare(b.player.name))}>
+                <b>{c.rate == null ? "—" : `${c.rate}%`}</b> <small className="player-label">{c.owned}</small>
+              </PoolPlayers>
+              {c.constellations.map((n, i) => n
+                ? <PoolPlayers key={i} className="hide-sm" title={`${name(c.character)} · C${i}`}
+                    players={c.holders[i].map((player) => ({ player, constellation: i }))}>{n}</PoolPlayers>
+                : <span key={i} className="tourney-pool-zero hide-sm">·</span>)}
+            </div>
+          ))}
+        </div>
+        {sorted.length > POOL_SHOWN && (
+          <button type="button" className="tourney-pool-more" onClick={() => setAll(!all)}>
+            {all ? t("Show fewer", "Свернуть") : t(`Show all ${sorted.length}`, `Показать всех (${sorted.length})`)}
+          </button>
+        )}
+      </>}
     </Box>
   );
 }
@@ -156,38 +302,41 @@ function Stats({ tournament }: { tournament: TournamentDetail }) {
   const s = tournament.stats;
   const pct = (v: number | null) => (v == null ? "—" : `${v}%`);
   return (
-    <div className="tourney-stats">
-      <Box title={t("Games", "Игры")}>
-        <div className="player-box-body">
-          <div className="player-stat-row"><span className="player-label">{t("Games played", "Сыграно игр")}</span><span className="player-value">{s.games}</span></div>
-          <div className="player-stat-row"><span className="player-label">{t("Technical defeats", "Тех. поражения")}</span><span className="player-value">{s.technical_games}</span></div>
-          <div className="player-stat-row"><span className="player-label">{t("Average time", "Среднее время")}</span><span className="player-value">{s.avg_time == null ? "—" : `${s.avg_time}s`}</span></div>
-          <div className="player-stat-row"><span className="player-label">{t("Fastest game", "Самая быстрая игра")}</span>
-            <span className="player-value">{s.fastest ? <><Link className="player-match-link" to={`/match/${s.fastest.match_id}`}>{s.fastest.time}s</Link> · <Link className="player-match-link" to={`/player/${s.fastest.player.id}`}>{s.fastest.player.name}</Link></> : "—"}</span></div>
-        </div>
-      </Box>
-      <Box title={t("Most picked", "Чаще всего пикали")}>
-        {s.picks.map((c) => (
-          <div className="tourney-char" key={c.character.id}>
-            {c.character.icon ? <img src={c.character.icon} alt="" width={28} height={28} loading="lazy" className={`tourney-char-icon rarity-${c.character.rarity ?? 4}`} /> : <span className="tourney-char-icon" />}
-            <span className="player-ellipsis">{name(c.character)}</span>
-            <span className="player-label">{c.picks} · {pct(c.pick_rate)}</span>
-            <span title={t("Winrate", "Винрейт")}>{pct(c.winrate)}</span>
+    <>
+      <div className="tourney-stats">
+        <Box title={t("Games", "Игры")}>
+          <div className="player-box-body">
+            <div className="player-stat-row"><span className="player-label">{t("Games played", "Сыграно игр")}</span><span className="player-value">{s.games}</span></div>
+            <div className="player-stat-row"><span className="player-label">{t("Technical defeats", "Тех. поражения")}</span><span className="player-value">{s.technical_games}</span></div>
+            <div className="player-stat-row"><span className="player-label">{t("Average time", "Среднее время")}</span><span className="player-value">{s.avg_time == null ? "—" : `${s.avg_time}s`}</span></div>
+            <div className="player-stat-row"><span className="player-label">{t("Fastest game", "Самая быстрая игра")}</span>
+              <span className="player-value">{s.fastest ? <><Link className="player-match-link" to={`/match/${s.fastest.match_id}`}>{s.fastest.time}s</Link> · <Link className="player-match-link" to={`/player/${s.fastest.player.id}`}>{s.fastest.player.name}</Link></> : "—"}</span></div>
           </div>
-        ))}
-      </Box>
-      <Box title={t("Most banned", "Чаще всего банили")}>
-        {s.bans.length === 0 && <p className="player-message">{t("No draft data.", "Нет данных драфтов.")}</p>}
-        {s.bans.map((c) => (
-          <div className="tourney-char" key={c.character.id}>
-            {c.character.icon ? <img src={c.character.icon} alt="" width={28} height={28} loading="lazy" className={`tourney-char-icon rarity-${c.character.rarity ?? 4}`} /> : <span className="tourney-char-icon" />}
-            <span className="player-ellipsis">{name(c.character)}</span>
-            <span className="player-label">{c.bans}</span>
-            <span title={t("Share of games", "Доля игр")}>{pct(c.ban_rate)}</span>
-          </div>
-        ))}
-      </Box>
-    </div>
+        </Box>
+        <Box title={t("Most picked", "Чаще всего пикали")}>
+          {s.picks.map((c) => (
+            <div className="tourney-char" key={c.character.id}>
+              {c.character.icon ? <img src={c.character.icon} alt="" width={28} height={28} loading="lazy" className={`tourney-char-icon rarity-${c.character.rarity ?? 4}`} /> : <span className="tourney-char-icon" />}
+              <span className="player-ellipsis">{name(c.character)}</span>
+              <span className="player-label">{c.picks} · {pct(c.pick_rate)}</span>
+              <span title={t("Winrate", "Винрейт")}>{pct(c.winrate)}</span>
+            </div>
+          ))}
+        </Box>
+        <Box title={t("Most banned", "Чаще всего банили")}>
+          {s.bans.length === 0 && <p className="player-message">{t("No draft data.", "Нет данных драфтов.")}</p>}
+          {s.bans.map((c) => (
+            <div className="tourney-char" key={c.character.id}>
+              {c.character.icon ? <img src={c.character.icon} alt="" width={28} height={28} loading="lazy" className={`tourney-char-icon rarity-${c.character.rarity ?? 4}`} /> : <span className="tourney-char-icon" />}
+              <span className="player-ellipsis">{name(c.character)}</span>
+              <span className="player-label">{c.bans}</span>
+              <span title={t("Share of games", "Доля игр")}>{pct(c.ban_rate)}</span>
+            </div>
+          ))}
+        </Box>
+      </div>
+      <Pool pool={tournament.pool} />
+    </>
   );
 }
 
@@ -203,7 +352,11 @@ export function TournamentPage({ tournamentId }: { tournamentId: string }) {
     setTournament(null);
     setError("");
     fetchTournament(tournamentId, controller.signal)
-      .then(setTournament)
+      .then((found) => {
+        // A qualifier group opens its round's stage: show that stage's address.
+        if (found.id !== tournamentId) navigate(`/tournament/${found.id}${window.location.search}`, { replace: true });
+        setTournament(found);
+      })
       .catch((err) => { if (!controller.signal.aborted) setError(err instanceof Error ? err.message : t("Couldn't load the tournament.", "Не удалось загрузить турнир.")); });
     return () => controller.abort();
   }, [tournamentId]);
@@ -264,6 +417,9 @@ export function TournamentPage({ tournamentId }: { tournamentId: string }) {
                     </div>
                   )}
                 </header>
+
+                <TournamentAbyssBox phases={tournament.abyss ?? []} />
+                {tournament.live && <LiveMatches tournamentId={tournament.id} />}
 
                 <div className="player-tabs" role="tablist" style={{ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }} aria-label={t("Tournament sections", "Разделы турнира")}>
                   {tabs.map((name) => (

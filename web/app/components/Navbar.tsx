@@ -15,7 +15,7 @@ const links: { label: [string, string]; to?: string; also?: string[]; hideOnMobi
   { label: ["Players", "Игроки"], to: "/players", also: ["/player/"] },
   { label: ["Tournaments", "Турниры"], to: "/tournaments", also: ["/tournament/"] },
   { label: ["Characters", "Персонажи"], to: "/characters" },
-  { label: ["Abyss", "Бездна"], hideOnMobile: true },
+  { label: ["Abyss", "Бездна"], to: "/abyss", also: ["/abyss/"], hideOnMobile: true },
 ];
 
 function NavItem({ label, to, also = [], className = "" }: { label: string; to?: string; also?: string[]; className?: string }) {

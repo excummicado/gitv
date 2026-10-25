@@ -66,6 +66,16 @@ async def get_current_player_editor(
     return current_user
 
 
+async def get_current_news_writer(
+    current_user: Annotated[User, Depends(get_current_active_user)],
+):
+    if not current_user.role.can_write_news:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Only writers, event organizers and admins can add news."
+        )
+    return current_user
+
+
 async def get_current_super_admin(
     current_user: Annotated[User, Depends(get_current_active_user)],
 ):

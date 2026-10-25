@@ -661,7 +661,7 @@ def import_aspirine() -> None:
 
 
 def poll_stream() -> None:
-    """Reads the stream's Telegram channel and Twitch status once (services/stream.py)."""
+    """Reads the streams' Telegram channels and Twitch status once (services/stream.py)."""
     from .services.stream import poll_stream as run
 
     create_db_and_tables()
@@ -669,14 +669,59 @@ def poll_stream() -> None:
         errors = run(session)
         latest = session.exec(select(StreamMatch).order_by(StreamMatch.announced_at.desc()).limit(6)).all()
         for m in reversed(latest):
-            state = f"won by {m.winner_name}" if m.finished_at else "on air" if m.live_at else "announced"
+            state = (
+                f"won by {m.winner_name}"
+                if m.winner_name
+                else "finished"
+                if m.finished_at
+                else "on air"
+                if m.live_at
+                else "announced"
+            )
             print(
                 f"{m.announced_at:%Y-%m-%d %H:%M} {m.tournament_title}: {m.player1_name} vs {m.player2_name}, {state}"
             )
-        status = session.exec(select(StreamStatus)).first()
-        print(f"Twitch: {'live' if status.live else 'offline'}" if status else "Twitch: no keys set (TWITCH_CLIENT_ID)")
+        statuses = session.exec(select(StreamStatus)).all()
+        for status in statuses:
+            print(f"Twitch {status.channel}: {'live' if status.live else 'offline'}")
+        if not statuses:
+            print("Twitch: no keys set (TWITCH_CLIENT_ID)")
     for e in errors:
         print(e)
+
+
+def set_news_translation(news_id: int, path: str, title: str | None) -> None:
+    """Attaches a translated .docx to a news post, as its page's upload does (routers/news.py)."""
+    from .models import NewsPost
+    from .services.news import DocumentError, delete_pictures, docx_to_html, language, unused_pictures
+
+    create_db_and_tables()
+    with Session(engine) as session, open(path, "rb") as doc:
+        post = session.get(NewsPost, news_id)
+        if post is None:
+            raise SystemExit(f"No news {news_id}.")
+        try:
+            found, body, pictures = docx_to_html(doc)
+        except DocumentError as e:
+            raise SystemExit(str(e)) from e
+        old = unused_pictures(post.body_html_tr or "", post.body_html, body)
+        post.lang = language(post.title + " " + post.body_html)
+        post.title_tr, post.body_html_tr = title or found or post.title, body
+        session.add(post)
+        session.commit()
+        delete_pictures(old)
+        print(f"News {news_id}: translation «{post.title_tr}», {len(pictures)} pictures.")
+
+
+def run_fetch_abyss(refetch: bool) -> None:
+    from .services.abyss import fetch_abyss
+
+    create_db_and_tables()
+    with Session(engine) as session:
+        result = fetch_abyss(session, refetch)
+    print(f"Abyss: {len(result.phases)} phases stored, {result.icons} icons downloaded.")
+    for error in result.errors:
+        print("Error:", error)
 
 
 def check_challonge() -> None:
@@ -760,6 +805,8 @@ def main() -> None:
     url_cmd.add_argument("url", nargs="?", help="The Challonge bracket")
     url_cmd.add_argument("--clear", action="store_true", help="Remove the link and the stored bracket")
     commands.add_parser("check-challonge", help="List where Challonge brackets and the site's matches disagree")
+    abyss_cmd = commands.add_parser("fetch-abyss", help="Import Spiral Abyss phases (floor 12) from alioth.wiki")
+    abyss_cmd.add_argument("--refetch", action="store_true", help="Fetch every phase again")
     player_cmd = commands.add_parser("add-player", help="Add a person who played only in bracket-only tournaments")
     player_cmd.add_argument("name", help="The name to show")
     player_cmd.add_argument("challonge_names", nargs="*", help="Their names in brackets, tied to them")
@@ -770,7 +817,11 @@ def main() -> None:
         "export-aspirine", help="Save old tournaments' games and drafts from draft.aspirine.su"
     )
     asp_cmd.add_argument("slugs", nargs="+", help="Tournament slugs: draft.aspirine.su/tournament/<slug>/")
-    commands.add_parser("poll-stream", help="Read the stream's Telegram channel and Twitch status once")
+    trn_cmd = commands.add_parser("set-news-translation", help="Attach a translated .docx to a news post")
+    trn_cmd.add_argument("news_id", type=int)
+    trn_cmd.add_argument("file", help="The translated document (.docx)")
+    trn_cmd.add_argument("--title", help="Its title; else the document's first heading or line")
+    commands.add_parser("poll-stream", help="Read the streams' Telegram channels and Twitch status once")
     commands.add_parser("import-aspirine", help="Store the old tournaments export-aspirine saved as matches")
     games_cmd = commands.add_parser("add-manual-games", help="Store games of hand-entered tournaments from a JSON file")
     games_cmd.add_argument("file", help="JSON: matches with tournament, date, players, games (rooms, penalty), winner")
@@ -864,6 +915,8 @@ def main() -> None:
         export_telegram(args.channel, args.photos)
     elif args.command == "export-aspirine":
         export_aspirine(args.slugs)
+    elif args.command == "set-news-translation":
+        set_news_translation(args.news_id, args.file, args.title)
     elif args.command == "poll-stream":
         poll_stream()
     elif args.command == "import-aspirine":
@@ -874,6 +927,8 @@ def main() -> None:
         telegram_photos(args.channel, args.posts, args.since, args.until)
     elif args.command == "telegram-ocr":
         telegram_ocr(args.channel)
+    elif args.command == "fetch-abyss":
+        run_fetch_abyss(args.refetch)
     elif args.command == "check-challonge":
         check_challonge()
     elif args.command == "delete-tournaments":

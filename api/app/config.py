@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     # app's keys from dev.twitch.tv; without them the channel's posts alone tell what's on.
     stream_telegram_channel: str = "abysscup"
     twitch_channel: str = "abyss__cup"
+    # House of the Hearth's: the same, with their own posts ("A VS B — 17:00 МСК", the casters under it)
+    hoth_telegram_channel: str = "hoth_abyss"
+    hoth_twitch_channel: str = "abyss_hoth"
     twitch_client_id: str | None = None
     twitch_client_secret: str | None = None
 

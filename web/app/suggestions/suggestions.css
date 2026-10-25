@@ -10,8 +10,6 @@
 .suggest-field .player-label { font-size: 11px; }
 .suggest-input { min-width: 0; padding: 6px 9px; border: 1px solid var(--gitv-border); background: var(--gitv-surface); color: var(--gitv-text); font: 13px/1.4 var(--gitv-font); color-scheme: dark; }
 .suggest-input:focus { outline: none; border-color: var(--gitv-accent); }
-.suggest-avatar { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.suggest-avatar img { flex: none; object-fit: cover; border: 1px solid var(--gitv-border); }
 .suggest-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .suggest-limit { margin-left: auto; font-size: 11px; }
 @media (max-width: 700px) {
@@ -20,9 +18,8 @@
 
 /* Staff review queue (profile page). */
 .review-list { display: flex; flex-direction: column; }
-.review-item { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 14px; border-top: 1px dotted var(--gitv-border-muted); }
+.review-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 14px; border-top: 1px dotted var(--gitv-border-muted); }
 .review-item:first-child { border-top: 0; }
-.review-avatar { width: 56px; height: 56px; object-fit: cover; background: var(--gitv-surface); border: 1px solid var(--gitv-border); }
 .review-main { min-width: 0; font-size: 13px; color: var(--gitv-text); }
 .review-player { font-weight: 600; color: var(--gitv-text); text-decoration: none; }
 .review-player:hover { text-decoration: underline; }
@@ -34,7 +31,7 @@
 .review-empty { margin: 0; padding: 12px 14px; color: var(--gitv-muted); font-size: 13px; }
 .review-ban-list { margin: 8px 0 0; color: var(--gitv-muted); font-size: 12px; }
 @media (max-width: 600px) {
-  .review-item { grid-template-columns: 48px minmax(0, 1fr); }
+  .review-item { grid-template-columns: minmax(0, 1fr); }
   .review-actions { grid-column: 1 / -1; }
 }
 

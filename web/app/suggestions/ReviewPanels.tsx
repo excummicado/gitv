@@ -50,14 +50,12 @@ export function SuggestionsQueue() {
           <div className="review-list">
             {items.map((s) => (
               <div className="review-item" key={s.id}>
-                {s.avatar_url ? <img className="review-avatar" src={s.avatar_url} alt={t(`Suggested avatar for ${s.player.name}`, `Предложенный аватар для ${s.player.name}`)} /> : <span className="review-avatar" />}
                 <div className="review-main">
                   <Link className="review-player" to={`/player/${s.player.id}`}>{s.player.name}</Link>
                   <span className="review-meta"> · {t("by", "от")} {s.author} · {l.date(s.created_at)}</span>
                   <div className="review-fields">
                     <Field label={t("Name", "Имя")} value={s.real_name} was={s.current?.real_name} />
                     <Field label={t("Birthday", "Дата рождения")} value={s.birth_date && `${l.date(s.birth_date)} (${s.age})`} was={s.current?.birth_date && `${l.date(s.current.birth_date)} (${s.current.age})`} />
-                    {s.avatar_url && <span><span className="player-label">{t("Avatar", "Аватар")}: </span>{s.current?.avatar_url ? t("replaces the current one", "заменит текущий") : t("new", "новый")}</span>}
                   </div>
                 </div>
                 <div className="review-actions">

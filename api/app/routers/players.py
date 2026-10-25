@@ -12,7 +12,7 @@ from ..models import Agent, DraftSystem, Engine, PlayerRoster
 from ..models import RosterCharacter as RosterCharacterRow
 from ..models import RosterWeapon as RosterWeaponRow
 from ..services.draft_systems import character_cost, cost_tables, weapon_cost
-from ..services.player_names import merges
+from ..services.player_names import display_names, merges
 from ..services.roster_stats import character_roster
 from ..services.stats import (
     Rating,
@@ -41,6 +41,9 @@ class EloInfo(BaseModel):
     peak_at: datetime
     active: bool  # played in the last six months; inactive players keep their rating but aren't ranked
     rank: int | None  # among active players
+    rank_all: int  # among everyone, inactive players included
+    tier: str | None  # colour: gold, silver, bronze, top10, top30 (level with a tier's last place counts in it)
+    tier_all: str | None  # the same among everyone
 
 
 class PlayerSummary(BaseModel):
@@ -224,7 +227,13 @@ class FrequentOpponent(BaseModel):
     meetings: list[OpponentMeeting]  # newest first
 
 
-Scope = Annotated[str, Query(pattern="^(all|major)$", description="major: Abyss Cup qualifiers and playoffs only")]
+Scope = Annotated[
+    str,
+    Query(
+        pattern="^(all|major)$",
+        description="major: Abyss Cup qualifiers and playoffs and the numbered Abyss Fight Club events only",
+    ),
+]
 
 
 @router.get("", response_model=list[PlayerSummary])
@@ -240,7 +249,16 @@ def list_players(session: SessionDep, scope: Scope = "all"):
 def elo_info(r: Rating | None) -> dict | None:
     if r is None:
         return None
-    return {"rating": r.elo, "peak": r.peak, "peak_at": r.peak_at, "active": r.active, "rank": r.rank}
+    return {
+        "rating": r.elo,
+        "peak": r.peak,
+        "peak_at": r.peak_at,
+        "active": r.active,
+        "rank": r.rank,
+        "rank_all": r.rank_all,
+        "tier": r.tier,
+        "tier_all": r.tier_all,
+    }
 
 
 class ChampionTournament(BaseModel):
@@ -526,6 +544,54 @@ class CharacterRoster(BaseModel):
     characters: list[OwnedCharacter]
 
 
+class EloPoint(BaseModel):
+    date: datetime
+    elo: int  # after the match
+    change: float  # what the match moved it by
+    result: float  # 1 won, 0 lost, 0.5 drawn
+    opponent: Opponent
+    tournament: str
+    match_id: str | None  # None for a match known from its bracket only (no page)
+
+
+class EloHistory(BaseModel):
+    elo: EloInfo
+    points: list[EloPoint]  # oldest first; the rating starts at START before the first
+
+
+@router.get("/{player_id}/elo", response_model=EloHistory)
+def player_elo(player_id: str, session: SessionDep):
+    """The player's Elo after each of their rated matches, for the chart on their page (see stats.elo)."""
+    player_id = merges(session).get(player_id, player_id)
+    snap = snapshot(session)
+    r = elo_ratings(session, snap).get(player_id)
+    if r is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No rated matches.")
+
+    names = display_names(session)
+
+    def opponent(side: str) -> dict:
+        if side not in snap.players:
+            return {"id": "", "name": side[1:]}
+        return {"id": side, "name": names.get(side, snap.players[side].name)}
+
+    return {
+        "elo": elo_info(r),
+        "points": [
+            {
+                "date": s.at,
+                "elo": round(s.elo),
+                "change": round(s.change, 1),
+                "result": s.result,
+                "opponent": opponent(s.opponent),
+                "tournament": snap.match_info[s.match_id][1],
+                "match_id": None if s.match_id in snap.challonge_matches else s.match_id,
+            }
+            for s in r.history
+        ],
+    }
+
+
 @router.get("/{player_id}/characters", response_model=CharacterRoster)
 def read_characters(player_id: str, session: SessionDep, tournament: str | None = None):
     """Every character ever in the player's roster (or in one tournament's roster) with the player's
@@ -631,7 +697,7 @@ class Comparison(BaseModel):
 @router.get("/{player_id}/compare/{other_id}", response_model=Comparison)
 def compare_players(player_id: str, other_id: str, session: SessionDep, scope: Scope = "all"):
     """Two players' statistics side by side, and their meetings, in the scope (major: Abyss Cup qualifiers
-    and playoffs only)."""
+    and playoffs and the numbered Abyss Fight Club events only)."""
     merged = merges(session)
     player_id, other_id = merged.get(player_id, player_id), merged.get(other_id, other_id)
     everything = snapshot(session)

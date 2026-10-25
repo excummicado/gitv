@@ -13,7 +13,7 @@ NICKNAME_PATTERN = r"^[A-Za-z0-9_.]+$"
 
 class Role(StrEnum):
     user = "user"
-    # Will write news; no extra permissions yet.
+    # Writes news (imports them from a Word or Google document).
     writer = "writer"
     # Will run tournaments and events; no extra permissions yet.
     event_organizer = "event_organizer"
@@ -29,6 +29,11 @@ class Role(StrEnum):
     def can_edit_players(self) -> bool:
         """May write a tournament player's real name and birthday directly (no review)."""
         return self in (Role.event_organizer, Role.admin, Role.super_admin)
+
+    @property
+    def can_write_news(self) -> bool:
+        """May add news to the home page (and remove their own; admins any)."""
+        return self in (Role.writer, Role.event_organizer, Role.admin, Role.super_admin)
 
 
 class UserBase(SQLModel):
@@ -411,6 +416,24 @@ class TournamentEvent(SQLModel, table=True):
     created_at: datetime
 
 
+class AbyssPhase(SQLModel, table=True):
+    """One rotation of Genshin Impact's Spiral Abyss, floor 12 only, from alioth.wiki (services/abyss.py). Tournaments
+    are played on the live Abyss, so a match belongs to the phase running on its date."""
+
+    id: int = Field(primary_key=True)  # alioth's phase number, 1 = version 1.0
+    version: str  # e.g. "7.1-7.2"
+    starts_on: date  # the phase runs from this day (inclusive) ...
+    ends_on: date  # ... to this one (exclusive); phases change on the 16th
+    hp_ratio: float | None = None  # floor 12 enemy HP multiplier, e.g. 4.75
+    total_hp: int | None = None  # floor 12, all chambers
+    blessings: str = "[]"  # JSON: [{name, desc}] (several in early phases)
+    disorder: str | None = None  # floor 12 Ley Line Disorder, as on alioth ("P1 ...<br>P2 ...")
+    chambers: str = "[]"  # JSON: floor 12 chambers with their waves and monsters (alioth's shape)
+    monsters: str = "{}"  # JSON: {monster id: {Name, Icon, Color, RES}} for floor 12's monsters
+    guides: str = "{}"  # JSON: {monster id: [{Title, DescList}]} mechanics of floor 12's monsters
+    fetched_at: datetime
+
+
 class TournamentWinner(SQLModel, table=True):
     """A tournament winner set by hand (app.cli set-tournament-winner), used only when the final's own data
     can't tell (no times entered). Kept apart from imported tables so re-importing never undoes it."""
@@ -500,6 +523,24 @@ class ScheduledMatch(SQLModel, table=True):
     created_at: datetime
 
 
+class NewsPost(SQLModel, table=True):
+    """A news post on the home page, imported from a Word (.docx) or Google document by a writer, event organizer
+    or admin (services/news.py). The body is the document as cleaned HTML."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    title: str
+    body_html: str
+    source: str  # the file's name or the Google document's link
+    author_name: str | None = None  # the article's author when given by hand; else whoever imported it
+    # A translation into the other language, uploaded as its own document: the post's language ("ru" or "en"), the
+    # translated title and body (cleaned the same way); None without one
+    lang: str | None = None
+    title_tr: str | None = None
+    body_html_tr: str | None = None
+    created_by: uuid.UUID = Field(foreign_key="user.id")
+    created_at: datetime = Field(index=True)
+
+
 class StreamMatch(SQLModel, table=True):
     """A match played on stream, as the stream's Telegram channel announces it (services/stream.py): listed in
     the day's post ("matches today: A vs B, ..."), then posted when it goes on air and when it's over. Shown with
@@ -511,6 +552,7 @@ class StreamMatch(SQLModel, table=True):
     player1_name: str
     player2_name: str
     announced_at: datetime = Field(index=True)  # the day's post: about when the stream starts (UTC)
+    starts_at: datetime | None = None  # when the day's post gives each match its own time (House of the Hearth)
     live_at: datetime | None = None  # its own post: on air from then
     finished_at: datetime | None = None  # the results post
     winner_name: str | None = None

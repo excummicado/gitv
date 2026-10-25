@@ -4,3 +4,5 @@ pyjwt
 pydantic-settings
 openpyxl
 websocket-client
+mammoth
+nh3

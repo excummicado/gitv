@@ -10,7 +10,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlmodel import select
 
-from ..config import settings
 from ..database import SessionDep
 from ..dependencies import get_current_player_editor
 from ..models import ScheduledMatch, StreamMatch, StreamStatus, User
@@ -18,6 +17,7 @@ from ..rate_limit import rate_limit
 from ..services.challonge import normalize
 from ..services.player_names import display_names, known_players
 from ..services.stats import elo_ratings, snapshot
+from ..services.stream import streams
 from ..services.sync import live_tournaments
 
 router = APIRouter(prefix="/schedule", tags=["schedule"])
@@ -44,15 +44,17 @@ class PlayerOut(BaseModel):
     name: str
     elo: int | None = None  # their Elo, when they're a player of the site
     elo_active: bool = False  # played in the last six months
+    elo_rank: int | None = None  # among active players
+    elo_tier: str | None = None  # colour tier (see stats.elo.TIERS)
 
 
 def elo_of(session: SessionDep):
-    """A function (player id) -> (Elo, active) from the site's ratings."""
+    """A function (player id) -> their Elo fields of PlayerOut, from the site's ratings."""
     ratings = elo_ratings(session, snapshot(session))
 
     def get(pid: str | None) -> dict:
         r = ratings.get(pid) if pid else None
-        return {"elo": r.elo, "elo_active": r.active} if r else {}
+        return {"elo": r.elo, "elo_active": r.active, "elo_rank": r.rank, "elo_tier": r.tier} if r else {}
 
     return get
 
@@ -125,14 +127,17 @@ class StreamMatchOut(BaseModel):
     player1: PlayerOut
     player2: PlayerOut
     announced_at: datetime  # the day's post, about when the stream starts
+    starts_at: datetime | None  # its own time, when the day's post gives one
     live_at: datetime | None  # went on air
     finished_at: datetime | None
     winner: int | None  # 0 or 1, when the results post said who won
     live: bool  # on air now
+    casters: str | None
     post_url: str
 
 
 class StreamOut(BaseModel):
+    name: str  # whose stream: Abyss Cup, House of the Hearth
     url: str  # the Twitch channel
     live: bool  # the stream is on: from Twitch when its keys are set, else a match on air
     title: str | None  # from Twitch
@@ -142,23 +147,23 @@ class StreamOut(BaseModel):
     matches: list[StreamMatchOut]
 
 
-# Without Twitch's status, a match counts as on air this long after its post (unless its result came)
+# Without Twitch's status, a match counts as on air this long after its post or its time (unless its result came)
 ON_AIR = timedelta(hours=3)
 # Twitch's status older than this (the poll stopped) isn't trusted
-STATUS_FRESH = timedelta(minutes=20)
+STATUS_FRESH = timedelta(minutes=5)
 
 
 def aware(value: datetime | None) -> datetime | None:
     return value.replace(tzinfo=UTC) if value and value.tzinfo is None else value
 
 
-@router.get("/stream", response_model=StreamOut)
+@router.get("/stream", response_model=list[StreamOut])
 def stream_matches(
     session: SessionDep,
     start: Annotated[datetime, Query(alias="from", description="Range start, with a time zone")],
     end: Annotated[datetime, Query(alias="to", description="Range end, with a time zone")],
 ):
-    """The matches announced for the stream in [from, to) (by the day's post; see services/stream.py), with whether
+    """Each stream with matches announced in [from, to) (by the day's post; see services/stream.py), with whether
     the stream and each match is on now. The home page asks for the viewer's local day."""
     start, end = utc(start), utc(end)
     if end <= start or end - start > timedelta(days=MAX_RANGE_DAYS):
@@ -168,13 +173,12 @@ def stream_matches(
     rows = session.exec(
         select(StreamMatch)
         .where(StreamMatch.announced_at >= start, StreamMatch.announced_at < end)
-        .order_by(StreamMatch.announced_at, StreamMatch.live_at)
+        .order_by(StreamMatch.announced_at, StreamMatch.starts_at, StreamMatch.live_at)
     ).all()
+    if not rows:
+        return []
     now = datetime.now(UTC)
-    twitch = session.get(StreamStatus, settings.twitch_channel)
-    if twitch and now - aware(twitch.checked_at) > STATUS_FRESH:
-        twitch = None
-    known = known_players(session, snapshot(session)) if rows else {}
+    known = known_players(session, snapshot(session))
     names = display_names(session)
     elo = elo_of(session)
 
@@ -182,37 +186,59 @@ def stream_matches(
         pid = known.get(normalize(name))
         return PlayerOut(id=pid, name=names.get(pid, name) if pid else name, **elo(pid))
 
-    matches = []
-    for r in rows:
-        on = bool(r.live_at and not r.finished_at)
-        on = on and (twitch.live if twitch else now - aware(r.live_at) < ON_AIR)
-        winner = None
-        if r.winner_name:
-            key = normalize(r.winner_name)
-            winner = 0 if key == normalize(r.player1_name) else 1 if key == normalize(r.player2_name) else None
-        matches.append(
-            StreamMatchOut(
-                tournament_title=r.tournament_title,
-                player1=player(r.player1_name),
-                player2=player(r.player2_name),
-                announced_at=aware(r.announced_at),
-                live_at=aware(r.live_at),
-                finished_at=aware(r.finished_at),
-                winner=winner,
-                live=on,
-                post_url=r.post_url,
+    out = []
+    for source in streams():
+        own = [r for r in rows if r.channel == source.telegram]
+        if not own:
+            continue
+        twitch = session.get(StreamStatus, source.twitch)
+        if twitch and now - aware(twitch.checked_at) > STATUS_FRESH:
+            twitch = None
+        # On air: from its own post, or from its time; of those by time, only the first (one match at a time)
+        on_air = None
+        for r in own:
+            since = aware(r.live_at) or (aware(r.starts_at) if r.starts_at and aware(r.starts_at) <= now else None)
+            if since and not r.finished_at and (twitch.live if twitch else now - since < ON_AIR):
+                if r.live_at or on_air is None:
+                    on_air = r
+        matches = []
+        for r in own:
+            winner = None
+            if r.winner_name:
+                key = normalize(r.winner_name)
+                winner = 0 if key == normalize(r.player1_name) else 1 if key == normalize(r.player2_name) else None
+            matches.append(
+                StreamMatchOut(
+                    tournament_title=r.tournament_title,
+                    player1=player(r.player1_name),
+                    player2=player(r.player2_name),
+                    announced_at=aware(r.announced_at),
+                    starts_at=aware(r.starts_at),
+                    live_at=aware(r.live_at),
+                    finished_at=aware(r.finished_at),
+                    winner=winner,
+                    live=r is on_air,
+                    casters=r.casters,
+                    post_url=r.post_url,
+                )
+            )
+        first = own[0]
+        playing = on_air or next((r for r in own if not r.finished_at), first)
+        out.append(
+            StreamOut(
+                name=source.name,
+                url=first.stream_url or f"https://www.twitch.tv/{source.twitch}",
+                live=twitch.live if twitch else on_air is not None,
+                title=twitch.title if twitch else None,
+                viewers=twitch.viewers if twitch and twitch.live else None,
+                started_at=aware(twitch.started_at)
+                if twitch and twitch.live
+                else aware(first.starts_at or first.announced_at),
+                casters=playing.casters,
+                matches=matches,
             )
         )
-    first = rows[0] if rows else None
-    return StreamOut(
-        url=(first and first.stream_url) or f"https://www.twitch.tv/{settings.twitch_channel}",
-        live=twitch.live if twitch else any(m.live for m in matches),
-        title=twitch.title if twitch else None,
-        viewers=twitch.viewers if twitch and twitch.live else None,
-        started_at=aware(twitch.started_at) if twitch and twitch.live else (first and aware(first.announced_at)),
-        casters=next((r.casters for r in rows if r.casters), None),
-        matches=matches,
-    )
+    return out
 
 
 @router.get("/tournaments", response_model=list[TournamentOption])

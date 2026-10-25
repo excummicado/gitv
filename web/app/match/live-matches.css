@@ -1,0 +1,14 @@
+/* Unfinished matches of running tournaments, with links to their drafts on the tournament site. */
+.live-match { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; padding: 8px 12px; border-top: 1px solid var(--gitv-border-muted); }
+.live-match:first-child { border-top: 0; }
+.live-match.is-started { background: var(--gitv-surface-hover); }
+.live-match-players { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; min-width: 0; font-weight: 600; }
+.live-match-vs { color: var(--gitv-muted); font-size: 11px; font-weight: 400; }
+.live-match-games { display: flex; flex-wrap: wrap; gap: 6px; }
+.live-game { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border: 1px solid var(--gitv-border); color: var(--gitv-text-soft); font-size: 12px; text-decoration: none; white-space: nowrap; }
+a.live-game:hover, a.live-game:focus-visible { border-color: var(--gitv-accent); color: var(--gitv-text); }
+.live-game.is-live { border-color: var(--gitv-win); color: var(--gitv-text); }
+.live-game.is-done { color: var(--gitv-muted); }
+.live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gitv-win); animation: live-dot 1.6s ease-in-out infinite; }
+@keyframes live-dot { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }

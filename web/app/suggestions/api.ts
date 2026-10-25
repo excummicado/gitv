@@ -1,16 +1,16 @@
-// Suggestions for a tournament player's real name, birthday and avatar (api/app/routers/suggestions.py).
+// Suggestions for a tournament player's real name and birthday (api/app/routers/suggestions.py).
 
 import { authRequest } from "../auth/client";
 
-export type PlayerInfo = { real_name: string | null; birth_date: string | null; age: number | null; avatar_url: string | null };
+export type PlayerInfo = { real_name: string | null; birth_date: string | null; age: number | null };
 export type SuggestionStatus = "pending" | "accepted" | "rejected";
 export type Suggestion = {
   id: number; player: { id: string; name: string }; author: string;
-  real_name: string | null; birth_date: string | null; age: number | null; avatar_url: string | null;
+  real_name: string | null; birth_date: string | null; age: number | null;
   status: SuggestionStatus; created_at: string; current: PlayerInfo | null;
 };
 export type ProfileChange = {
-  field: "real_name" | "birth_date" | "avatar"; old_value: string | null; new_value: string | null;
+  field: "real_name" | "birth_date"; old_value: string | null; new_value: string | null;
   changed_by: string; suggested_by: string | null; created_at: string;
 };
 export type MySuggestions = { banned: boolean; pending: number; max_pending: number };
