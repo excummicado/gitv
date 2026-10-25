@@ -17,7 +17,7 @@ from ..models import ScheduledMatch, StreamMatch, StreamStatus, User
 from ..rate_limit import rate_limit
 from ..services.challonge import normalize
 from ..services.player_names import display_names, known_players
-from ..services.stats import snapshot
+from ..services.stats import elo_ratings, snapshot
 from ..services.sync import live_tournaments
 
 router = APIRouter(prefix="/schedule", tags=["schedule"])
@@ -42,6 +42,19 @@ class ScheduledIn(BaseModel):
 class PlayerOut(BaseModel):
     id: str | None
     name: str
+    elo: int | None = None  # their Elo, when they're a player of the site
+    elo_active: bool = False  # played in the last six months
+
+
+def elo_of(session: SessionDep):
+    """A function (player id) -> (Elo, active) from the site's ratings."""
+    ratings = elo_ratings(session, snapshot(session))
+
+    def get(pid: str | None) -> dict:
+        r = ratings.get(pid) if pid else None
+        return {"elo": r.elo, "elo_active": r.active} if r else {}
+
+    return get
 
 
 class ScheduledOut(BaseModel):
@@ -67,10 +80,11 @@ def utc(value: datetime) -> datetime:
 
 def out(session: SessionDep, rows: list[ScheduledMatch]) -> list[ScheduledOut]:
     names = display_names(session)
+    elo = elo_of(session)
     authors = {u.id: u.nickname for u in session.exec(select(User).where(User.id.in_({r.created_by for r in rows})))}
 
     def player(pid: str | None, name: str) -> PlayerOut:
-        return PlayerOut(id=pid, name=names.get(pid, name) if pid else name)
+        return PlayerOut(id=pid, name=names.get(pid, name) if pid else name, **elo(pid))
 
     return [
         ScheduledOut(
@@ -162,10 +176,11 @@ def stream_matches(
         twitch = None
     known = known_players(session, snapshot(session)) if rows else {}
     names = display_names(session)
+    elo = elo_of(session)
 
     def player(name: str) -> PlayerOut:
         pid = known.get(normalize(name))
-        return PlayerOut(id=pid, name=names.get(pid, name) if pid else name)
+        return PlayerOut(id=pid, name=names.get(pid, name) if pid else name, **elo(pid))
 
     matches = []
     for r in rows:
