@@ -22,11 +22,15 @@ class Settings(BaseSettings):
     discord_redirect_uri: str = "http://localhost:5173/api/v1/auth/discord/callback"
     frontend_url: str = "http://localhost:5173"
     # Seconds between background syncs with the tournament site (new finished tournaments); 0 turns it off.
-    # Never less than an hour: lower values are raised to 3600.
+    # Never less than an hour: lower values are raised to 3600. When on, the matches of running tournaments are
+    # also polled every five minutes (services/sync.py, LIVE_INTERVAL).
     # Run the API as a single worker when it's on (the sync lock also keeps two passes from overlapping).
     sync_interval: int = 0
     # Behind a reverse proxy: tell clients apart by X-Forwarded-For (rate limits). Only with a proxy that sets it.
     trust_forwarded_for: bool = False
+    # Telegram app keys from my.telegram.org, for app.cli export-telegram only (reading a channel's history).
+    telegram_api_id: int | None = None
+    telegram_api_hash: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env")
 

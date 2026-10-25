@@ -1,3 +1,5 @@
 -r requirements.txt
 pytest
+telethon
+ocrmac; sys_platform == "darwin"
 ruff

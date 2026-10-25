@@ -9,9 +9,10 @@ from sqlmodel import func, select
 from ..database import SessionDep
 from ..models import Agent, ChallongeTournament, IgnoredTournament, Match, MatchPlayer, Tournament, TournamentInfo
 from ..services.banners import banner_for
-from ..services.events import Event, TournamentDates, tournament_events
+from ..services.events import Event, TournamentDates, group_label, site_events, stage_of, tournament_events
 from ..services.match_checks import MAJOR_SYSTEM, MAJOR_TITLE
 from ..services.player_names import display_names
+from ..services.roster_stats import tournament_pool
 from ..services.stats import (
     snapshot,
     tournament_bracket,
@@ -46,6 +47,7 @@ class TournamentRow(BaseModel):
     title: str
     kind: str  # bracket, groups, qualifier or team
     major: bool  # an Abyss Cup qualifier or playoff
+    live: bool = False  # still being played: no places or winner until its final has one
     organizer: Organizer | None
     system: str | None
     prize: int | None
@@ -54,7 +56,7 @@ class TournamentRow(BaseModel):
     first_match: datetime | None
     last_match: datetime | None
     matches: int
-    players: int
+    players: int  # in the Challonge bracket when there is one, else who played the tournament's games
     winner: PlayerRef | None
     # "challonge" or "matches": where the places come from
     places_source: str | None
@@ -84,6 +86,7 @@ class TableRow(BaseModel):
     avg_time: float | None
     best_time: int | None
     qualification: str | None
+    group: str | None = None  # in a stage of several qualifier groups: the player's group ("A & B")
 
 
 class CharacterPicks(BaseModel):
@@ -113,6 +116,27 @@ class TournamentStats(BaseModel):
     fastest: Fastest | None
     picks: list[CharacterPicks]
     bans: list[CharacterBans]
+
+
+class PoolPlayer(BaseModel):
+    id: str | None  # their player page, when they have one
+    name: str
+
+
+class PoolCharacter(BaseModel):
+    character: Character
+    owned: int  # players who had it in their pool
+    rate: float | None  # % of the players with a pool
+    constellations: list[int]  # of them, how many at C0, C1, ... C6
+    holders: list[list[PoolPlayer]]  # who they are, at C0, C1, ... C6
+
+
+class TournamentPool(BaseModel):
+    """Who had which character, from the players' rosters in the drafts (services.roster_stats)."""
+
+    players: int  # players with a pool (with draft data)
+    unplayed: int = 0  # of them, players of a running tournament counted with the roster of a draft not played yet
+    characters: list[PoolCharacter]
 
 
 class BracketSide(BaseModel):
@@ -147,6 +171,7 @@ class TournamentDetail(TournamentRow):
     table: list[TableRow]
     stats: TournamentStats
     bracket: list[BracketRound] | None
+    pool: TournamentPool
     # Challonge names that couldn't be matched to a player
     unmatched: list[str]
 
@@ -169,10 +194,16 @@ def rows(session: SessionDep, ids: list[str] | None = None) -> list[TournamentRo
     found = session.exec(query).all()
     snap = snapshot(session)
     only = {c.tournament_id: c for c in session.exec(select(ChallongeTournament))}
-    found += challonge_only_rows(session, snap, list(only))
+    # A bracket-only tournament with games entered by hand (manual_games) is already among them
+    played = {r[0] for r in found}
+    found += challonge_only_rows(session, snap, [t for t in only if t not in played])
     events = tournament_events(session, [TournamentDates(r[0], r[1], r[3], r[4]) for r in found])
+    # A stage made of qualifier groups takes their place in the list (see services.events).
+    grouped = {s.tournament_id: s.members for e in events.values() for s in e.stages if s.members}
+    in_groups = {m for members in grouped.values() for m in members}
     if ids is not None:
-        found = [r for r in found if r[0] in ids]
+        wanted = set(ids) | {m for sid in ids for m in grouped.get(sid, [])}
+        found = [r for r in found if r[0] in wanted]
     infos = {
         i.tournament_id: i
         for i in session.exec(select(TournamentInfo).where(TournamentInfo.tournament_id.in_([r[0] for r in found])))
@@ -185,11 +216,17 @@ def rows(session: SessionDep, ids: list[str] | None = None) -> list[TournamentRo
         info = infos.get(tid)
         s = standings.get(tid)
         winner = s["places"][0]["player"] if s and s["places"] and s["places"][0]["place"] == 1 else None
+        kind = "team" if tid in only and only[tid].team else tournament_kind(title)
+        # Everyone in the Challonge bracket (no-shows and byes too, before they've played on the site); team events'
+        # brackets list teams, so theirs stay the players of their games.
+        bracket = (ch := snap.challonge.get(tid)) and ch.bracket
+        if bracket and bracket.players and kind != "team":
+            players = len(bracket.players)
         out.append(
             TournamentRow(
                 id=tid,
                 title=title,
-                kind="team" if tid in only and only[tid].team else tournament_kind(title),
+                kind=kind,
                 major=bool(
                     (info and info.system == MAJOR_SYSTEM and MAJOR_TITLE.search(title))
                     or (tid in only and only[tid].major)
@@ -205,19 +242,71 @@ def rows(session: SessionDep, ids: list[str] | None = None) -> list[TournamentRo
                 players=players,
                 winner=PlayerRef(**winner) if winner else None,
                 places_source=s and s["source"],
-                challonge_only=tid in only,
+                challonge_only=tid in only and tid not in played,
                 date_estimated=tid in only and only[tid].date_estimated,
                 event=event_ref(events.get(tid), tid),
+                live=tid in snap.live,
             )
         )
+    stages = stage_rows(snap, events, grouped, {r.id: r for r in out})
+    if ids is None:
+        out = [r for r in out if r.id not in in_groups] + stages
+    else:
+        out = [r for r in out + stages if r.id in ids]
     return sorted(out, key=lambda r: r.last_match or datetime.min, reverse=True)
+
+
+def stage_players(snap, members: list[str]) -> int:
+    """A stage's players: everyone in its groups' Challonge brackets (the groups of a round often share one bracket,
+    so names are counted once), else who played their games, as for any tournament."""
+    names = {n for m in members if (ch := snap.challonge.get(m)) and ch.bracket for n in ch.bracket.players}
+    return len(names) or sum(1 for pd in snap.players.values() if pd.tournaments & set(members))
+
+
+def stage_rows(snap, events: dict[str, Event], grouped: dict[str, list[str]], by_id: dict) -> list[TournamentRow]:
+    """One row per stage made of qualifier groups, summing up its groups' rows."""
+    out = []
+    for stage_id, members in grouped.items():
+        groups = [by_id[m] for m in members if m in by_id]
+        if not groups:
+            continue
+        event = events[members[0]]
+        stage = stage_of(event, stage_id)
+        first = [g.first_match for g in groups if g.first_match]
+        last = [g.last_match for g in groups if g.last_match]
+        out.append(
+            TournamentRow(
+                id=stage_id,
+                title=f"{event.title} — {stage.label}",
+                kind="qualifier",
+                major=any(g.major for g in groups),
+                organizer=next((g.organizer for g in groups if g.organizer), None),
+                system=groups[0].system,
+                prize=None,
+                currency=None,
+                challonge_url=None,
+                first_match=min(first, default=None),
+                last_match=max(last, default=None),
+                matches=sum(g.matches for g in groups),
+                players=stage_players(snap, members),
+                winner=None,
+                places_source=None,
+                challonge_only=False,
+                date_estimated=False,
+                event=event_ref(event, stage_id),
+                live=any(g.live for g in groups),
+            )
+        )
+    return out
 
 
 def event_ref(event: Event | None, tid: str) -> EventRef | None:
     if event is None:
         return None
-    n, stage = next((n, s) for n, s in enumerate(event.stages) if s.tournament_id == tid)
-    return EventRef(id=event.id, title=event.title, stage=stage.label, position=n, stages=len(event.stages))
+    stage = stage_of(event, tid)
+    return EventRef(
+        id=event.id, title=event.title, stage=stage.label, position=event.stages.index(stage), stages=len(event.stages)
+    )
 
 
 def challonge_only_rows(session: SessionDep, snap, ids: list[str]) -> list[tuple]:
@@ -270,8 +359,9 @@ class FeaturedTournament(BaseModel):
 @router.get("/featured", response_model=FeaturedTournament | None)
 def featured_tournament(session: SessionDep):
     """The home page banner: the newest running tournament, else the latest finished one (its banner from
-    fetch-tournaments). The running list is the hourly-cached one, so this asks the site for nothing new."""
-    ignored = set(session.exec(select(IgnoredTournament.tournament_id)))
+    fetch-tournaments). The running list is the hourly-cached one, so this asks the site for nothing new; a
+    running tournament whose final has a winner on Challonge counts as finished."""
+    ignored = set(session.exec(select(IgnoredTournament.tournament_id))) | snapshot(session).decided
     live = sorted(
         (t for t in live_tournaments() if t["_id"] not in ignored), key=lambda t: t.get("createdAt") or "", reverse=True
     )
@@ -282,7 +372,7 @@ def featured_tournament(session: SessionDep):
         return FeaturedTournament(
             id=t["_id"],
             title=t.get("title", ""),
-            image=banner_for(t.get("createdBy"), t.get("image")),
+            image=banner_for(t.get("createdBy"), t.get("title"), t.get("image")),
             live=True,
             imported=row is not None,
             date=t.get("createdAt"),
@@ -291,14 +381,15 @@ def featured_tournament(session: SessionDep):
             winner=None,
             organizer=row.organizer if row else None,
         )
-    latest = next(iter(rows(session)), None)
+    still_live = snapshot(session).live
+    latest = next((r for r in rows(session) if r.id not in still_live), None)
     if latest is None:
         return None
     info = session.get(TournamentInfo, latest.id)
     return FeaturedTournament(
         id=latest.id,
         title=latest.title,
-        image=banner_for(info and info.organizer_id, info and info.image),
+        image=banner_for(info and info.organizer_id, latest.title, info and info.image),
         live=False,
         imported=True,
         date=latest.last_match,
@@ -311,12 +402,18 @@ def featured_tournament(session: SessionDep):
 
 @router.get("/{tournament_id}", response_model=TournamentDetail)
 def read_tournament(tournament_id: str, session: SessionDep):
+    """A tournament's page. A qualifier group's is its round's stage (all the round's groups; its id then differs
+    from the one asked for)."""
+    grouped = {s.tournament_id: s.members for e in site_events(session).values() for s in e.stages if s.members}
+    tournament_id = next((sid for sid, ms in grouped.items() if tournament_id in ms), tournament_id)
+    members = grouped.get(tournament_id)
     found = rows(session, [tournament_id])
     if not found:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such tournament.")
     snap = snapshot(session)
-    stats = tournament_stats(snap, tournament_id)
-    agent_ids = {c["character"] for c in stats["picks"] + stats["bans"]}
+    stats = tournament_stats(snap, members or tournament_id)
+    pool = tournament_pool(session, members or [tournament_id])
+    agent_ids = {c["character"] for c in stats["picks"] + stats["bans"] + pool["characters"]}
     agents = {a.id: a for a in session.exec(select(Agent).where(Agent.id.in_(agent_ids)))}
 
     def character(agent_id: str) -> Character:
@@ -331,7 +428,8 @@ def read_tournament(tournament_id: str, session: SessionDep):
 
     stats["picks"] = [{**c, "character": character(c["character"])} for c in stats["picks"]]
     stats["bans"] = [{**c, "character": character(c["character"])} for c in stats["bans"]]
-    ch = snap.challonge.get(tournament_id)
+    pool["characters"] = [{**c, "character": character(c["character"])} for c in pool["characters"]]
+    ch = None if members else snap.challonge.get(tournament_id)
     stages = []
     if found[0].event:
         everything = {r.id: r for r in rows(session)}
@@ -340,11 +438,17 @@ def read_tournament(tournament_id: str, session: SessionDep):
             StageRef(id=r.id, title=r.event.stage, kind=r.kind, first_match=r.first_match, last_match=r.last_match)
             for r in sorted(siblings, key=lambda r: r.event.position)
         ]
+    table = tournament_table(snap, members or tournament_id)
+    if members:
+        titles = dict(session.exec(select(Tournament.id, Tournament.title).where(Tournament.id.in_(members))).all())
+        for row in table:
+            row["group"] = group_label(titles.get(row["group_id"], "")) if row["group_id"] else None
     return TournamentDetail(
         **found[0].model_dump(),
         stages=stages,
-        table=tournament_table(snap, tournament_id),
+        table=table,
         stats=stats,
-        bracket=tournament_bracket(snap, tournament_id),
+        bracket=None if members else tournament_bracket(snap, tournament_id),
+        pool=pool,
         unmatched=ch.unmatched if ch else [],
     )

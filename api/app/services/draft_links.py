@@ -36,8 +36,16 @@ def fetch_match(client: httpx.Client, match_id: str) -> dict[str, str]:
     }
 
 
+# Tournaments known only by their bracket (challonge-<slug>, manual-<slug>): matches entered by hand, not the site's.
+OFF_SITE = ("challonge-", "manual-")
+
+
 def fetch_draft_links(session: Session, refresh: bool = False) -> LinksResult:
-    match_ids = list(session.exec(select(Match.id).order_by(Match.created_at)))
+    match_ids = [
+        m
+        for m, tid in session.exec(select(Match.id, Match.tournament_id).order_by(Match.created_at))
+        if not tid.startswith(OFF_SITE)
+    ]
     if not refresh:
         done = set(session.exec(select(DraftLink.match_id).distinct()))
         match_ids = [m for m in match_ids if m not in done]

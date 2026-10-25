@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 from app.models import Tournament, TournamentEvent
-from app.services.events import TournamentDates, tournament_events
+from app.services.events import TournamentDates, group_label, stage_of, tournament_events
 
 DAY = timedelta(days=1)
 T0 = datetime(2026, 1, 1, tzinfo=UTC)
@@ -23,8 +23,27 @@ def test_abyss_cup_seasons_group_their_qualifiers(session):
     events = tournament_events(session, ts)
     season = events["p1"]
     assert season.title == "Abyss Cup Summer"
-    assert [s.tournament_id for s in season.stages] == ["q1a", "q1b", "q2a", "p1"]
+    # Each qualifier round is one stage of its groups, then the playoff.
+    assert [(s.tournament_id, s.label, s.members) for s in season.stages] == [
+        ("quals-1-p1", "Qualification Round 1", ["q1a", "q1b"]),
+        ("quals-2-p1", "Qualification Round 2", ["q2a"]),
+        ("p1", "Abyss Cup Summer Playoff", []),
+    ]
+    assert events["q1b"] is season and stage_of(season, "q1b").tournament_id == "quals-1-p1"
     assert "q3" not in events and "fs" not in events
+
+
+def test_one_qualifier_round_is_just_qualification(session):
+    ts = [dates("qa", "Qualification Stage Group A", 1), dates("p", "Abyss Cup Autumn 2025 Playoff", 2)]
+    assert [s.label for s in tournament_events(session, ts)["p"].stages] == [
+        "Qualification",
+        "Abyss Cup Autumn 2025 Playoff",
+    ]
+
+
+def test_group_label():
+    assert group_label("Summer Quals 2nd Stage Group A & B") == "A & B"
+    assert group_label("Qualification Stage Group H") == "H"
 
 
 def test_stages_set_by_hand(session):

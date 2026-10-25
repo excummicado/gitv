@@ -20,21 +20,27 @@ def tournament_kind(title: str) -> str:
     return "groups" if GROUP_STAGE.search(title) else "bracket"
 
 
-def tournament_table(snap: Snapshot, tid: str) -> list[dict]:
+def tournament_table(snap: Snapshot, tid: str | list[str]) -> list[dict]:
     """Everyone who played the tournament: their place (brackets), match and game record and qualification.
-    Brackets sort by place; groups and qualifiers by matches won, then by games won minus lost."""
+    Brackets sort by place; groups and qualifiers by matches won, then by games won minus lost.
+
+    tid can be several tournaments played side by side (a qualifier round's groups): one table of them all,
+    each row with the group it was played in (group_id)."""
+    tids = [tid] if isinstance(tid, str) else tid
     ranks = bracket_places(snap)
     qualified = qualification_results(snap)
     rows = []
     for pid, pd in snap.players.items():
-        outcomes = [o for m, (o, _) in pd.matches.items() if snap.match_tournament[m] == tid]
-        games = [g for g in pd.games if snap.match_tournament[g.match_id] == tid]
+        outcomes = [o for m, (o, _) in pd.matches.items() if snap.match_tournament[m] in tids]
+        games = [g for g in pd.games if snap.match_tournament[g.match_id] in tids]
         if not games and not outcomes:
             continue
-        rank = ranks.get((pid, tid))
+        played = Counter(snap.match_tournament[m] for m in pd.matches if snap.match_tournament[m] in tids)
+        group = played.most_common(1)[0][0] if played else snap.match_tournament[games[0].match_id]
+        rank = ranks.get((pid, group))
         won, lost = sum(g.result == "W" for g in games), sum(g.result == "L" for g in games)
-        if tid in snap.challonge_only:
-            won, lost = games_record(snap, tid, pid)
+        if group in snap.challonge_only:
+            won, lost = games_record(snap, group, pid)
         times = [g.clear_time for g in timed(games)]
         rows.append(
             {
@@ -49,12 +55,15 @@ def tournament_table(snap: Snapshot, tid: str) -> list[dict]:
                 "tech_losses": sum(g.tech_loss for g in games),
                 "avg_time": avg(times),
                 "best_time": min(times, default=None),
-                "qualification": qualified.get((pid, tid)),
+                "qualification": next((q for t in tids if (q := qualified.get((pid, t)))), None),
+                "group_id": group if len(tids) > 1 else None,
             }
         )
-    rows += not_on_site(snap, tid)
+    for t in tids:
+        rows += not_on_site(snap, t)
     rows.sort(
         key=lambda r: (
+            tids.index(r["group_id"]) if r["group_id"] in tids else -1,  # several groups: group by group
             r["place"] is None,
             r["place"] or (0, 0),
             -r["match_wins"],
@@ -103,14 +112,17 @@ def not_on_site(snap: Snapshot, tid: str) -> list[dict]:
                 "avg_time": None,
                 "best_time": None,
                 "qualification": None,
+                "group_id": None,
             }
         )
     return rows
 
 
-def tournament_stats(snap: Snapshot, tid: str) -> dict:
-    """Characters picked and banned most, times and technical defeats across the tournament's games."""
-    games = [g for pd in snap.players.values() for g in pd.games if snap.match_tournament[g.match_id] == tid]
+def tournament_stats(snap: Snapshot, tid: str | list[str]) -> dict:
+    """Characters picked and banned most, times and technical defeats across the tournament's games (or across
+    several tournaments', see tournament_table)."""
+    tids = [tid] if isinstance(tid, str) else tid
+    games = [g for pd in snap.players.values() for g in pd.games if snap.match_tournament[g.match_id] in tids]
     drafts = {g.draft_id for g in games}
     picks, wins, bans = Counter(), Counter(), Counter()
     for g in games:

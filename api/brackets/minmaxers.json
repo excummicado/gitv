@@ -1,0 +1,61 @@
+{
+  "slug": "minmaxers",
+  "title": "MinMaxers",
+  "started": "2024-03-01",
+  "ended": "2024-03-12",
+  "rounds": [
+    [
+      ["giusyuwu", "dragqueenkom", "dragqueenkom"],
+      ["vimor0_o", "gigapon.", "vimor0_o"],
+      ["bloodfy", "eugw", "bloodfy"],
+      ["gotika_", "parisss2044", "parisss2044"],
+      ["kisevpotoke", "alinochka1551", "alinochka1551"],
+      ["benice711", "dast0", "dast0"],
+      ["senoen", "bshka_", "senoen"],
+      ["k0ctu4ek", ".anqrios", "k0ctu4ek"],
+      ["love_horses", "grandead", "love_horses"]
+    ],
+    [
+      [".raiymbek", "dragqueenkom", "dragqueenkom"],
+      ["astro_liber", "pikaa.pikachu", "astro_liber"],
+      ["pmir", "vimor0_o", "pmir"],
+      ["d1vi7or_xd", "bloodfy", "d1vi7or_xd"],
+      ["exelv2", "parisss2044", "parisss2044"],
+      ["aminirayami", "n1kitos1vea", "aminirayami"],
+      ["touchme._", "alinochka1551", "touchme._"],
+      ["xpodvodny", "badirak", "badirak"],
+      ["solohoneygoose", "dast0", "solohoneygoose"],
+      ["paandorum", "waterman4ik", "waterman4ik"],
+      ["dze_n", "senoen", "dze_n"],
+      ["allouxd", "yunnost_", "allouxd"],
+      ["awiynxd", "k0ctu4ek", "awiynxd"],
+      ["_zero_7777", "akaashiroo", "akaashiroo"],
+      ["rt.v.dk", "love_horses", "love_horses"],
+      ["yutaadesu", "rpyt02", "rpyt02"]
+    ],
+    [
+      ["dragqueenkom", "astro_liber", "astro_liber"],
+      ["pmir", "d1vi7or_xd", "pmir"],
+      ["parisss2044", "aminirayami", "parisss2044"],
+      ["touchme._", "badirak", "badirak"],
+      ["solohoneygoose", "waterman4ik", "solohoneygoose"],
+      ["dze_n", "allouxd", "allouxd"],
+      ["awiynxd", "akaashiroo", "akaashiroo"],
+      ["love_horses", "rpyt02", "rpyt02"]
+    ],
+    [
+      ["astro_liber", "pmir", "astro_liber"],
+      ["parisss2044", "badirak", "badirak"],
+      ["solohoneygoose", "allouxd", "allouxd"],
+      ["akaashiroo", "rpyt02", "akaashiroo"]
+    ],
+    [
+      ["astro_liber", "badirak", "badirak"],
+      ["allouxd", "akaashiroo", "allouxd"]
+    ],
+    [
+      ["badirak", "allouxd", "allouxd"]
+    ]
+  ],
+  "third_place": ["astro_liber", "akaashiroo", "astro_liber"]
+}

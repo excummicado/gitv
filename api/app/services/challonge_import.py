@@ -118,11 +118,13 @@ def save_bracket_tournament(
     team: bool = False,
     major: bool = False,
     ended_at: datetime | None = None,
+    date_estimated: bool = False,
 ) -> ChallongeTournament:
-    """Stores a tournament known only by its bracket (Challonge's, or one entered by hand, url None)."""
+    """Stores a tournament known only by its bracket (Challonge's, or one entered by hand, url None). Without a
+    start date it's estimated from the bracket's Challonge id; date_estimated marks a given one as approximate."""
     info = store.get("tournament") or {}
-    estimated = started_at is None
-    if estimated:
+    estimated = started_at is None or date_estimated
+    if started_at is None:
         started_at = estimate_date(date_anchors(session), info.get("id") or 0)
         if started_at is None:
             raise ValueError("no brackets with known dates to estimate the date from; pass one")
@@ -223,7 +225,7 @@ def add_manual_tournament(session: Session, spec: dict) -> ChallongeTournament:
     """Adds (or updates) a tournament whose bracket is entered by hand, e.g. from a picture of it. spec: {"slug",
     "title", "started" and optional "ended" (YYYY-MM-DD), "rounds" and optional "third_place" and "groups" (see
     manual_store),
-    and optional "organizer", "major", "team"}."""
+    and optional "organizer", "major", "team" and "date_estimated" (the dates are only approximate)}."""
 
     def day(value: str | None) -> datetime | None:
         return datetime.fromisoformat(value).replace(hour=12, tzinfo=UTC) if value else None
@@ -239,6 +241,7 @@ def add_manual_tournament(session: Session, spec: dict) -> ChallongeTournament:
         team=bool(spec.get("team")),
         major=bool(spec.get("major")),
         ended_at=day(spec.get("ended")),
+        date_estimated=bool(spec.get("date_estimated")),
     )
 
 

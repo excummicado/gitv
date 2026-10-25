@@ -34,7 +34,7 @@ from ...models import (
     TournamentPlayer,
     TournamentWinner,
 )
-from ..challonge import BracketMatch, ChallongeResult, site_match_winners, stored_results
+from ..challonge import BracketMatch, ChallongeResult, normalize, site_match_winners, stored_results
 from ..match_checks import (
     MAJOR_SYSTEM,
     MAJOR_TITLE,
@@ -104,6 +104,10 @@ class Snapshot:
     challonge_only: dict[str, ChallongeTournament] = field(default_factory=dict)
     # match id -> the match, for matches of tournaments played only on Challonge
     challonge_matches: dict[str, "ChallongeOnlyMatch"] = field(default_factory=dict)
+    # Tournaments still being played (imported by the live poll, final without a winner): no places or winner yet
+    live: set[str] = field(default_factory=set)
+    # Running on the site, but their final on Challonge has a winner: shown as finished
+    decided: set[str] = field(default_factory=set)
     standings: list[dict] | None = None  # filled on first use by standings.tournament_standings
     qualified: dict | None = None  # filled on first use by qualifiers.qualification_results
     bracket_ranks: dict | None = None  # filled on first use by standings.bracket_places
@@ -140,6 +144,7 @@ def data_key(session: Session) -> tuple:
         session.exec(select(func.count()).select_from(DraftState)).one(),
         session.exec(select(func.count()).select_from(MatchPlayer)).one(),
         session.exec(select(func.count()).select_from(TournamentInfo)).one(),
+        session.exec(select(func.count()).select_from(TournamentInfo).where(TournamentInfo.is_finished == False)).one(),  # noqa: E712
         session.exec(select(func.count(), func.max(ChallongeBracket.fetched_at))).one(),
         session.exec(select(func.count()).select_from(TournamentPlayer)).one(),
         tuple(sorted(session.exec(select(ChallongeAlias.name, ChallongeAlias.user_id)).all())),
@@ -147,6 +152,10 @@ def data_key(session: Session) -> tuple:
         tuple(sorted(merges(session).items())),
         tuple(sorted(session.exec(select(TournamentWinner.tournament_id, TournamentWinner.player_id)).all())),
         tuple(sorted(session.exec(select(OffsitePlayer.id, OffsitePlayer.name)).all())),
+        # Tournament titles (a rename), and characters' names (import-catalog, the Travelers' element names): both
+        # cached in the snapshot
+        tuple(sorted(session.exec(select(Tournament.id, Tournament.title)).all())),
+        tuple(sorted(session.exec(select(Agent.id, Agent.name_en, Agent.name_ru)).all())),
         tuple(
             sorted(
                 session.exec(
@@ -230,6 +239,8 @@ def restrict(base: Snapshot, only: set[str]) -> Snapshot:
         set_winners={t: w for t, w in base.set_winners.items() if t in only},
         challonge_only={t: c for t, c in base.challonge_only.items() if t in only},
         challonge_matches={m: c for m, c in base.challonge_matches.items() if m in kept},
+        live=base.live & only,
+        decided=base.decided & only,
     )
 
 
@@ -320,10 +331,26 @@ def build(session: Session, key: tuple, only: set[str] | None = None) -> Snapsho
         data.setdefault(oid, PlayerData(id=oid, name=oname))
         candidates[OFFSITE][oid] = {oname}
     challonge = stored_results(session, candidates)
-    only_rows = {c.tournament_id: c for c in session.exec(select(ChallongeTournament))}
+    unfinished = set(session.exec(select(TournamentInfo.tournament_id).where(TournamentInfo.is_finished == False)))  # noqa: E712
     if only is not None:
-        only_rows = {t: c for t, c in only_rows.items() if t in only}
-    challonge_matches = add_challonge_only(data, match_games, only_rows, challonge, tournaments)
+        unfinished &= only
+    decided = {t for t in unfinished if t in challonge and challonge[t].bracket and challonge[t].bracket.final_decided}
+    # A bracket-only tournament whose games were entered by hand (manual_games, aspirine_import) counts as one played
+    # on the site; its bracket's matches no game was entered for still count, as matches without games.
+    played = {tid for tid, *_ in matches.values()}
+    rows = [c for c in session.exec(select(ChallongeTournament)) if only is None or c.tournament_id in only]
+    only_rows = {c.tournament_id: c for c in rows if c.tournament_id not in played}
+    entered_rows = {c.tournament_id: c for c in rows if c.tournament_id in played}
+    # Each stored match, by its two players' ids and by their names (one not tied to a player has no id)
+    covered: dict[str, list[tuple[frozenset[str], frozenset[str]]]] = defaultdict(list)
+    names_by_match: dict[str, set[str]] = defaultdict(set)
+    for p in players:
+        names_by_match[p.match_id].add(normalize(p.full_name))
+    for match_id, games in match_games.items():
+        if match_id in matches and matches[match_id][0] in entered_rows:
+            ids = frozenset(g.side for g in games)
+            covered[matches[match_id][0]].append((ids, frozenset(names_by_match[match_id])))
+    challonge_matches = add_challonge_only(data, match_games, only_rows | entered_rows, challonge, tournaments, covered)
     pairs = {}
     for match_id, rows in match_games.items():
         sides = list(dict.fromkeys(g.side for g in rows))
@@ -380,6 +407,8 @@ def build(session: Session, key: tuple, only: set[str] | None = None) -> Snapsho
         set_winners=dict(session.exec(select(TournamentWinner.tournament_id, TournamentWinner.player_id)).all()),
         challonge_only=only_rows,
         challonge_matches=challonge_matches,
+        live=unfinished - decided,
+        decided=decided,
     )
 
 
@@ -431,12 +460,15 @@ def add_challonge_only(
     only_rows: dict[str, ChallongeTournament],
     challonge: dict[str, ChallongeResult],
     tournaments: dict[str, str],
+    covered: dict[str, list[tuple[frozenset[str], frozenset[str]]]] | None = None,
 ) -> dict[str, ChallongeOnlyMatch]:
     """Adds the decided matches of Challonge-only tournaments (team events aside) as matches without games: to
     match_games, for match_outcome with Challonge's winner (only a forfeit marked on Challonge is technical), and to
     the players' tournaments. Players Challonge's names couldn't be matched to are sides named "?<name>", not in
-    data."""
+    data. covered: {tournament id: [(player ids, normalized names)]} of matches stored with their games; a bracket
+    match of the same two players is left out, once per stored match (two players can meet twice)."""
     found = {}
+    left = {tid: list(pairs) for tid, pairs in (covered or {}).items()}
     for tid, row in only_rows.items():
         ch = challonge.get(tid)
         if row.team or not ch or not ch.bracket or TEAM_EVENT.search(tournaments.get(tid, "")):
@@ -453,6 +485,12 @@ def add_challonge_only(
             a = ch.ids.get(m.player1) or f"?{m.player1}"
             b = ch.ids.get(m.player2) or f"?{m.player2}"
             if a == b:
+                continue
+            done = left.get(tid, [])
+            names = frozenset((normalize(m.player1), normalize(m.player2)))
+            same = next((pair for pair in done if pair[0] == frozenset((a, b)) or pair[1] == names), None)
+            if same:
+                done.remove(same)
                 continue
             mid = challonge_match_id(tid, m)
             # Only a forfeit the organizer marked on Challonge: a 0:0 score is often just a score nobody entered.

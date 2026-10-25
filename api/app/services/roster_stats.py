@@ -4,12 +4,13 @@ Rosters come from the draft data (services.rosters, one PlayerRoster per version
 statistics come from the player's games in the snapshot (picks, results, times) and the opponents' bans.
 """
 
+import json
 from collections import defaultdict
 
 from sqlmodel import Session, select
 
-from ..models import PlayerRoster, RosterCharacter
-from .player_names import merges
+from ..models import LiveRoster, PlayerRoster, RosterCharacter
+from .player_names import display_names, merges
 from .stats.player import avg, pct
 from .stats.snapshot import Snapshot
 
@@ -138,3 +139,58 @@ def character_roster(session: Session, snap: Snapshot, player_id: str, tournamen
         )
     rows.sort(key=lambda r: (-r["picks"], -r["banned_against"], -r["constellation"], r["character"]))
     return {"tournaments": tournaments, "tournament": tournament, "games": len(games), "characters": rows}
+
+
+def tournament_pool(session: Session, tournaments: list[str]) -> dict:
+    """How many of a tournament's players had each character in their pool, and at which constellation (C0-C6).
+
+    Each player counts once, with their last roster of the tournament (or of any of the tournaments, for a stage
+    of several qualifier groups). In a running tournament, players who haven't finished a game yet count with the
+    roster of their draft to come (LiveRoster, `unplayed` of them). Only players with a roster are counted, so
+    `players` is the base of the rates. Characters by how many players had them, each with who had it at each
+    constellation (`holders`, by name; id None for someone with no player page yet)."""
+    merged = merges(session)
+    names = display_names(session)
+    versions = session.exec(select(PlayerRoster).where(PlayerRoster.tournament_id.in_(tournaments))).all()
+    last: dict[str, PlayerRoster] = {}
+    for v in versions:
+        player = merged.get(v.player_id, v.player_id)
+        if player not in last or (v.last_seen, v.version) > (last[player].last_seen, last[player].version):
+            last[player] = v
+    holders: dict[str, list[list[dict]]] = defaultdict(lambda: [[] for _ in range(7)])
+
+    def add(agent_id: str, constellation: int | None, player: str, name: str) -> None:
+        holder = {"id": player if player in names else None, "name": name}
+        holders[agent_id][min(max(constellation or 0, 0), 6)].append(holder)
+
+    if last:
+        owner = {v.id: player for player, v in last.items()}
+        rows = session.exec(
+            select(RosterCharacter).where(RosterCharacter.roster_id.in_([v.id for v in last.values()]))
+        ).all()
+        for c in rows:
+            player = owner[c.roster_id]
+            add(c.agent_id, c.constellation, player, names.get(player, player))
+    upcoming: dict[str, LiveRoster] = {}
+    for r in session.exec(select(LiveRoster).where(LiveRoster.tournament_id.in_(tournaments))):
+        player = merged.get(r.player_id, r.player_id)
+        if player not in last and (player not in upcoming or r.fetched_at > upcoming[player].fetched_at):
+            upcoming[player] = r
+    for player, r in upcoming.items():
+        for agent_id, constellation in json.loads(r.characters):
+            add(agent_id, constellation, player, names.get(player) or r.player_name or player)
+    players = len(last) + len(upcoming)
+    out = []
+    for agent_id, by_constellation in holders.items():
+        counts = [len(h) for h in by_constellation]
+        out.append(
+            {
+                "character": agent_id,
+                "owned": sum(counts),
+                "rate": pct(sum(counts), players),
+                "constellations": counts,
+                "holders": [sorted(h, key=lambda p: p["name"].casefold()) for h in by_constellation],
+            }
+        )
+    out.sort(key=lambda c: (-c["owned"], c["character"]))
+    return {"players": players, "unplayed": len(upcoming), "characters": out}

@@ -141,19 +141,41 @@ venv/bin/python -m app.cli sync --watch 3600    # every hour until Ctrl+C
 ```
 
 Reads the site's public list of finished tournaments and imports the ones that aren't in the database yet,
-then fetches their draft links, drafts and details, so no URLs file is needed. Running tournaments aren't
-imported; they come in after they finish. Tournaments in `ignoredtournament` are skipped;
-`delete-tournaments` adds the ones it deletes.
+then fetches their draft links, drafts and details, so no URLs file is needed. Tournaments in
+`ignoredtournament` are skipped; `delete-tournaments` adds the ones it deletes. Matches already in the
+database are kept as they are, with their draft links and drafts.
 
 On a server, set `SYNC_INTERVAL=3600` in `.env`: the API then syncs in the background by itself (0 = off;
 run a single worker). A lock file (`.sync.lock`) keeps two syncs from running at once, so a manual `sync`
 during a background one is skipped.
 
-Nothing automatic asks the site for anything more often than once an hour (`MIN_INTERVAL`): lower
+With background syncing on, the API also polls running tournaments every five minutes (`LIVE_INTERVAL`):
+it asks for the matches of each tournament on the running list and imports the ones that finished since, with
+their draft links, drafts and rosters, so statistics and the tournament page follow a tournament while it's
+played. A tournament gets its details from the running list when its first match comes in, marked not
+finished; the hourly sync imports its last matches, details and Challonge bracket once it ends. The poll
+shares the sync lock (it's skipped while a sync runs) and keeps its time in `.sync-state.json`.
+
+While a tournament runs it has no places, winner or champion anywhere (standings, the tournament list, news,
+players' pages). The live poll also reads its Challonge bracket (the participants list only the first time),
+and once the final there has a winner the tournament counts as finished: its places and winner show, it leaves
+the home page's running tournaments and the banner moves on to it as the latest. A tournament without a
+Challonge bracket stays live until the site marks it finished (the hourly sync).
+
+The live poll also keeps the running tournaments' unfinished matches, not started ones included, in
+`livematch`, apart from `match` so no statistic counts them: the two players and each game's status and
+spectator link on the site (asked for once per match). `GET /api/v1/matches/live-matches?tournament=` lists
+them, those being drafted or played first; the tournament page shows them while it runs and the home page's
+running tournaments show the games under way, each opening its draft on abyss.darte.gg. A match leaves
+`livematch` once it's finished (it's in `match` then) or its tournament stops running.
+
+Apart from the live poll's match lists (and the links and drafts of the matches it brings), nothing
+automatic asks the site for anything more often than once an hour (`MIN_INTERVAL`): lower
 `SYNC_INTERVAL` or `--watch` values are raised to 3600, the time of the last request is kept in
 `.sync-state.json` so API restarts don't reset it, and a failed request also waits an hour. The home page's
 running tournaments (`GET /api/v1/matches/live-tournaments`) come from the site's list cached the same way,
-so they can be up to an hour old.
+so they can be up to an hour old, and so can the live poll's idea of which tournaments are running: a new one
+is picked up within an hour of starting, then followed every five minutes.
 
 ### Draft links
 
@@ -208,6 +230,14 @@ mid-tournament (common in playoffs, where players swap characters between rounds
 | `rostercharacter` | character in a version | `roster_id`, `agent_id`, `level`, `constellation` |
 | `rosterweapon` | weapon (per level and refinement) in a version | `roster_id`, `engine_id`, `level`, `refinement`, `count` |
 
+Each tournament's page (its Stats tab, and `pool` in `GET /api/v1/tournaments/{id}`) shows its character pool: for
+every character, how many of the players with draft data had it and at which constellation (C0-C6), each player
+counted once with their last roster of the tournament (`roster_stats.tournament_pool`; a stage of qualifier groups
+over all its groups). Players without drafts aren't in it, so the rates are of those who have. In a running
+tournament, players who haven't finished a game yet count too, with the roster of their draft to come: the live
+poll reads both players' rosters from each unfinished match's next draft over the draft socket (at most once an
+hour per match, `LIVE_ROSTER_INTERVAL`) into `liveroster`, dropped with the match.
+
 ### Draft systems and costs
 
 ```bash
@@ -240,6 +270,9 @@ venv/bin/python -m app.cli import-catalog
 Saves the site's character and weapon lists (`/api/abyss/agents`, `/api/abyss/engines`, no cookie) to the
 `agent` and `engine` tables (the site calls characters agents and weapons engines; so do the column names). `export-xlsx` then shows Russian names instead of ids; an id missing from the list stays an id.
 Run it again when new characters come out. Exports and the site say Abyss for the site's `shiyu` mode.
+The site lists a Traveler per element (and per twin), all under one name; they're saved as AMC, CMC, DMC, EMC, GMC,
+HMC and PMC (Anemo, Cryo, Dendro, Electro, Geo, Hydro, Pyro main character), in both languages. A few other
+characters get a name of our own (`NAMES` in `services/catalog.py`, e.g. Sandrone (Starglitter)).
 
 ### Tournament organizers
 
@@ -288,6 +321,10 @@ case, spaces and punctuation, and "nick (discord)" by either half; fetch-challon
 couldn't match. A name only one player could have but doesn't match is tied by hand with
 `set-challonge-name` (`--clear` unties it). An unmatched winner makes the tournament fall back to the rules
 below.
+
+A tournament's player count (its page, the tournaments list, the home page banner) is everyone in its Challonge
+bracket when it has one, no-shows and players yet to play on the site included; without a bracket, and for team
+events (whose brackets list teams), it's who played its games.
 
 Who won a match is decided in one place, `match_checks.match_outcome`, for the site, the player statistics
 and export-xlsx alike: the match on the Challonge bracket first, then a technical defeat, then the total
@@ -376,8 +413,11 @@ matches, tournaments and places, no games.
 
 A tournament run in stages (groups, Swiss, main stage) shows as one event: the tournaments list has one row for
 it that opens to its stages, and a stage's page switches between them. Abyss Cup seasons group on their own (every
-qualifier stage with the first playoff after it, see `services/events.py`); other events are set by hand, stages
-in order, `=` naming a stage:
+qualifier with the first playoff after it, see `services/events.py`): the groups of one qualifier round (A & B,
+C & D, ...) are one stage, «Qualification» (or «Qualification Round 1» and «Round 2» for a season with a second
+round), id `quals-<round>-<playoff id>`. Its page has one table of all its groups, group by group, their matches
+by group and their statistics together; a group's own address opens its stage. Other events are set by hand,
+stages in order, `=` naming a stage:
 
 ```bash
 venv/bin/python -m app.cli set-tournament-event "Abyss Fight Club 4" challonge-afc_4_1="Group stage 1" \

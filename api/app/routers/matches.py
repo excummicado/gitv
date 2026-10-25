@@ -3,7 +3,7 @@
 import json
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -18,6 +18,7 @@ from ..models import (
     DraftState,
     Engine,
     IgnoredTournament,
+    LiveMatch,
     Match,
     MatchDraft,
     MatchPick,
@@ -26,6 +27,8 @@ from ..models import (
     Tournament,
     TournamentInfo,
 )
+from ..services.draft_links import draft_url
+from ..services.events import stage_members
 from ..services.match_checks import (
     NO_RESULT,
     MatchOutcome,
@@ -158,8 +161,9 @@ class MatchDetail(BaseModel):
 def rooms_of(state: DraftState | None) -> dict[int, list[int]]:
     if state is None:
         return {}
-    players = json.loads(state.raw).get("players") or []
-    return {i: [p.get(f"clearTimeRoom{k}") or 0 for k in (1, 2, 3)] for i, p in enumerate(players)}
+    raw = json.loads(state.raw)
+    rooms = range(1, (raw.get("roomCount") or 3) + 1)
+    return {i: [p.get(f"clearTimeRoom{k}") or 0 for k in rooms] for i, p in enumerate(raw.get("players") or [])}
 
 
 class MatchSummary(BaseModel):
@@ -196,7 +200,9 @@ def list_matches(
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
     """Newest first. q matches a player's name (any nickname they played under) or the tournament title."""
-    query = filtered(select(Match).join(Tournament, Tournament.id == Match.tournament_id), q, tournament)
+    query = filtered(
+        select(Match).join(Tournament, Tournament.id == Match.tournament_id), q, stage_tournaments(session, tournament)
+    )
     total = session.exec(select(func.count()).select_from(query.subquery())).one()
     page = session.exec(query.order_by(Match.created_at.desc()).offset(offset).limit(limit)).all()
     snap = snapshot(session)
@@ -222,8 +228,11 @@ class GroupedPage(BaseModel):
     matches: int
 
 
-def filtered(query, q: str, tournament: str | None):
-    if tournament:
+def filtered(query, q: str, tournament: str | list[str] | None):
+    """tournament: one, or a stage's qualifier groups (see stage_tournaments)."""
+    if isinstance(tournament, list):
+        query = query.where(Match.tournament_id.in_(tournament))
+    elif tournament:
         query = query.where(Match.tournament_id == tournament)
     if q.strip():
         like = f"%{q.strip().lower()}%"
@@ -233,6 +242,12 @@ def filtered(query, q: str, tournament: str | None):
         )
         query = query.where(or_(Match.id.in_(by_player), func.lower(Tournament.title).like(like)))
     return query
+
+
+def stage_tournaments(session, tournament: str | None) -> str | list[str] | None:
+    """A stage made of qualifier groups ("quals-...") stands for its groups; any other id for itself."""
+    members = stage_members(session, tournament) if tournament else None
+    return tournament if members is None else members
 
 
 @dataclass
@@ -355,6 +370,7 @@ def list_matches_by_tournament(
 ):
     """Matches grouped by tournament, the most recent tournament first; paged by tournament so a group is
     never split. Same filters as the flat list."""
+    tournament = stage_tournaments(session, tournament)
     base = filtered(select(Match).join(Tournament, Tournament.id == Match.tournament_id), q, tournament).subquery()
     rows = session.exec(
         select(base.c.tournament_id, func.count(), func.max(base.c.created_at))
@@ -470,8 +486,9 @@ class LiveTournament(BaseModel):
 
 @router.get("/live-tournaments", response_model=list[LiveTournament])
 def list_live_tournaments(session: SessionDep):
-    """Tournaments running on the site now (from its public list, asked for at most once an hour), newest first."""
-    ignored = set(session.exec(select(IgnoredTournament.tournament_id)))
+    """Tournaments running on the site now (from its public list, asked for at most once an hour), newest first;
+    not those whose final already has a winner on Challonge."""
+    ignored = set(session.exec(select(IgnoredTournament.tournament_id))) | snapshot(session).decided
     items = [t for t in live_tournaments() if t["_id"] not in ignored]
     counts = dict(
         session.exec(
@@ -492,6 +509,70 @@ def list_live_tournaments(session: SessionDep):
         for t in items
     ]
     return sorted(rows, key=lambda r: r.started_at.timestamp() if r.started_at else 0, reverse=True)
+
+
+class LiveSide(BaseModel):
+    id: str | None  # the player's page, when they've played a match here
+    name: str
+
+
+class LiveGame(BaseModel):
+    game_no: int
+    status: str  # the site's: NOT_STARTED, FINISHED, or the draft or game under way
+    url: str | None  # the draft on the tournament site, to watch it
+
+
+class LiveMatchOut(BaseModel):
+    id: str
+    tournament_id: str
+    tournament: str
+    created_at: datetime
+    players: list[LiveSide]
+    games: list[LiveGame]
+    started: bool  # one of its games is being drafted or played now
+
+
+NOT_STARTED = "NOT_STARTED"
+# A match begun whose games haven't moved on for this long counts as abandoned and isn't shown
+STALLED = timedelta(minutes=30)
+
+
+@router.get("/live-matches", response_model=list[LiveMatchOut])
+def list_live_matches(session: SessionDep, tournament: str | None = None):
+    """Unfinished matches of the tournaments running now (kept by the live poll, at most five minutes old), the
+    ones being played first, then by when they were set up; each game links to its draft on the tournament site.
+    A match begun that hasn't moved on for STALLED is left out."""
+    query = select(LiveMatch)
+    if tournament:
+        query = query.where(LiveMatch.tournament_id == tournament)
+    merged, names = merges(session), display_names(session)
+    out = []
+    for m in session.exec(query):
+        drafts = json.loads(m.drafts)
+        begun = any(d["status"] not in (None, NOT_STARTED) for d in drafts)
+        if begun and m.changed_at and m.changed_at.replace(tzinfo=UTC) < datetime.now(UTC) - STALLED:
+            continue
+        players = []
+        for uid, name in ((m.player1_id, m.player1_name), (m.player2_id, m.player2_name)):
+            pid = merged.get(uid, uid) if uid else None
+            players.append(LiveSide(id=pid, name=names.get(pid, name) if pid else name))
+        out.append(
+            LiveMatchOut(
+                id=m.id,
+                tournament_id=m.tournament_id,
+                tournament=m.tournament_title,
+                created_at=m.created_at,
+                players=players,
+                games=[
+                    LiveGame(
+                        game_no=i, status=d["status"] or NOT_STARTED, url=d["key"] and draft_url(d["id"], d["key"])
+                    )
+                    for i, d in enumerate(drafts, start=1)
+                ],
+                started=any(d["status"] not in (None, NOT_STARTED, "FINISHED") for d in drafts),
+            )
+        )
+    return sorted(out, key=lambda m: (not m.started, m.created_at))
 
 
 @router.get("/tournaments", response_model=list[TournamentItem])

@@ -2,11 +2,19 @@
 
 Each sync reads the site's public list of finished tournaments and imports the ones that aren't in the
 database yet (ignored ones, deleted or tests, are skipped), then fetches the new matches' draft links and
-draft data, the tournaments' details and their Challonge brackets. Running tournaments aren't imported: they
-come in once finished.
+draft data, the tournaments' details and their Challonge brackets. A tournament the live poll brought in while
+it ran is finished the same way: its remaining matches, details and bracket.
 
-Nothing here may hit the site on its own more than once an hour (MIN_INTERVAL): the background sync, the
-`sync --watch` loop and the cached list of running tournaments all use it as their floor.
+The live poll (every LIVE_INTERVAL, five minutes) asks for the matches of the tournaments running now and
+imports the newly finished ones with their drafts, so a tournament's games show up while it's played. The
+others are kept apart (LiveMatch, outside all statistics) with their drafts' status and spectator links, so the
+site can send people to a draft being played on the tournament site. It also
+reads their Challonge brackets until the final has a winner: until then the tournament has no places or winner
+(stats.Snapshot.live), from then on it shows as finished even before the site says so.
+
+Apart from the live poll's matches, nothing here may hit the site on its own more than once an hour
+(MIN_INTERVAL): the background sync, the `sync --watch` loop and the cached list of running tournaments all
+use it as their floor.
 """
 
 import fcntl
@@ -15,17 +23,21 @@ import logging
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
-from sqlmodel import Session, select
+import websocket
+from sqlmodel import Session, delete, select
 
-from ..models import IgnoredTournament, Tournament
-from .challonge import fetch_challonge
-from .draft_actions import fetch_draft_actions
-from .draft_links import fetch_draft_links
+from ..models import IgnoredTournament, LiveMatch, LiveRoster, MatchPlayer, Tournament, TournamentInfo
+from . import match_import
+from .challonge import challonge_link, fetch_challonge
+from .draft_actions import fetch_draft_actions, fetch_init
+from .draft_links import fetch_draft_links, fetch_match
 from .draft_systems import fetch_draft_systems
-from .match_import import import_from_urls
+from .match_checks import tidy_title
+from .match_import import ImportResult, import_from_urls, import_matches, is_finished, parse_date
 from .rosters import build_rosters
 from .tournament_info import fetch_tournament_info
 
@@ -35,6 +47,12 @@ API = "https://abyss.darte.gg/api/abyss"
 # The site is someone else's: nothing automatic asks it for anything more often than once an hour,
 # whatever SYNC_INTERVAL or --watch say.
 MIN_INTERVAL = 3600
+# The one exception: the matches of the tournaments running now, asked for every five minutes (one request per
+# tournament, plus the links and socket data of matches that finished since), and their Challonge brackets
+# until the final has a winner.
+LIVE_INTERVAL = 300
+# The rosters in a live match's drafts (the draft socket, one connection per match) are read again at most this often.
+LIVE_ROSTER_INTERVAL = 3600
 LOCK_FILE = Path(__file__).resolve().parents[2] / ".sync.lock"
 # When the site was last asked, kept on disk so API restarts (every code change in dev) don't reset the clock.
 STATE_FILE = Path(__file__).resolve().parents[2] / ".sync-state.json"
@@ -74,12 +92,17 @@ def sync(session: Session, cookie: str | None = None) -> SyncResult:
     result = SyncResult()
     with httpx.Client(timeout=60) as client:
         finished = site_tournaments(client, finished=True)
-    skip = set(session.exec(select(IgnoredTournament.tournament_id))) | set(session.exec(select(Tournament.id)))
+    # Imported while running (by the live poll) means not done yet: it still needs its last matches and bracket.
+    running = set(session.exec(select(TournamentInfo.tournament_id).where(TournamentInfo.is_finished == False)))  # noqa: E712
+    done = set(session.exec(select(Tournament.id))) - running
+    skip = set(session.exec(select(IgnoredTournament.tournament_id))) | done
     wanted = [t for t in finished if t["_id"] not in skip]
     result.imported = [t["title"] for t in wanted]
 
     if wanted:
-        imported = import_from_urls(session, [MATCHES_URL.format(id=t["_id"]) for t in wanted], cookie)
+        # Matches already stored stay as they are, with their draft links and socket data.
+        urls = [MATCHES_URL.format(id=t["_id"]) for t in wanted]
+        imported = import_from_urls(session, urls, cookie, only_new=True)
         result.matches_saved = imported.saved
         result.errors += imported.errors
         result.draft_links = fetch_draft_links(session).saved
@@ -116,6 +139,163 @@ def live_tournaments() -> list[dict]:
     _live_cache = (time.time(), items)
     write_state(live={"at": _live_cache[0], "items": items})
     return items
+
+
+def poll_live(session: Session) -> SyncResult:
+    """Imports the newly finished matches of the tournaments running now, with their draft links and drafts, and
+    reads their Challonge brackets until the final has a winner. The list of running tournaments is the
+    hourly-cached one; only their matches and brackets are asked for."""
+    result = SyncResult()
+    ignored = set(session.exec(select(IgnoredTournament.tournament_id)))
+    running = [t for t in live_tournaments() if t["_id"] not in ignored]
+    fetched: dict[str, list[dict]] = {}
+    with httpx.Client(headers={"Accept": "application/json"}, timeout=60) as client:
+        for t in running:
+            try:
+                fetched[t["_id"]] = match_import.fetch_matches(client, MATCHES_URL.format(id=t["_id"]))
+            except (httpx.HTTPError, ValueError) as e:
+                result.errors.append(f"{t.get('title') or t['_id']}: {e}")
+        imported = ImportResult()
+        import_matches(session, [m for ms in fetched.values() for m in ms], imported, only_new=True)
+        result.matches_saved = imported.saved
+        update_live_matches(session, client, running, fetched)
+    if not running:
+        return result
+    if imported.saved:
+        result.imported = add_running_info(session, running)
+        result.draft_links = fetch_draft_links(session).saved
+        result.drafts = fetch_draft_actions(session).saved
+        fetch_draft_systems(session)
+        build_rosters(session)
+    # Their brackets, for when the final has a winner (only those with matches here have details and a link).
+    result.errors += fetch_challonge(session, running={t["_id"] for t in running}).errors
+    return result
+
+
+def update_live_matches(
+    session: Session, client: httpx.Client, running: list[dict], fetched: dict[str, list[dict]]
+) -> None:
+    """Stores the unfinished matches of the running tournaments (LiveMatch) with their drafts' status and
+    spectator keys (asked for once per match, again only while one is missing), and drops the finished ones and
+    those of tournaments no longer running. A tournament whose matches couldn't be fetched keeps what it had."""
+    running_ids = {t["_id"] for t in running}
+    titles = {t["_id"]: t.get("title") or "" for t in running}
+    stored = {m.id: m for m in session.exec(select(LiveMatch))}
+    pending = {m["_id"]: m for ms in fetched.values() for m in ms if not is_finished(m) and m.get("drafts")}
+    for m in stored.values():
+        if m.tournament_id not in running_ids or (m.tournament_id in fetched and m.id not in pending):
+            session.delete(m)
+            session.exec(delete(LiveRoster).where(LiveRoster.match_id == m.id))
+    known = set(session.exec(select(MatchPlayer.user_id).distinct())) - {None}
+    now = datetime.now(UTC)
+    for mid, m in pending.items():
+        old = stored.get(mid)
+        keys = {d["id"]: d.get("key") for d in json.loads(old.drafts)} if old else {}
+        if any(not keys.get(d["_id"]) for d in m["drafts"]):
+            try:
+                keys.update(fetch_match(client, mid))
+            except (httpx.HTTPError, ValueError, KeyError):
+                log.warning("couldn't load the draft links of live match %s; trying again next time", mid)
+        # users[i] belongs to drafts[0].players[i], as in match_import.save_match
+        players, users = m["drafts"][0].get("players") or [], m.get("users") or []
+        sides = []
+        for i in range(2):
+            user = users[i] if i < len(users) else None
+            sides.append((user if user in known else None, players[i]["fullName"] if i < len(players) else "?"))
+        drafts = [{"id": d["_id"], "status": d.get("status"), "key": keys.get(d["_id"])} for d in m["drafts"]]
+        same = old and [d["status"] for d in json.loads(old.drafts)] == [d["status"] for d in drafts]
+        tournament = m.get("tournament") or {}
+        session.merge(
+            LiveMatch(
+                id=mid,
+                tournament_id=tournament["_id"],
+                tournament_title=tidy_title(titles.get(tournament["_id"]) or tournament.get("title", "")),
+                created_at=parse_date(m["createdAt"]),
+                player1_id=sides[0][0],
+                player1_name=sides[0][1],
+                player2_id=sides[1][0],
+                player2_name=sides[1][1],
+                drafts=json.dumps(drafts),
+                updated_at=now,
+                changed_at=(old.changed_at or now) if same else now,
+            )
+        )
+        update_live_rosters(session, m, keys, now)
+    session.commit()
+
+
+def update_live_rosters(session: Session, m: dict, keys: dict[str, str | None], now: datetime) -> None:
+    """Both players' rosters from a live match's first game not finished yet (the draft socket), read again once
+    they're LIVE_ROSTER_INTERVAL old. A failed read keeps what was there and is tried again next poll."""
+    stored = session.exec(select(LiveRoster).where(LiveRoster.match_id == m["_id"])).all()
+    if (
+        stored
+        and min(r.fetched_at.replace(tzinfo=UTC) for r in stored).timestamp() > now.timestamp() - LIVE_ROSTER_INTERVAL
+    ):
+        return
+    draft = next((d for d in m["drafts"] if d.get("status") != "FINISHED" and keys.get(d["_id"])), None)
+    if draft is None:
+        return
+    try:
+        data = fetch_init(draft["_id"], keys[draft["_id"]])
+    except (websocket.WebSocketException, OSError, ValueError) as e:
+        log.warning("couldn't read the rosters of live match %s: %s", m["_id"], e)
+        return
+    # users[i] belongs to drafts[0].players[i]; the socket names the players the same way.
+    user_by_name = {
+        p["fullName"]: u for p, u in zip(m["drafts"][0].get("players") or [], m.get("users") or [], strict=False)
+    }
+    for r in stored:
+        session.delete(r)
+    for player in data.get("players") or []:
+        roster, user = player.get("roster") or {}, user_by_name.get(player.get("fullName"))
+        if not user or not roster.get("hash"):
+            continue
+        characters = [[a["agent"], a.get("mindscape", 0)] for a in roster.get("agents") or [] if a.get("agent")]
+        session.add(
+            LiveRoster(
+                match_id=m["_id"],
+                tournament_id=(m.get("tournament") or {})["_id"],
+                player_id=user,
+                player_name=player.get("fullName"),
+                hash=roster["hash"],
+                characters=json.dumps(characters),
+                fetched_at=now,
+            )
+        )
+
+
+def add_running_info(session: Session, running: list[dict]) -> list[str]:
+    """Details for running tournaments that have their first matches now, from the running list, marked not
+    finished so the hourly sync completes them once they end. Returns the titles of the new ones."""
+    have = set(session.exec(select(TournamentInfo.tournament_id)))
+    imported = set(session.exec(select(Tournament.id)))
+    new = [t for t in running if t["_id"] in imported and t["_id"] not in have]
+    names: dict[str, str | None] = {}
+    with httpx.Client(timeout=15) as client:
+        for creator in {t.get("createdBy") for t in new} - {None}:
+            try:
+                r = client.get(f"{API}/users/profile/{creator}")
+                profile = r.json() if r.status_code == 200 else {}
+            except (httpx.HTTPError, ValueError):
+                profile = {}
+            names[creator] = profile.get("fullName") or profile.get("discordName")
+    for t in new:
+        session.add(
+            TournamentInfo(
+                tournament_id=t["_id"],
+                organizer_id=t.get("createdBy"),
+                organizer_name=names.get(t.get("createdBy")),
+                system=((t.get("system") or {}).get("main") or {}).get("title"),
+                prize=t.get("prize"),
+                currency=t.get("currency"),
+                is_finished=False,
+                challonge_url=challonge_link(t.get("links")),
+                image=t.get("image"),
+            )
+        )
+    session.commit()
+    return [t.get("title", "") for t in new]
 
 
 @contextmanager
@@ -156,6 +336,43 @@ def sync_once(engine) -> SyncResult | None:
     for error in result.errors:
         log.warning("sync error: %s", error)
     return result
+
+
+def poll_live_once(engine) -> SyncResult | None:
+    """One locked live poll with its own session; None when a sync holds the lock (it'll be next time)."""
+    from sqlmodel import Session
+
+    with sync_lock() as got:
+        if not got:
+            return None
+        write_state(last_live_poll=time.time())
+        with Session(engine) as session:
+            result = poll_live(session)
+    if result.matches_saved:
+        log.info(
+            "live poll: %d matches, %d draft links, %d drafts%s",
+            result.matches_saved,
+            result.draft_links,
+            result.drafts,
+            f"; new: {', '.join(result.imported)}" if result.imported else "",
+        )
+    for error in result.errors:
+        log.warning("live poll error: %s", error)
+    return result
+
+
+async def run_live_forever(engine) -> None:
+    """The API's live poll: every LIVE_INTERVAL seconds, in a thread; a failed pass is logged and the loop goes on."""
+    import asyncio
+
+    wait = max(0.0, read_state().get("last_live_poll", 0.0) + LIVE_INTERVAL - time.time())
+    await asyncio.sleep(wait)
+    while True:
+        try:
+            await asyncio.to_thread(poll_live_once, engine)
+        except Exception:  # noqa: BLE001 - one bad pass (site down, bad data) mustn't stop the loop
+            log.exception("live poll failed")
+        await asyncio.sleep(LIVE_INTERVAL)
 
 
 async def run_forever(engine, interval: int) -> None:

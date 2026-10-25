@@ -57,8 +57,8 @@ def tournament_standings(snap: Snapshot) -> list[dict]:
     for tid, mids in by_tournament.items():
         mids.sort(key=lambda m: snap.match_info[m][0])
         title = snap.match_info[mids[0]][1]
-        if GROUP_STAGE.search(title):
-            continue
+        if GROUP_STAGE.search(title) or tid in snap.live:
+            continue  # groups have no places; a tournament still being played has none yet
         final = final_match(snap, mids, outcome)
         entry = {"tournament": {"id": tid, "title": title}, "date": snap.match_info[final][0], "final_match_id": final}
         ch = snap.challonge.get(tid)
@@ -168,6 +168,8 @@ def bracket_places(snap: Snapshot) -> dict[tuple[str, str], tuple[int, int, str]
     }
     ranks: dict[tuple[str, str], tuple[int, int, str]] = {}
     for tid, counts in wins.items():
+        if tid in snap.live:
+            continue
         ch = snap.challonge.get(tid)
         if ch and ch.places:
             for pid in counts:

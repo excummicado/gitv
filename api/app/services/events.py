@@ -2,18 +2,20 @@
 page switches between them.
 
 Stages are set by hand (app.cli set-tournament-event, table tournamentevent), e.g. Abyss Fight Club 4's two group
-stages and main stage. Abyss Cup seasons group themselves: the season's qualifiers (every stage) and its playoff,
-the same seasons qualifiers.qualification_results reads (a qualifier belongs to the first playoff after it).
-Qualifiers with no playoff after them yet stay on their own.
+stages and main stage. Abyss Cup seasons group themselves: the season's qualifiers and its playoff, the same seasons
+qualifiers.qualification_results reads (a qualifier belongs to the first playoff after it). The qualifier groups of
+one round (A & B, C & D, ... and the second round's) are played side by side, so each round is one stage made of
+them (Stage.members, id "quals-<round>-<playoff id>"): its page shows all its groups together. Qualifiers with no
+playoff after them yet stay on their own.
 """
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
-from ..models import TournamentEvent
+from ..models import Match, Tournament, TournamentEvent
 from .match_checks import CUP_PLAYOFF, QUALIFIER, QUALIFIER_STAGE_2
 
 
@@ -22,6 +24,8 @@ class Stage:
     tournament_id: str
     label: str  # the stage's name within the event
     position: int
+    # A stage made of several tournaments (a qualifier round's groups): their ids; tournament_id is then the stage's own
+    members: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -78,13 +82,54 @@ def tournament_events(session: Session, tournaments: list[TournamentDates]) -> d
         if not seasons[p.id]:
             continue
         title = re.sub(r"\s*play-?offs?\s*", " ", p.title, flags=re.IGNORECASE).strip() or p.title
-        # First-stage groups, then second-stage ones, each by name (A & B, C & D, ...), then the playoff.
-        ids = sorted(
-            seasons[p.id], key=lambda tid: (bool(QUALIFIER_STAGE_2.search(by_id[tid].title)), by_id[tid].title)
-        ) + [p.id]
-        event = Event(
-            id="event-" + p.id, title=title, stages=[Stage(tid, by_id[tid].title, n) for n, tid in enumerate(ids)]
-        )
-        for tid in ids:
-            found[tid] = event
+        # Each qualifier round is one stage of its groups (by name: A & B, C & D, ...), then the playoff.
+        rounds: dict[int, list[str]] = {}
+        for tid in seasons[p.id]:
+            rounds.setdefault(2 if QUALIFIER_STAGE_2.search(by_id[tid].title) else 1, []).append(tid)
+        stages = [
+            Stage(
+                f"quals-{n}-{p.id}",
+                "Qualification" if len(rounds) == 1 else f"Qualification Round {n}",
+                position,
+                members=sorted(groups, key=lambda tid: by_id[tid].title),
+            )
+            for position, (n, groups) in enumerate(sorted(rounds.items()))
+        ]
+        stages.append(Stage(p.id, by_id[p.id].title, len(stages)))
+        event = Event(id="event-" + p.id, title=title, stages=stages)
+        for stage in stages:
+            for tid in stage.members or [stage.tournament_id]:
+                found[tid] = event
     return found
+
+
+def stage_of(event: Event, tid: str) -> Stage:
+    """The stage a tournament is, or is one of the groups of."""
+    return next(s for s in event.stages if s.tournament_id == tid or tid in s.members)
+
+
+def group_label(title: str) -> str:
+    """A qualifier group's short name: "Summer Quals 2nd Stage Group A & B" -> "A & B"."""
+    found = re.search(r"\bgroups?\s+(.+)$", title, re.IGNORECASE)
+    return found.group(1) if found else title
+
+
+def site_events(session: Session) -> dict[str, Event]:
+    """tournament_events for the site's own tournaments (all the qualifier groups are)."""
+    rows = session.exec(
+        select(Tournament.id, Tournament.title, func.min(Match.created_at), func.max(Match.created_at))
+        .join(Match, Match.tournament_id == Tournament.id)
+        .group_by(Tournament.id)
+    ).all()
+    return tournament_events(session, [TournamentDates(*r) for r in rows])
+
+
+def stage_members(session: Session, tid: str) -> list[str] | None:
+    """The groups of a stage made of several tournaments ("quals-..."), None for any other id."""
+    if not tid.startswith("quals-"):
+        return None
+    for event in site_events(session).values():
+        for stage in event.stages:
+            if stage.tournament_id == tid:
+                return stage.members
+    return []

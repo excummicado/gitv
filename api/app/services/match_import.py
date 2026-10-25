@@ -3,7 +3,8 @@
 Each URL is a matches endpoint that returns {"items": [...], "count": N}. The site caps a page at 100
 items, so matches are fetched 100 at a time through skip until count is reached (the URL's own limit
 and skip are replaced). Only matches whose drafts are all FINISHED are stored. A match that is already
-in the database is replaced with the fresh copy.
+in the database is replaced with the fresh copy (its draft links and socket data go with it), unless
+only_new is set: then it's left as it is.
 """
 
 import json
@@ -12,7 +13,7 @@ from datetime import datetime
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
-from sqlmodel import Session, delete
+from sqlmodel import Session, delete, select
 
 from ..models import DraftAction, DraftLink, DraftState, Match, MatchDraft, MatchPick, MatchPlayer, Tournament
 from .match_checks import tidy_title
@@ -26,6 +27,7 @@ class ImportResult:
     fetched: int = 0
     saved: int = 0
     skipped_unfinished: int = 0
+    skipped_existing: int = 0
     errors: list[str] = field(default_factory=list)
 
 
@@ -147,18 +149,22 @@ def save_match(session: Session, m: dict) -> None:
                 )
 
 
-def import_matches(session: Session, matches: list[dict], result: ImportResult) -> None:
+def import_matches(session: Session, matches: list[dict], result: ImportResult, only_new: bool = False) -> None:
+    stored = set(session.exec(select(Match.id).where(Match.id.in_([m["_id"] for m in matches])))) if only_new else set()
     for m in matches:
         result.fetched += 1
         if not is_finished(m):
             result.skipped_unfinished += 1
+            continue
+        if m["_id"] in stored:
+            result.skipped_existing += 1
             continue
         save_match(session, m)
         result.saved += 1
     session.commit()
 
 
-def import_from_urls(session: Session, urls: list[str], cookie: str | None) -> ImportResult:
+def import_from_urls(session: Session, urls: list[str], cookie: str | None, only_new: bool = False) -> ImportResult:
     result = ImportResult()
     headers = {"Accept": "application/json"}
     if cookie:
@@ -178,7 +184,7 @@ def import_from_urls(session: Session, urls: list[str], cookie: str | None) -> I
                 result.errors.append(f"[{n}] HTTP {e.response.status_code}{hint}: {url}")
             except (httpx.HTTPError, ValueError) as e:
                 result.errors.append(f"[{n}] {e}: {url}")
-    import_matches(session, list(seen.values()), result)
+    import_matches(session, list(seen.values()), result, only_new)
     return result
 
 

@@ -28,7 +28,7 @@ from .routers import (
 )
 from .services.media import MEDIA_DIR
 from .services.stats.snapshot import warm_up
-from .services.sync import run_forever
+from .services.sync import run_forever, run_live_forever
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 
@@ -39,11 +39,19 @@ async def lifespan(app: FastAPI):
     create_db_and_tables()
     # Statistics are built in the background straight away instead of on the first request.
     warming = asyncio.create_task(asyncio.to_thread(warm_up, engine))
-    # Background sync with the tournament site, when SYNC_INTERVAL is set (off by default).
-    task = asyncio.create_task(run_forever(engine, settings.sync_interval)) if settings.sync_interval > 0 else None
+    # Background sync with the tournament site, when SYNC_INTERVAL is set (off by default): the hourly one and the
+    # live poll of running tournaments every five minutes.
+    tasks = (
+        [
+            asyncio.create_task(run_forever(engine, settings.sync_interval)),
+            asyncio.create_task(run_live_forever(engine)),
+        ]
+        if settings.sync_interval > 0
+        else []
+    )
     yield
     warming.cancel()
-    if task:
+    for task in tasks:
         task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await task

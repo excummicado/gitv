@@ -108,13 +108,14 @@ def has_result(clear_time: int) -> bool:
     return clear_time > 0
 
 
-def room_times(session: Session, draft_ids: list[str] | None = None) -> dict[tuple[str, int], tuple[int, int, int]]:
+def room_times(session: Session, draft_ids: list[str] | None = None) -> dict[tuple[str, int], tuple[int, ...]]:
     """{(draft id, slot): (room 1, room 2, room 3)} from the stored socket data, for every draft or only the given
-    ones; 0 where a room is missing."""
+    ones; 0 where a room is missing. A game played on fewer rooms (roomCount in its data, e.g. old tournaments
+    with two) has only those."""
     query = """
         SELECT s.draft_id, CAST(p.key AS INTEGER),
                json_extract(p.value, '$.clearTimeRoom1'), json_extract(p.value, '$.clearTimeRoom2'),
-               json_extract(p.value, '$.clearTimeRoom3')
+               json_extract(p.value, '$.clearTimeRoom3'), json_extract(s.raw, '$.roomCount')
         FROM draftstate s, json_each(s.raw, '$.players') p
     """
     if draft_ids is not None:
@@ -124,7 +125,7 @@ def room_times(session: Session, draft_ids: list[str] | None = None) -> dict[tup
         rows = session.exec(statement, params={"ids": list(draft_ids)}).all()
     else:
         rows = session.exec(text(query)).all()
-    return {(d, slot): (r1 or 0, r2 or 0, r3 or 0) for d, slot, r1, r2, r3 in rows}
+    return {(d, slot): (r1 or 0, r2 or 0, r3 or 0)[: count or 3] for d, slot, r1, r2, r3, count in rows}
 
 
 @dataclass
@@ -137,7 +138,7 @@ class TechnicalGame:
     rule: str | None
 
 
-def room_status(r: tuple[int, int, int], clear_time: int) -> tuple[str | None, str]:
+def room_status(r: tuple[int, ...], clear_time: int) -> tuple[str | None, str]:
     """("tech" | "missing" | "invalid" | "mismatch" | None, explanation) for one player's room times."""
     negative = [str(i + 1) for i, t in enumerate(r) if t < 0]
     if negative:
@@ -147,7 +148,7 @@ def room_status(r: tuple[int, int, int], clear_time: int) -> tuple[str | None, s
     # real rooms: 106/115/300 means the third room was given up.
     if TECH_ROOM_TIME in r and all(t in (0, TECH_ROOM_TIME) for t in r[r.index(TECH_ROOM_TIME) :]):
         return "tech", f"записал тех. поражение ({TECH_ROOM_TIME} c до конца игры)"
-    if len(missing) == 3:
+    if len(missing) == len(r):
         return "missing", "не записано время" if not clear_time else "нет времени по комнатам"
     if missing:
         return "missing", f"не записаны комнаты {', '.join(missing)}"
@@ -156,7 +157,7 @@ def room_status(r: tuple[int, int, int], clear_time: int) -> tuple[str | None, s
     return None, ""
 
 
-def gave_up_at(r: tuple[int, int, int]) -> int | None:
+def gave_up_at(r: tuple[int, ...]) -> int | None:
     """The room (0-2) from which a player entered 300 to the end, or None."""
     return r.index(TECH_ROOM_TIME) if TECH_ROOM_TIME in r else None
 
@@ -204,7 +205,7 @@ def technical_drafts(session: Session, players: list[MatchPlayer] | None = None)
     return found
 
 
-def technical_game(players: list[MatchPlayer], rooms: dict[int, tuple[int, int, int] | None]) -> TechnicalGame | None:
+def technical_game(players: list[MatchPlayer], rooms: dict[int, tuple[int, ...] | None]) -> TechnicalGame | None:
     """The TechnicalGame for one game's two players and their room times by slot, or None if the game is fine
     or can't be checked (no socket data)."""
     dp = sorted(players, key=lambda p: p.slot)

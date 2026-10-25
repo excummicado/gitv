@@ -1,0 +1,1179 @@
+{
+ "description": "Abyss Cup Major 1 games from the @abysscup channel's results pictures (room times read with app.cli telegram-ocr); winner: the lower total with restart penalties, as each post says.",
+ "matches": [
+  {
+   "tournament": "manual-abyss_cup_major_1_groups",
+   "date": "2025-02-21T14:57",
+   "players": [
+    "Mistikal",
+    "Linkle"
+   ],
+   "games": [],
+   "winner": "Linkle",
+   "source": "https://t.me/abysscup/548"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1_groups",
+   "date": "2025-02-21T17:24",
+   "players": [
+    "Shiroja",
+    "Kutsuki"
+   ],
+   "games": [],
+   "winner": "Kutsuki",
+   "source": "https://t.me/abysscup/550"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1_groups",
+   "date": "2025-02-22T16:58",
+   "players": [
+    "Dze_n",
+    "Pmir"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       110,
+       98,
+       149
+      ],
+      [
+       92,
+       101,
+       130
+      ]
+     ],
+     "penalty": [
+      10,
+      5
+     ]
+    },
+    {
+     "rooms": [
+      [
+       99,
+       122,
+       163
+      ],
+      [
+       121,
+       116,
+       114
+      ]
+     ],
+     "penalty": [
+      10,
+      0
+     ]
+    }
+   ],
+   "winner": "Pmir",
+   "source": "https://t.me/abysscup/557"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1_groups",
+   "date": "2025-02-22T18:50",
+   "players": [
+    "Spartanchick",
+    "Smertikk"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       81,
+       97,
+       98
+      ],
+      [
+       90,
+       87,
+       132
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ]
+    },
+    {
+     "rooms": [
+      [
+       86,
+       100,
+       112
+      ],
+      [
+       87,
+       91,
+       101
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ]
+    }
+   ],
+   "winner": "Spartanchick",
+   "source": "https://t.me/abysscup/561"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1_groups",
+   "date": "2025-02-23T17:21",
+   "players": [
+    "Mistikal",
+    "gr4G"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       103,
+       113,
+       117
+      ],
+      [
+       110,
+       130,
+       168
+      ]
+     ],
+     "penalty": [
+      0,
+      10
+     ]
+    },
+    {
+     "rooms": [
+      [
+       135,
+       122,
+       171
+      ],
+      [
+       125,
+       137,
+       145
+      ]
+     ],
+     "penalty": [
+      10,
+      0
+     ]
+    }
+   ],
+   "winner": "Mistikal",
+   "source": "https://t.me/abysscup/567"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1_groups",
+   "date": "2025-02-23T19:33",
+   "players": [
+    "Alou",
+    "Shiroja"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       103,
+       108,
+       142
+      ],
+      [
+       149,
+       129,
+       168
+      ]
+     ],
+     "penalty": [
+      0,
+      5
+     ]
+    },
+    {
+     "rooms": [
+      [
+       112,
+       128,
+       160
+      ],
+      [
+       130,
+       157,
+       174
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ]
+    }
+   ],
+   "winner": "Alou",
+   "source": "https://t.me/abysscup/570"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1_groups",
+   "date": "2025-02-25T18:45",
+   "players": [
+    "Linkle",
+    "Dze_n"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       89,
+       93,
+       97
+      ],
+      [
+       78,
+       83,
+       100
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ]
+    },
+    {
+     "rooms": [
+      [
+       85,
+       86,
+       109
+      ],
+      [
+       84,
+       83,
+       106
+      ]
+     ],
+     "penalty": [
+      10,
+      0
+     ]
+    }
+   ],
+   "winner": "Dze_n",
+   "source": "https://t.me/abysscup/581"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1_groups",
+   "date": "2025-02-25T20:52",
+   "players": [
+    "Kutsuki",
+    "Spartanchick"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       112,
+       141,
+       178
+      ],
+      [
+       105,
+       135,
+       142
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ]
+    },
+    {
+     "rooms": [
+      [
+       119,
+       140,
+       144
+      ],
+      [
+       120,
+       115,
+       145
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ]
+    }
+   ],
+   "winner": "Spartanchick",
+   "source": "https://t.me/abysscup/584"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1_groups",
+   "date": "2025-02-26T17:02",
+   "players": [
+    "Pmir",
+    "gr4G"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       119,
+       126,
+       141
+      ],
+      [
+       117,
+       122,
+       150
+      ]
+     ],
+     "penalty": [
+      0,
+      5
+     ]
+    },
+    {
+     "rooms": [
+      [
+       131,
+       129,
+       161
+      ],
+      [
+       102,
+       132,
+       157
+      ]
+     ],
+     "penalty": [
+      5,
+      0
+     ]
+    }
+   ],
+   "winner": "gr4G",
+   "source": "https://t.me/abysscup/591"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1_groups",
+   "date": "2025-02-26T19:06",
+   "players": [
+    "Smertikk",
+    "Alou"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       110,
+       129,
+       120
+      ],
+      [
+       119,
+       109,
+       122
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ]
+    },
+    {
+     "rooms": [
+      [
+       101,
+       103,
+       114
+      ],
+      [
+       118,
+       113,
+       125
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ]
+    }
+   ],
+   "winner": "Smertikk",
+   "source": "https://t.me/abysscup/594"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1_groups",
+   "date": "2025-02-28T17:21",
+   "players": [
+    "Mistikal",
+    "Dze_n"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       106,
+       110,
+       135
+      ],
+      [
+       117,
+       108,
+       138
+      ]
+     ],
+     "penalty": [
+      5,
+      10
+     ]
+    },
+    {
+     "rooms": [
+      [
+       104,
+       116,
+       138
+      ],
+      [
+       110,
+       104,
+       171
+      ]
+     ],
+     "penalty": [
+      0,
+      10
+     ]
+    }
+   ],
+   "winner": "Mistikal",
+   "source": "https://t.me/abysscup/602"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1_groups",
+   "date": "2025-02-28T19:27",
+   "players": [
+    "Spartanchick",
+    "Shiroja"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       100,
+       117,
+       135
+      ],
+      [
+       140,
+       149,
+       225
+      ]
+     ],
+     "penalty": [
+      5,
+      10
+     ]
+    },
+    {
+     "rooms": [
+      [
+       114,
+       129,
+       125
+      ],
+      [
+       107,
+       132,
+       196
+      ]
+     ],
+     "penalty": [
+      0,
+      10
+     ]
+    }
+   ],
+   "winner": "Spartanchick",
+   "source": "https://t.me/abysscup/605"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1_groups",
+   "date": "2025-03-01T17:20",
+   "players": [
+    "Linkle",
+    "Pmir"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       77,
+       77,
+       90
+      ],
+      [
+       69,
+       89,
+       99
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ]
+    },
+    {
+     "rooms": [
+      [
+       77,
+       80,
+       98
+      ],
+      [
+       98,
+       120,
+       107
+      ]
+     ],
+     "penalty": [
+      0,
+      10
+     ]
+    }
+   ],
+   "winner": "Linkle",
+   "source": "https://t.me/abysscup/615"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1_groups",
+   "date": "2025-03-01T19:51",
+   "players": [
+    "Kutsuki",
+    "Smertikk"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       123,
+       145,
+       174
+      ],
+      [
+       128,
+       134,
+       168
+      ]
+     ],
+     "penalty": [
+      5,
+      0
+     ]
+    },
+    {
+     "rooms": [
+      [
+       136,
+       149,
+       162
+      ],
+      [
+       121,
+       143,
+       197
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ]
+    }
+   ],
+   "winner": "Smertikk",
+   "source": "https://t.me/abysscup/618"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1_groups",
+   "date": "2025-03-02T17:16",
+   "players": [
+    "Dze_n",
+    "gr4G"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       124,
+       131,
+       178
+      ],
+      [
+       125,
+       125,
+       159
+      ]
+     ],
+     "penalty": [
+      10,
+      0
+     ]
+    },
+    {
+     "rooms": [
+      [
+       114,
+       121,
+       155
+      ],
+      [
+       132,
+       142,
+       146
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ]
+    }
+   ],
+   "winner": "gr4G",
+   "source": "https://t.me/abysscup/624"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1_groups",
+   "date": "2025-03-02T19:54",
+   "players": [
+    "Spartanchick",
+    "Alou"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       102,
+       120,
+       125
+      ],
+      [
+       115,
+       123,
+       132
+      ]
+     ],
+     "penalty": [
+      0,
+      5
+     ]
+    },
+    {
+     "rooms": [
+      [
+       124,
+       126,
+       127
+      ],
+      [
+       109,
+       111,
+       135
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ]
+    }
+   ],
+   "winner": "Spartanchick",
+   "source": "https://t.me/abysscup/627"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1_groups",
+   "date": "2025-03-04T16:54",
+   "players": [
+    "Mistikal",
+    "Pmir"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       106,
+       114,
+       130
+      ],
+      [
+       110,
+       132,
+       146
+      ]
+     ],
+     "penalty": [
+      0,
+      10
+     ]
+    },
+    {
+     "rooms": [
+      [
+       105,
+       109,
+       122
+      ],
+      [
+       100,
+       114,
+       133
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ]
+    }
+   ],
+   "winner": "Mistikal",
+   "source": "https://t.me/abysscup/637"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1_groups",
+   "date": "2025-03-04T19:05",
+   "players": [
+    "Shiroja",
+    "Smertikk"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       132,
+       158,
+       200
+      ],
+      [
+       136,
+       134,
+       146
+      ]
+     ],
+     "penalty": [
+      10,
+      0
+     ]
+    },
+    {
+     "rooms": [
+      [
+       136,
+       183,
+       300
+      ],
+      [
+       118,
+       118,
+       153
+      ]
+     ],
+     "penalty": [
+      10,
+      0
+     ]
+    }
+   ],
+   "winner": "Smertikk",
+   "source": "https://t.me/abysscup/640"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1_groups",
+   "date": "2025-03-05T16:59",
+   "players": [
+    "Linkle",
+    "gr4G"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       107,
+       114,
+       131
+      ],
+      [
+       108,
+       121,
+       119
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ]
+    },
+    {
+     "rooms": [
+      [
+       113,
+       131,
+       122
+      ],
+      [
+       119,
+       139,
+       132
+      ]
+     ],
+     "penalty": [
+      5,
+      0
+     ]
+    }
+   ],
+   "winner": "Linkle",
+   "source": "https://t.me/abysscup/646"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1_groups",
+   "date": "2025-03-05T19:31",
+   "players": [
+    "Kutsuki",
+    "Alou"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       93,
+       107,
+       116
+      ],
+      [
+       84,
+       90,
+       120
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ]
+    },
+    {
+     "rooms": [
+      [
+       96,
+       122,
+       114
+      ],
+      [
+       84,
+       100,
+       115
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ]
+    }
+   ],
+   "winner": "Alou",
+   "source": "https://t.me/abysscup/649"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1",
+   "date": "2025-03-09T16:53",
+   "players": [
+    "Smertikk",
+    "gr4G"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       100,
+       114,
+       109
+      ],
+      [
+       110,
+       133,
+       130
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ]
+    },
+    {
+     "rooms": [
+      [
+       120,
+       127,
+       131
+      ],
+      [
+       120,
+       126,
+       149
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ]
+    }
+   ],
+   "winner": "Smertikk",
+   "source": "https://t.me/abysscup/664"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1",
+   "date": "2025-03-09T19:11",
+   "players": [
+    "Mistikal",
+    "Alou"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       78,
+       88,
+       101
+      ],
+      [
+       83,
+       92,
+       107
+      ]
+     ],
+     "penalty": [
+      5,
+      0
+     ]
+    },
+    {
+     "rooms": [
+      [
+       78,
+       91,
+       109
+      ],
+      [
+       79,
+       87,
+       101
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ]
+    }
+   ],
+   "winner": "Alou",
+   "source": "https://t.me/abysscup/667"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1",
+   "date": "2025-03-12T17:09",
+   "players": [
+    "Smertikk",
+    "Linkle"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       86,
+       103,
+       116
+      ],
+      [
+       90,
+       103,
+       119
+      ]
+     ],
+     "penalty": [
+      5,
+      0
+     ]
+    },
+    {
+     "rooms": [
+      [
+       101,
+       103,
+       121
+      ],
+      [
+       98,
+       123,
+       152
+      ]
+     ],
+     "penalty": [
+      0,
+      10
+     ]
+    }
+   ],
+   "winner": "Smertikk",
+   "source": "https://t.me/abysscup/677"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1",
+   "date": "2025-03-12T19:30",
+   "players": [
+    "Spartanchick",
+    "Alou"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       102,
+       98,
+       103
+      ],
+      [
+       95,
+       108,
+       120
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ]
+    },
+    {
+     "rooms": [
+      [
+       106,
+       106,
+       123
+      ],
+      [
+       104,
+       127,
+       134
+      ]
+     ],
+     "penalty": [
+      0,
+      10
+     ]
+    }
+   ],
+   "winner": "Spartanchick",
+   "source": "https://t.me/abysscup/681"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1",
+   "date": "2025-03-15T17:32",
+   "players": [
+    "Linkle",
+    "Alou"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       75,
+       91,
+       118
+      ],
+      [
+       76,
+       83,
+       116
+      ]
+     ],
+     "penalty": [
+      10,
+      0
+     ]
+    },
+    {
+     "rooms": [
+      [
+       91,
+       92,
+       121
+      ],
+      [
+       77,
+       89,
+       102
+      ]
+     ],
+     "penalty": [
+      5,
+      0
+     ]
+    }
+   ],
+   "winner": "Alou",
+   "source": "https://t.me/abysscup/695"
+  },
+  {
+   "tournament": "manual-abyss_cup_major_1",
+   "date": "2025-03-15T19:33",
+   "players": [
+    "Spartanchick",
+    "Smertikk"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       85,
+       91,
+       112
+      ],
+      [
+       95,
+       105,
+       129
+      ]
+     ],
+     "penalty": [
+      0,
+      5
+     ]
+    },
+    {
+     "rooms": [
+      [
+       96,
+       98,
+       128
+      ],
+      [
+       96,
+       106,
+       136
+      ]
+     ],
+     "penalty": [
+      0,
+      5
+     ]
+    }
+   ],
+   "winner": "Spartanchick",
+   "source": "https://t.me/abysscup/698"
+  }
+ ]
+}

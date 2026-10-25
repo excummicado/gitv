@@ -1,0 +1,70 @@
+{
+  "slug": "abyss_chronicles",
+  "title": "Abyss Chronicles",
+  "started": "2024-08-01",
+  "ended": "2024-08-31",
+  "date_estimated": true,
+  "organizer": "AxeSay",
+  "rounds": [
+    [
+      ["beezyss", "nineteen7", "beezyss"],
+      ["sakuraba_yue", "bashkiro.", "sakuraba_yue"],
+      ["tihedge", "alicechek", "tihedge"],
+      ["senoen", "nimata", "senoen"],
+      ["_adamius_", ".keanu.reeves", "_adamius_"],
+      ["jaba_jab.", "pitohui78", "jaba_jab."],
+      ["qsummercy", "arkashauwu", "qsummercy"],
+      ["astro_liber", "suchikama", "astro_liber"],
+      ["rpyt02", "sombraro", "rpyt02"],
+      ["v0nyqn", "rouziee_uwu", "v0nyqn"],
+      ["ulup3185", "gr4g", "ulup3185"],
+      ["mensur", "l0v1n", "mensur"],
+      ["sabelly", "degradant3", "sabelly"],
+      ["remission", "bankasvetlogo", "remission"],
+      [".raiymbek", "mistikalc", ".raiymbek"],
+      ["putr1k3", "para2804", "putr1k3"]
+    ],
+    [
+      ["pmir", "beezyss", "pmir"],
+      ["parisss2044", "sakuraba_yue", "sakuraba_yue"],
+      ["dragqueenkom", "tihedge", "tihedge"],
+      ["raftalialover", "senoen", "senoen"],
+      ["d1vi7or_xd", "_adamius_", "d1vi7or_xd"],
+      ["futanar111", "jaba_jab.", "futanar111"],
+      ["linkle.", "qsummercy", "linkle."],
+      ["desse_mond", "astro_liber", "astro_liber"],
+      ["dze_n", "rpyt02", "rpyt02"],
+      ["diagolt", "v0nyqn", "diagolt"],
+      ["invinsik", "ulup3185", "ulup3185"],
+      ["bshka_", "mensur", "bshka_"],
+      ["allouxd", "sabelly", "sabelly"],
+      ["waterman4ik", "remission", "remission"],
+      ["jousix", ".raiymbek", ".raiymbek"],
+      ["smertikk", "putr1k3", "smertikk"]
+    ],
+    [
+      ["pmir", "sakuraba_yue", "pmir"],
+      ["tihedge", "senoen", "tihedge"],
+      ["d1vi7or_xd", "futanar111", "d1vi7or_xd"],
+      ["linkle.", "astro_liber", "linkle."],
+      ["rpyt02", "diagolt", "diagolt"],
+      ["ulup3185", "bshka_", "ulup3185"],
+      ["sabelly", "remission", "sabelly"],
+      [".raiymbek", "smertikk", "smertikk"]
+    ],
+    [
+      ["pmir", "tihedge", "pmir"],
+      ["linkle.", "d1vi7or_xd", "linkle."],
+      ["diagolt", "ulup3185", "diagolt"],
+      ["sabelly", "smertikk", "smertikk"]
+    ],
+    [
+      ["pmir", "linkle.", "pmir"],
+      ["diagolt", "smertikk", "smertikk"]
+    ],
+    [
+      ["pmir", "smertikk", "smertikk"]
+    ]
+  ],
+  "third_place": ["linkle.", "diagolt", "linkle."]
+}

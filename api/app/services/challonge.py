@@ -37,6 +37,8 @@ log = logging.getLogger("gitv.challonge")
 SITE_API = "https://abyss.darte.gg/api/abyss"
 STORE_MARKER = "window._initialStoreState['TournamentStore'] = "
 HEADERS = {"User-Agent": "Mozilla/5.0 (GITV stats)"}
+# A finished bracket: finalized, or all played and only waiting for the organizer to finalize it.
+FINISHED_STATES = ("complete", "awaiting_review")
 # Between two Challonge pages, so a batch of brackets doesn't come in a burst.
 PAUSE = 2.0
 # Path prefixes for Challonge's translations: challonge.com/ru/<slug>.
@@ -110,6 +112,15 @@ class Bracket:
     def all_matches(self) -> list[BracketMatch]:
         return self.group_matches + self.matches + ([self.third_place] if self.third_place else [])
 
+    @property
+    def final_decided(self) -> bool:
+        """The bracket is finalized, or its last match (the final; in double elimination the grand final) has a
+        winner: the moment a running tournament has its champion."""
+        if self.state == "complete":
+            return True
+        main = [m for m in self.matches if m.round > 0]
+        return bool(main) and max(main, key=lambda m: m.round).winner is not None
+
 
 def _match(raw: dict, group: str | None = None) -> BracketMatch:
     def name(side: str) -> str | None:
@@ -154,9 +165,10 @@ def places(bracket: Bracket) -> dict[str, tuple[int, int]]:
     """{player name: (best, worst) place} for a finished elimination bracket, as Challonge counts them:
     the final's winner and loser are 1st and 2nd, the third-place match (if any) gives 3rd and 4th, and the
     rest share places by the round they were knocked out in (3-4, 5-8, ... in single elimination; by losers'
-    bracket round in double elimination). Round robin and Swiss give nothing: their places are a score."""
+    bracket round in double elimination). Round robin and Swiss give nothing: their places are a score.
+    A bracket whose matches are all played but that the organizer never finalized (awaiting_review) counts too."""
     decided = [m for m in bracket.matches if m.winner and m.loser]
-    if bracket.state != "complete" or not decided:
+    if bracket.state not in FINISHED_STATES or not decided:
         return {}
     double = bracket.type == "double elimination"
     if bracket.type != "single elimination" and not double:
@@ -347,15 +359,36 @@ class FetchResult:
     errors: list[str] = field(default_factory=list)
 
 
-def fetch_challonge(session: Session, refetch: bool = False) -> FetchResult:
+def stored_bracket(row: ChallongeBracket) -> Bracket:
+    try:
+        return bracket_from_store(json.loads(row.raw))
+    except (ValueError, KeyError, TypeError):
+        return Bracket(type="", state="", matches=[])
+
+
+def fetch_challonge(session: Session, refetch: bool = False, running: set[str] | None = None) -> FetchResult:
     """Fetches the Challonge bracket of every finished tournament that links one and doesn't have a finished
-    bracket stored yet (refetch: all of them again). Needs fetch-tournaments, which stores the links."""
+    bracket stored yet (refetch: all of them again). Needs fetch-tournaments, which stores the links.
+
+    running: instead, the brackets of these running tournaments whose final has no winner yet (the live poll),
+    with the participants list only the first time."""
     stored = {b.tournament_id: b for b in session.exec(select(ChallongeBracket))}
-    wanted = [
-        i
-        for i in session.exec(select(TournamentInfo).where(TournamentInfo.challonge_url.is_not(None)))
-        if i.is_finished and (refetch or i.tournament_id not in stored or stored[i.tournament_id].state != "complete")
-    ]
+    infos = session.exec(select(TournamentInfo).where(TournamentInfo.challonge_url.is_not(None))).all()
+    if running is not None:
+        wanted = [
+            i
+            for i in infos
+            if i.tournament_id in running
+            and not (i.tournament_id in stored and stored_bracket(stored[i.tournament_id]).final_decided)
+        ]
+    else:
+        wanted = [
+            i
+            for i in infos
+            if i.is_finished
+            and (refetch or i.tournament_id not in stored or stored[i.tournament_id].state != "complete")
+        ]
+    have_players = set(session.exec(select(TournamentPlayer.tournament_id)))
     # Challonge-only tournaments have no participants list on the site.
     only = set(session.exec(select(ChallongeTournament.tournament_id)))
     result = FetchResult()
@@ -369,7 +402,7 @@ def fetch_challonge(session: Session, refetch: bool = False) -> FetchResult:
                 r.raise_for_status()
                 store = parse_store(r.text)
                 participants = []
-                if info.tournament_id not in only:
+                if info.tournament_id not in only and not (running is not None and info.tournament_id in have_players):
                     response = client.get(f"{SITE_API}/drafts/players", params={"tournament": info.tournament_id})
                     participants = response.raise_for_status().json()
             except (httpx.HTTPError, ValueError) as e:

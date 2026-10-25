@@ -94,6 +94,43 @@ class MatchDraft(SQLModel, table=True):
     first_pick_slot: int | None = None
 
 
+class LiveMatch(SQLModel, table=True):
+    """A match of a running tournament that isn't finished yet, kept current by the live poll (services/sync.py)
+    so the site can link to its drafts on the tournament site while they're played. Not part of any statistics:
+    once finished it's imported as a Match and dropped from here, as are the matches of tournaments no longer
+    running."""
+
+    id: str = Field(primary_key=True)  # the site's match (draft set) id
+    tournament_id: str = Field(index=True)
+    tournament_title: str
+    created_at: datetime
+    # The two players: the site's user id when they've played a match here (their page exists), the name always
+    player1_id: str | None = None
+    player1_name: str
+    player2_id: str | None = None
+    player2_name: str
+    # JSON list, in game order: {"id": draft id, "status": NOT_STARTED / FINISHED / ..., "key": spectator key}
+    drafts: str
+    updated_at: datetime
+    # When its drafts' statuses last changed: a match begun that stays the same for long is shown as abandoned
+    changed_at: datetime | None = None
+
+
+class LiveRoster(SQLModel, table=True):
+    """A player's roster in a running tournament, read by the live poll from a draft of theirs not played yet
+    (LiveMatch), so the tournament's character pool counts players before their first finished game. Dropped with
+    its match; once they've played, their roster from the finished drafts (PlayerRoster) counts instead."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    match_id: str = Field(index=True)
+    tournament_id: str = Field(index=True)
+    player_id: str  # the site's user id
+    player_name: str | None = None  # their nickname in the draft (they may have no player page yet)
+    hash: str  # the site's roster hash
+    characters: str  # JSON [[agent id, constellation], ...]
+    fetched_at: datetime
+
+
 class MatchPlayer(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     draft_id: str = Field(foreign_key="matchdraft.id", index=True)

@@ -70,12 +70,28 @@ def test_parse_store():
         parse_store("<html>Just a moment...</html>")  # the bot check page
 
 
+class TestFinalDecided:
+    def test_final_without_a_winner(self):
+        undecided = [*SE8[:-1], m(3, "A", "B")]
+        assert not bracket_from_store(store(undecided, state="underway")).final_decided
+
+    def test_final_with_a_winner(self):
+        assert bracket_from_store(store(SE8, state="underway")).final_decided
+
+    def test_finalized_bracket(self):
+        assert bracket_from_store(store([], state="complete")).final_decided
+
+
 class TestPlaces:
     def test_single_elimination_without_third_place_match(self):
         p = places(bracket_from_store(store(SE8)))
         assert p["A"] == (1, 1) and p["B"] == (2, 2)
         assert p["C"] == p["D"] == (3, 4)
         assert {p[n] for n in "EFGH"} == {(5, 8)}
+
+    def test_bracket_waiting_to_be_finalized(self):
+        assert places(bracket_from_store(store(SE8, state="awaiting_review")))["A"] == (1, 1)
+        assert places(bracket_from_store(store(SE8, state="underway"))) == {}
 
     def test_third_place_match(self):
         third = m(3, "C", "D", "D")

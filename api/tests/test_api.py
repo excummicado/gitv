@@ -76,8 +76,8 @@ class TestFeaturedTournament:
 
         from app.models import Match, MatchDraft, MatchPlayer, Tournament, TournamentInfo
 
-        session.add(Tournament(id="t1", title="Abyss Fast Soup 1"))
-        session.add(TournamentInfo(tournament_id="t1", image="https://static.example/t1.webp"))
+        session.add(Tournament(id="t1", title="Abyss Weekend 1"))
+        session.add(TournamentInfo(tournament_id="t1", image="https://static.example/t1.webp", is_finished=True))
         session.add(Match(id="m1", tournament_id="t1", created_at=datetime(2026, 5, 1, tzinfo=UTC), raw="{}"))
         session.add(MatchDraft(id="d1", match_id="m1", game_no=1, status="FINISHED"))
         for slot, name in enumerate("AB"):
@@ -119,6 +119,67 @@ class TestFeaturedTournament:
             ],
         )
         assert client.get("/api/v1/tournaments/featured").json()["image"] == "/banners/astro-liber.svg"
+
+    def test_series_banner_replaces_a_missing_image(self, client, session, monkeypatch):
+        self.setup(session)
+        monkeypatch.setattr(
+            "app.routers.tournaments.live_tournaments",
+            lambda: [{"_id": "live1", "title": "ABYSS FAST SOUP 24", "image": None, "createdAt": "2026-06-01T10:00Z"}],
+        )
+        assert client.get("/api/v1/tournaments/featured").json()["image"] == "/banners/fast-soup.svg"
+
+    def make_live(self, session, final_winner: str | None = None):
+        """t1 still running on the site, optionally with a Challonge final A vs B that has a winner."""
+        import json
+        from datetime import datetime
+
+        from app.models import ChallongeBracket, TournamentInfo
+
+        session.get(TournamentInfo, "t1").is_finished = False
+        if final_winner:
+            players = {"A": 10, "B": 11}
+            final = {
+                "id": 1,
+                "round": 1,
+                "player1": {"id": 10, "display_name": "A"},
+                "player2": {"id": 11, "display_name": "B"},
+                "winner_id": players[final_winner],
+                "loser_id": players["B" if final_winner == "A" else "A"],
+            }
+            store = {"tournament": {"state": "underway", "tournament_type": "single elimination"}}
+            session.add(
+                ChallongeBracket(
+                    tournament_id="t1",
+                    url="https://challonge.com/t1",
+                    state="underway",
+                    raw=json.dumps({**store, "matches_by_round": {"1": [final]}}),
+                    fetched_at=datetime(2026, 5, 1, tzinfo=UTC),
+                )
+            )
+        session.commit()
+        import importlib
+
+        importlib.import_module("app.services.stats.snapshot")._cache.clear()
+
+    def test_running_tournament_has_no_places_or_winner(self, client, session, monkeypatch):
+        self.setup(session)
+        self.make_live(session)
+        running = [{"_id": "t1", "title": "Abyss Weekend 1", "createdAt": "2026-05-01T10:00:00Z"}]
+        monkeypatch.setattr("app.routers.tournaments.live_tournaments", lambda: running)
+        d = client.get("/api/v1/tournaments/featured").json()
+        assert d["id"] == "t1" and d["live"] and d["winner"] is None
+        assert all(r["place"] is None for r in client.get("/api/v1/tournaments/t1").json()["table"])
+        assert client.get("/api/v1/players/champions").json() == []
+
+    def test_final_winner_ends_the_live_tournament(self, client, session, monkeypatch):
+        self.setup(session)
+        self.make_live(session, final_winner="B")
+        running = [{"_id": "t1", "title": "Abyss Weekend 1", "createdAt": "2026-05-01T10:00:00Z"}]
+        monkeypatch.setattr("app.routers.tournaments.live_tournaments", lambda: running)
+        monkeypatch.setattr("app.routers.matches.live_tournaments", lambda: running)
+        d = client.get("/api/v1/tournaments/featured").json()
+        assert d["id"] == "t1" and not d["live"] and d["winner"]["id"] == "B"
+        assert client.get("/api/v1/matches/live-tournaments").json() == []
 
     def test_running_tournament_first(self, client, session, monkeypatch):
         self.setup(session)
@@ -232,3 +293,165 @@ def test_characters_prize_players_only(client, session):
     assert {c["character"]["id"] for c in every["characters"]} == {"pyro", "cryo", "hydro", "anemo", "geo"}
     top = client.get("/api/v1/characters?prize=players").json()
     assert top["games"] == 1 and {c["character"]["id"] for c in top["characters"]} == {"pyro", "cryo", "hydro"}
+
+
+class TestQualifierStage:
+    def setup(self, session):
+        from datetime import datetime
+
+        from app.models import Match, MatchDraft, MatchPlayer, Tournament
+
+        tournaments = [
+            ("g1", "Summer Quals Group A & B", 1, "AB"),
+            ("g2", "Summer Quals Group C & D", 2, "CD"),
+            ("p1", "Abyss Cup Summer Playoff", 5, "AC"),
+        ]
+        for tid, title, day, players in tournaments:
+            session.add(Tournament(id=tid, title=title))
+            mid = f"m-{tid}"
+            session.add(Match(id=mid, tournament_id=tid, created_at=datetime(2026, 6, day, tzinfo=UTC), raw="{}"))
+            session.add(MatchDraft(id=f"d-{tid}", match_id=mid, game_no=1, status="FINISHED"))
+            for slot, name in enumerate(players):
+                session.add(
+                    MatchPlayer(
+                        draft_id=f"d-{tid}",
+                        match_id=mid,
+                        slot=slot,
+                        user_id=name,
+                        full_name=name,
+                        clear_time=100 + slot,
+                    )
+                )
+        session.commit()
+        import importlib
+
+        importlib.import_module("app.services.stats.snapshot")._cache.clear()
+
+    def test_groups_are_one_stage(self, client, session):
+        self.setup(session)
+        listed = {r["id"]: r for r in client.get("/api/v1/tournaments").json()}
+        assert "g1" not in listed and "g2" not in listed
+        stage = listed["quals-1-p1"]
+        assert stage["kind"] == "qualifier" and stage["matches"] == 2 and stage["players"] == 4
+        assert stage["event"]["stage"] == "Qualification" and stage["event"]["stages"] == 2
+
+    def test_a_group_opens_its_stage(self, client, session):
+        self.setup(session)
+        d = client.get("/api/v1/tournaments/g2").json()
+        assert d["id"] == "quals-1-p1" and d["bracket"] is None
+        assert [s["id"] for s in d["stages"]] == ["quals-1-p1", "p1"]
+        assert [(r["player"]["name"], r["group"]) for r in d["table"]] == [
+            ("A", "A & B"),
+            ("B", "A & B"),
+            ("C", "C & D"),
+            ("D", "C & D"),
+        ]
+        groups = client.get("/api/v1/matches/by-tournament", params={"tournament": "quals-1-p1", "limit": 20}).json()
+        assert sorted(g["tournament"]["id"] for g in groups["groups"]) == ["g1", "g2"]
+
+    def test_stage_counts_its_shared_challonge_bracket(self, client, session):
+        import json
+        from datetime import datetime
+
+        from app.models import ChallongeBracket
+
+        self.setup(session)
+        side = lambda pid, name: {"id": pid, "display_name": name}  # noqa: E731
+        # One bracket for both groups, with E, who never showed up on the site
+        group = [
+            {"id": 1, "round": 1, "player1": side(1, "A"), "player2": side(2, "B"), "winner_id": 1, "loser_id": 2},
+            {"id": 2, "round": 1, "player1": side(3, "C"), "player2": side(4, "D"), "winner_id": 3, "loser_id": 4},
+            {"id": 3, "round": 1, "player1": side(5, "E"), "player2": side(3, "C")},
+        ]
+        store = {
+            "tournament": {"state": "complete", "tournament_type": "round robin"},
+            "matches_by_round": {"1": group},
+        }
+        for tid in ("g1", "g2"):
+            session.add(
+                ChallongeBracket(
+                    tournament_id=tid,
+                    url="https://challonge.com/quals",
+                    state="complete",
+                    raw=json.dumps(store),
+                    fetched_at=datetime(2026, 6, 3, tzinfo=UTC),
+                )
+            )
+        session.commit()
+        listed = {r["id"]: r for r in client.get("/api/v1/tournaments").json()}
+        assert listed["quals-1-p1"]["players"] == 5  # A-E once each, not 5 per group
+
+
+class TestTournamentPool:
+    def test_players_last_rosters_by_constellation(self, client, session):
+        from datetime import datetime
+
+        from app.models import PlayerMerge, PlayerRoster, RosterCharacter
+
+        TestFeaturedTournament().setup(session)
+
+        def roster(player, version, day, characters):
+            r = PlayerRoster(
+                player_id=player,
+                tournament_id="t1",
+                hash=f"{player}{version}",
+                version=version,
+                first_draft_id="d1",
+                last_draft_id="d1",
+                first_seen=datetime(2026, 5, day, tzinfo=UTC),
+                last_seen=datetime(2026, 5, day, tzinfo=UTC),
+                games=1,
+                characters=len(characters),
+                weapons=0,
+            )
+            session.add(r)
+            session.flush()
+            for agent, constellation in characters:
+                session.add(RosterCharacter(roster_id=r.id, agent_id=agent, constellation=constellation))
+
+        roster("A", 1, 1, [("x", 0), ("y", 2)])
+        roster("A", 2, 2, [("x", 6), ("y", 2)])  # A's last roster counts
+        roster("B", 1, 1, [("x", 1)])
+        roster("C", 1, 1, [("z", 0)])  # C is B on another account: one player, one roster
+        session.add(PlayerMerge(user_id="C", into_id="B", created_at=datetime(2026, 5, 1, tzinfo=UTC)))
+        session.commit()
+        pool = client.get("/api/v1/tournaments/t1").json()["pool"]
+        assert pool["players"] == 2
+        assert [(c["character"]["id"], c["owned"], c["rate"], c["constellations"]) for c in pool["characters"]] == [
+            ("x", 2, 100.0, [0, 1, 0, 0, 0, 0, 1]),
+            ("y", 1, 50.0, [0, 0, 1, 0, 0, 0, 0]),
+        ]
+        x = pool["characters"][0]["holders"]
+        assert x[1] == [{"id": "B", "name": "B"}] and x[6] == [{"id": "A", "name": "A"}]
+
+
+class TestPlayerCount:
+    def test_counts_the_challonge_bracket(self, client, session):
+        import json
+        from datetime import datetime
+
+        from app.models import ChallongeBracket
+
+        TestFeaturedTournament().setup(session)  # t1: A and B played on the site
+        assert client.get("/api/v1/tournaments/t1").json()["players"] == 2
+
+        def side(pid, name):
+            return {"id": pid, "display_name": name}
+
+        matches = [
+            {"id": 1, "round": 1, "player1": side(10, "A"), "player2": side(11, "B"), "winner_id": 10, "loser_id": 11},
+            {"id": 2, "round": 1, "player1": side(12, "C"), "player2": None},  # C never played on the site
+        ]
+        store = {"tournament": {"state": "complete", "tournament_type": "single elimination"}, "matches_by_round": {}}
+        store["matches_by_round"]["1"] = matches
+        session.add(
+            ChallongeBracket(
+                tournament_id="t1",
+                url="https://challonge.com/t1",
+                state="complete",
+                raw=json.dumps(store),
+                fetched_at=datetime(2026, 5, 2, tzinfo=UTC),
+            )
+        )
+        session.commit()
+        assert client.get("/api/v1/tournaments/t1").json()["players"] == 3

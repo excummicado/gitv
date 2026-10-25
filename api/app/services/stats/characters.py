@@ -24,7 +24,8 @@ def character_stats(
         for pid, pd in snap.players.items()
         if players is None or pid in players
         for g in pd.games
-        if not versus or players is None or g.opponent in players
+        # Games entered by hand from their timers (manual_games) have no characters
+        if g.agents and (not versus or players is None or g.opponent in players)
     ]
     drafts = {g.draft_id for _, g in games}
     # Who banned: bans are stored against the player they hit, so the banner is that player's opponent.

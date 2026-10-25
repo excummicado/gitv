@@ -25,6 +25,12 @@ venv/bin/python -m app.cli set-challonge-url "HotH: Abyss Weekend 6" https://cha
 venv/bin/python -m app.cli check-challonge
 venv/bin/python -m app.cli set-tournament-event "Abyss Fight Club 4" challonge-afc_4_1="Group stage 1" \
     challonge-afc_4_3="Main Stage"
+venv/bin/python -m app.cli export-telegram @abysscup --photos
+venv/bin/python -m app.cli telegram-photos @abysscup      # only the results posts' photos (after export-telegram)
+venv/bin/python -m app.cli telegram-ocr @abysscup         # their text, read on this Mac
+venv/bin/python -m app.cli add-manual-games brackets/abyss_cup_major_1_games.json
+venv/bin/python -m app.cli export-aspirine abysscup_minor_24 abysscup_minor_s2 abysscup_major
+venv/bin/python -m app.cli import-aspirine
 """
 
 import argparse
@@ -538,19 +544,109 @@ def set_organizer(ref: str, name: str | None, into: str | None, clear: bool) -> 
 
 def add_player(name: str, challonge_names: list[str]) -> None:
     """Adds a person who never played on the site, and ties their bracket names to them."""
+    import hashlib
     from datetime import datetime
 
     from .models import OffsitePlayer
     from .services.events import slug
 
     create_db_and_tables()
-    pid = "offsite-" + (slug(name) or "player")
+    # A name with no Latin letters or digits ("Японец") gets a short hash of itself instead.
+    pid = "offsite-" + (slug(name) or hashlib.sha1(name.encode()).hexdigest()[:8])
     with Session(engine) as session:
         session.merge(OffsitePlayer(id=pid, name=name, created_at=datetime.now(UTC)))
         session.commit()
     print(f"{name}: player {pid}.")
     for n in challonge_names:
         set_challonge_name(n, pid)
+
+
+def export_telegram(channel: str, photos: bool) -> None:
+    """Saves a Telegram channel's history to telegram/<channel>.json (see services/telegram_export.py)."""
+    try:
+        from .services.telegram_export import export_channel
+    except ImportError as e:
+        raise SystemExit("Telethon isn't installed: venv/bin/pip install -r requirements-dev.txt") from e
+    out, count, failed = export_channel(channel, *telegram_keys(), photos)
+    print(
+        f"{count} posts saved to {out}." + (f" {failed} photos failed: run it again to retry them." if failed else "")
+    )
+
+
+def telegram_keys():
+    from .config import settings
+
+    if not settings.telegram_api_id or not settings.telegram_api_hash:
+        raise SystemExit("Set TELEGRAM_API_ID and TELEGRAM_API_HASH in .env (my.telegram.org > API development tools).")
+    return settings.telegram_api_id, settings.telegram_api_hash
+
+
+def telegram_photos(channel: str, posts: str | None, since: str | None, until: str | None) -> None:
+    """Downloads the photos of an exported channel's posts whose text matches (by default the results posts; every
+    post when dates are given without --posts), between the dates if given."""
+    from .services.telegram_export import RESULT_POSTS, download_photos
+
+    pattern = posts or ("" if since or until else RESULT_POSTS)
+    wanted, saved, failed = download_photos(channel, *telegram_keys(), pattern, since or "", until or "9999")
+    print(
+        f"{wanted} posts: {saved} photos saved" + (f", {failed} failed: run it again to retry them." if failed else ".")
+    )
+
+
+def telegram_ocr(channel: str) -> None:
+    """Reads the text on a channel's downloaded photos (macOS only)."""
+    try:
+        from .services.telegram_export import recognize_photos
+
+        out, count = recognize_photos(channel)
+    except ImportError as e:
+        raise SystemExit("Text recognition needs macOS and ocrmac: venv/bin/pip install -r requirements-dev.txt") from e
+    print(f"Text of {count} photos in {out}.")
+
+
+def add_manual_games(path: str) -> None:
+    """Stores the games of hand-entered tournaments from a JSON file (see services/manual_games.py)."""
+    import json
+
+    from .services.manual_games import import_manual_games
+
+    create_db_and_tables()
+    with open(path, encoding="utf-8") as f, Session(engine) as session:
+        try:
+            stored = import_manual_games(session, json.load(f))
+        except ValueError as e:
+            raise SystemExit(str(e)) from e
+    for tid, n in stored.items():
+        print(f"{tid}: {n} matches.")
+
+
+def export_aspirine(slugs: list[str]) -> None:
+    """Saves old tournaments' games, replays and character list from draft.aspirine.su (services/aspirine_export.py)."""
+    from .services.aspirine_export import OUT, export
+
+    counts = export(slugs, log=lambda line: print(line, flush=True))
+    print(
+        f"Saved to {OUT}: {counts['tournaments']} tournaments, {counts['replays']} replays"
+        + (f"; {counts['failed']} not fetched: run it again to retry them." if counts["failed"] else ".")
+    )
+
+
+def import_aspirine() -> None:
+    """Stores the old tournaments export-aspirine saved as matches (services/aspirine_import.py)."""
+    from .services.aspirine_import import import_aspirine as run
+
+    create_db_and_tables()
+    with Session(engine) as session:
+        try:
+            counts = run(session)
+        except (ValueError, FileNotFoundError) as e:
+            raise SystemExit(str(e)) from e
+        build_rosters(session)
+    for tid, n in counts.items():
+        print(
+            f"{tid}: {n['matches']} matches, {n['games']} games ({n['replays']} with their draft), "
+            f"{n['unknown players']} players the site doesn't know"
+        )
 
 
 def check_challonge() -> None:
@@ -637,6 +733,23 @@ def main() -> None:
     player_cmd = commands.add_parser("add-player", help="Add a person who played only in bracket-only tournaments")
     player_cmd.add_argument("name", help="The name to show")
     player_cmd.add_argument("challonge_names", nargs="*", help="Their names in brackets, tied to them")
+    tg_cmd = commands.add_parser("export-telegram", help="Save a Telegram channel's history as JSON (logs in as you)")
+    tg_cmd.add_argument("channel", help="The channel, e.g. @abysscup")
+    tg_cmd.add_argument("--photos", action="store_true", help="Download the posts' photos too")
+    asp_cmd = commands.add_parser(
+        "export-aspirine", help="Save old tournaments' games and drafts from draft.aspirine.su"
+    )
+    asp_cmd.add_argument("slugs", nargs="+", help="Tournament slugs: draft.aspirine.su/tournament/<slug>/")
+    commands.add_parser("import-aspirine", help="Store the old tournaments export-aspirine saved as matches")
+    games_cmd = commands.add_parser("add-manual-games", help="Store games of hand-entered tournaments from a JSON file")
+    games_cmd.add_argument("file", help="JSON: matches with tournament, date, players, games (rooms, penalty), winner")
+    tgp_cmd = commands.add_parser("telegram-photos", help="Download the photos of an exported channel's results posts")
+    tgp_cmd.add_argument("channel", help="The channel, e.g. @abysscup (export-telegram it first)")
+    tgp_cmd.add_argument("--posts", help="Only posts whose text matches this regular expression instead")
+    tgp_cmd.add_argument("--since", help="Only posts from this date on (YYYY-MM-DD); with dates, every post's photo")
+    tgp_cmd.add_argument("--until", help="Only posts up to this date (YYYY-MM-DD)")
+    tgo_cmd = commands.add_parser("telegram-ocr", help="Read the text on a channel's downloaded photos (macOS)")
+    tgo_cmd.add_argument("channel", help="The channel, e.g. @abysscup")
     org_cmd = commands.add_parser("set-organizer", help="Show an organizer under another name, or as another organizer")
     org_cmd.add_argument("organizer", help="The organizer's name on the site or their id")
     org_cmd.add_argument("--name", help="The name to show, e.g. 'House of the Hearth'")
@@ -716,6 +829,18 @@ def main() -> None:
         set_organizer(args.organizer, args.name, args.into, args.clear)
     elif args.command == "add-player":
         add_player(args.name, args.challonge_names)
+    elif args.command == "export-telegram":
+        export_telegram(args.channel, args.photos)
+    elif args.command == "export-aspirine":
+        export_aspirine(args.slugs)
+    elif args.command == "import-aspirine":
+        import_aspirine()
+    elif args.command == "add-manual-games":
+        add_manual_games(args.file)
+    elif args.command == "telegram-photos":
+        telegram_photos(args.channel, args.posts, args.since, args.until)
+    elif args.command == "telegram-ocr":
+        telegram_ocr(args.channel)
     elif args.command == "check-challonge":
         check_challonge()
     elif args.command == "delete-tournaments":
