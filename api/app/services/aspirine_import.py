@@ -22,20 +22,20 @@ from sqlmodel import Session, delete, select
 
 from ..models import (
     Agent,
-    ChallongeAlias,
     DraftAction,
     DraftState,
     Match,
     MatchDraft,
     MatchPick,
     MatchPlayer,
-    PlayerMerge,
     Tournament,
 )
 from .aspirine_export import OUT, SITE
 from .catalog import ELEMENT_LETTERS
 from .challonge import normalize
 from .manual_games import PENALTY_STEP
+from .match_checks import UNKNOWN_CONSTELLATION
+from .player_names import known_players
 from .stats import snapshot
 
 # (aspirine tournament slug, stage title) -> the site's tournament; None takes every stage
@@ -86,21 +86,6 @@ def roster(char_ids: dict, chars: dict[int, str]) -> dict:
     ]
     agents.sort(key=lambda a: a["agent"])
     return {"hash": hashlib.sha1(json.dumps(agents).encode()).hexdigest()[:16], "agents": agents}
-
-
-def known_players(session: Session, snap) -> dict[str, str]:
-    """{normalized nickname: player id} for nicknames only one player is known under: in their games on the site,
-    in any tournament's bracket, or tied by hand (set-challonge-name)."""
-    owners: dict[str, set[str]] = {}
-    merged = dict(session.exec(select(PlayerMerge.user_id, PlayerMerge.into_id)).all())
-    names = list(
-        session.exec(select(MatchPlayer.full_name, MatchPlayer.user_id).where(MatchPlayer.user_id.is_not(None)))
-    )
-    names += [(name, pid) for ch in snap.challonge.values() for name, pid in ch.ids.items()]
-    names += list(session.exec(select(ChallongeAlias.name, ChallongeAlias.user_id)))
-    for name, pid in names:
-        owners.setdefault(normalize(name), set()).add(merged.get(pid, pid))
-    return {key: next(iter(pids)) for key, pids in owners.items() if key and len(pids) == 1}
 
 
 def load_replay(folder: Path, game_id: str) -> list[dict] | None:
@@ -242,7 +227,7 @@ def add_game(
                     position=position,
                     agent_id=agent,
                     agent_level=levels.get(agent) or None,
-                    agent_mindscape=built.get("c", mindscapes.get(agent, 0)),
+                    agent_mindscape=built.get("c", mindscapes.get(agent, UNKNOWN_CONSTELLATION)),
                 )
             )
         players[slot] = {"fullName": names[slot], **({"roster": rosters[slot]} if slot in rosters else {})}

@@ -31,6 +31,7 @@ venv/bin/python -m app.cli telegram-ocr @abysscup         # their text, read on 
 venv/bin/python -m app.cli add-manual-games brackets/abyss_cup_major_1_games.json
 venv/bin/python -m app.cli export-aspirine abysscup_minor_24 abysscup_minor_s2 abysscup_major
 venv/bin/python -m app.cli import-aspirine
+venv/bin/python -m app.cli poll-stream
 """
 
 import argparse
@@ -40,7 +41,17 @@ from datetime import UTC
 from sqlmodel import Session, func, select
 
 from .database import create_db_and_tables, engine
-from .models import Match, MatchPlayer, PlayerName, Role, Tournament, TournamentWinner, User
+from .models import (
+    Match,
+    MatchPlayer,
+    PlayerName,
+    Role,
+    StreamMatch,
+    StreamStatus,
+    Tournament,
+    TournamentWinner,
+    User,
+)
 from .services.catalog import import_catalog
 from .services.draft_actions import fetch_draft_actions
 from .services.draft_links import fetch_draft_links
@@ -649,6 +660,25 @@ def import_aspirine() -> None:
         )
 
 
+def poll_stream() -> None:
+    """Reads the stream's Telegram channel and Twitch status once (services/stream.py)."""
+    from .services.stream import poll_stream as run
+
+    create_db_and_tables()
+    with Session(engine) as session:
+        errors = run(session)
+        latest = session.exec(select(StreamMatch).order_by(StreamMatch.announced_at.desc()).limit(6)).all()
+        for m in reversed(latest):
+            state = f"won by {m.winner_name}" if m.finished_at else "on air" if m.live_at else "announced"
+            print(
+                f"{m.announced_at:%Y-%m-%d %H:%M} {m.tournament_title}: {m.player1_name} vs {m.player2_name}, {state}"
+            )
+        status = session.exec(select(StreamStatus)).first()
+        print(f"Twitch: {'live' if status.live else 'offline'}" if status else "Twitch: no keys set (TWITCH_CLIENT_ID)")
+    for e in errors:
+        print(e)
+
+
 def check_challonge() -> None:
     from .services.challonge_check import find_issues, print_report
 
@@ -740,6 +770,7 @@ def main() -> None:
         "export-aspirine", help="Save old tournaments' games and drafts from draft.aspirine.su"
     )
     asp_cmd.add_argument("slugs", nargs="+", help="Tournament slugs: draft.aspirine.su/tournament/<slug>/")
+    commands.add_parser("poll-stream", help="Read the stream's Telegram channel and Twitch status once")
     commands.add_parser("import-aspirine", help="Store the old tournaments export-aspirine saved as matches")
     games_cmd = commands.add_parser("add-manual-games", help="Store games of hand-entered tournaments from a JSON file")
     games_cmd.add_argument("file", help="JSON: matches with tournament, date, players, games (rooms, penalty), winner")
@@ -833,6 +864,8 @@ def main() -> None:
         export_telegram(args.channel, args.photos)
     elif args.command == "export-aspirine":
         export_aspirine(args.slugs)
+    elif args.command == "poll-stream":
+        poll_stream()
     elif args.command == "import-aspirine":
         import_aspirine()
     elif args.command == "add-manual-games":

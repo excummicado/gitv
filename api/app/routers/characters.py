@@ -167,9 +167,9 @@ class CharacterPlayer(BaseModel):
     wins: int
     losses: int
     winrate: float | None
-    min_constellation: int  # the constellations they picked it at
-    max_constellation: int
-    last_constellation: int  # in their latest game with it
+    min_constellation: int | None  # the constellations they picked it at (None when none is known)
+    max_constellation: int | None
+    last_constellation: int | None  # in their latest game with it
     first: datetime  # first game with it
     last: datetime  # latest game with it
 

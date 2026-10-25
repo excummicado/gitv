@@ -72,6 +72,9 @@ def adjusted_time(clear_time: int, restarts: int, free: int | None, paid: list[i
     return clear_time + sum(paid[min(k, len(paid) - 1)] for k in range(extra)) if paid else clear_time
 
 
+# MatchPick.agent_mindscape of a character whose constellation isn't known (a team read off a post's emoji)
+UNKNOWN_CONSTELLATION = -1
+
 # Team events (2x2) are left out of personal statistics.
 TEAM_EVENT = re.compile(r"2\s*[xх]\s*2", re.IGNORECASE)
 # Major tournaments: an Abyss Cup tournament (by the site's tournament system) that is one of its qualifiers
@@ -355,7 +358,7 @@ def find_anomalies(session: Session) -> list[Anomaly]:
             if n > 1:
                 add("duplicate_agent", p, agent, f"персонаж {agent} взят {n} раза")
         for pk in team:
-            if not 0 <= pk.agent_mindscape <= 6:
+            if not UNKNOWN_CONSTELLATION <= pk.agent_mindscape <= 6:
                 add("bad_value", p, pk.agent_mindscape, f"mindscape {pk.agent_mindscape} у {pk.agent_id}")
             if pk.engine_refinement is not None and not 1 <= pk.engine_refinement <= 5:
                 add("bad_value", p, pk.engine_refinement, f"refinement {pk.engine_refinement} у {pk.engine_id}")

@@ -39,6 +39,7 @@ from .draft_systems import fetch_draft_systems
 from .match_checks import tidy_title
 from .match_import import ImportResult, import_from_urls, import_matches, is_finished, parse_date
 from .rosters import build_rosters
+from .stream import poll_stream
 from .tournament_info import fetch_tournament_info
 
 log = logging.getLogger("gitv.sync")
@@ -348,6 +349,8 @@ def poll_live_once(engine) -> SyncResult | None:
         write_state(last_live_poll=time.time())
         with Session(engine) as session:
             result = poll_live(session)
+            # The matches on stream, from its Telegram channel, and whether it's live on Twitch
+            result.errors += poll_stream(session)
     if result.matches_saved:
         log.info(
             "live poll: %d matches, %d draft links, %d drafts%s",

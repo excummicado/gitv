@@ -6,7 +6,8 @@ played under (see complexity); a nickname set by hand (app.cli set-player-name) 
 
 from sqlmodel import Session, func, select
 
-from ..models import Match, MatchPlayer, OffsitePlayer, PlayerMerge, PlayerName
+from ..models import ChallongeAlias, Match, MatchPlayer, OffsitePlayer, PlayerMerge, PlayerName
+from .challonge import normalize
 
 
 def complexity(name: str) -> float:
@@ -75,3 +76,20 @@ def display_names(session: Session) -> dict[str, str]:
 
 def shown_name(p: MatchPlayer, names: dict[str, str]) -> str:
     return names.get(p.user_id or "", p.full_name)
+
+
+def known_players(session: Session, snap) -> dict[str, str]:
+    """{normalized nickname: player id} for nicknames only one player is known under: in their games on the site,
+    in any tournament's bracket, tied by hand (set-challonge-name), or the name the site shows them under. snap:
+    the statistics snapshot (for the brackets' names)."""
+    owners: dict[str, set[str]] = {}
+    merged = dict(session.exec(select(PlayerMerge.user_id, PlayerMerge.into_id)).all())
+    names = list(
+        session.exec(select(MatchPlayer.full_name, MatchPlayer.user_id).where(MatchPlayer.user_id.is_not(None)))
+    )
+    names += [(name, pid) for ch in snap.challonge.values() for name, pid in ch.ids.items()]
+    names += list(session.exec(select(ChallongeAlias.name, ChallongeAlias.user_id)))
+    names += [(name, pid) for pid, name in display_names(session).items()]
+    for name, pid in names:
+        owners.setdefault(normalize(name), set()).add(merged.get(pid, pid))
+    return {key: next(iter(pids)) for key, pids in owners.items() if key and len(pids) == 1}

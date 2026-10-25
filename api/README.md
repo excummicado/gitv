@@ -177,6 +177,26 @@ running tournaments (`GET /api/v1/matches/live-tournaments`) come from the site'
 so they can be up to an hour old, and so can the live poll's idea of which tournaments are running: a new one
 is picked up within an hour of starting, then followed every five minutes.
 
+### The stream
+
+The home page's matches of the day show the matches played on stream, from the stream's Telegram channel
+(`STREAM_TELEGRAM_CHANNEL`, `abysscup` by default), read from its public page `t.me/s/<channel>` with no
+Telegram keys: the day's post ("Матчи на сегодня: A vs B …", posted as the stream starts, with the casters and
+the Twitch link), each match's post when it goes on air and its results post (who won). The live poll reads it
+every five minutes into `streammatch`; `GET /api/v1/schedule/stream?from=&to=` gives a day's matches, with
+whether each is on air and whether the stream is. A results post of a match the day's post didn't announce
+(played off stream) is left out.
+
+Whether the stream is live comes from Twitch (`TWITCH_CHANNEL`, `abyss__cup`) when an app's keys are set:
+create an application at dev.twitch.tv (any OAuth redirect, e.g. `http://localhost`) and put its client id and
+a new secret in `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`; the poll then also stores the stream's status,
+title and viewers in `streamstatus`. Without the keys a match counts as on air from its post until its result
+(three hours at most). To read both once by hand:
+
+```bash
+venv/bin/python -m app.cli poll-stream
+```
+
 ### Draft links
 
 ```bash

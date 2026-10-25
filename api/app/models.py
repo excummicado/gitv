@@ -500,6 +500,36 @@ class ScheduledMatch(SQLModel, table=True):
     created_at: datetime
 
 
+class StreamMatch(SQLModel, table=True):
+    """A match played on stream, as the stream's Telegram channel announces it (services/stream.py): listed in
+    the day's post ("matches today: A vs B, ..."), then posted when it goes on air and when it's over. Shown with
+    the day's matches on the home page."""
+
+    id: str = Field(primary_key=True)  # "<channel>-<post that announced it>-<both nicks, normalized>"
+    channel: str
+    tournament_title: str
+    player1_name: str
+    player2_name: str
+    announced_at: datetime = Field(index=True)  # the day's post: about when the stream starts (UTC)
+    live_at: datetime | None = None  # its own post: on air from then
+    finished_at: datetime | None = None  # the results post
+    winner_name: str | None = None
+    stream_url: str | None = None
+    casters: str | None = None
+    post_url: str  # the post that announced it
+
+
+class StreamStatus(SQLModel, table=True):
+    """The Twitch channel's live status, read every few minutes when the app's keys are set (services/stream.py)."""
+
+    channel: str = Field(primary_key=True)
+    live: bool = False
+    title: str | None = None
+    viewers: int | None = None
+    started_at: datetime | None = None
+    checked_at: datetime
+
+
 # Site analytics (services/analytics.py): aggregated counts only. Visitors are kept as a hash salted with a
 # random value that changes every day, so they can't be followed from one day to the next; no IP address,
 # user agent or cookie is stored.

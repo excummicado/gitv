@@ -97,3 +97,41 @@ def test_bracket_matches_without_games_still_count(session):
     snap = snapshot(session)
     left = [m for m in snap.challonge_matches.values() if m.tournament_id == "manual-cup"]
     assert sorted(sorted(m.names.values()) for m in left) == [["B", "C"], ["C", "D"]]
+
+
+def test_restarts_per_game(session):
+    import importlib
+
+    add_manual_tournament(session, BRACKET)
+    importlib.import_module("app.services.stats.snapshot")._cache.clear()
+    spec = {"matches": [GAMES["matches"][0] | {"free_restarts": 2, "paid_restarts": [5, 10]}]}
+    spec["matches"][0]["games"] = [{"rooms": [[90, 100, 110], [95, 100, 110]], "restarts": [4, 2]}]
+    import_manual_games(session, spec)
+    a = next(p for p in session.exec(select(MatchPlayer)) if p.full_name == "A")
+    assert a.restarts == 4
+    # Two free, then 5 and 10 s: A's 300 s become 315, B's 305 stays, so B wins the game
+    games = [g for pd in snapshot(session).players.values() for g in pd.games if g.name == "A"]
+    assert [(g.adjusted, g.result) for g in games] == [(315, "L")]
+
+
+def test_teams_become_picks(session):
+    import importlib
+
+    from app.models import MatchPick
+
+    add_manual_tournament(session, BRACKET)
+    importlib.import_module("app.services.stats.snapshot")._cache.clear()
+    spec = {
+        "matches": [
+            GAMES["matches"][0] | {"games": [GAMES["matches"][0]["games"][0] | {"teams": [["x", None], ["y", "z"]]}]}
+        ]
+    }
+    import_manual_games(session, spec)
+    picks = session.exec(select(MatchPick)).all()
+    assert sorted((p.position, p.agent_id) for p in picks) == [
+        (0, "x"),
+        (0, "y"),
+        (1, "z"),
+    ]  # an unknown one is left out
+    import_manual_games(session, spec)
+    assert len(session.exec(select(MatchPick)).all()) == 3  # importing again replaces them

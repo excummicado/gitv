@@ -21,9 +21,9 @@
        158
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      5,
+      5
      ]
     },
     {
@@ -39,9 +39,9 @@
        167
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      3,
+      5
      ]
     }
    ],
@@ -49,6 +49,11 @@
    "penalty_total": [
     15,
     30
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -72,9 +77,9 @@
        121
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      3,
+      1
      ]
     },
     {
@@ -90,9 +95,9 @@
        177
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      5,
+      4
      ]
     }
    ],
@@ -100,6 +105,11 @@
    "penalty_total": [
     15,
     5
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -123,9 +133,9 @@
        160
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      3,
+      4
      ]
     },
     {
@@ -141,9 +151,9 @@
        138
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      5,
+      3
      ]
     }
    ],
@@ -151,6 +161,11 @@
    "penalty_total": [
     15,
     5
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -203,9 +218,9 @@
        159
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      2,
+      4
      ]
     },
     {
@@ -221,9 +236,9 @@
        138
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      2,
+      3
      ]
     }
    ],
@@ -231,6 +246,11 @@
    "penalty_total": [
     0,
     5
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -254,9 +274,9 @@
        121
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      5,
+      1
      ]
     }
    ],
@@ -264,6 +284,11 @@
    "penalty_total": [
     15,
     0
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -367,9 +392,9 @@
        187
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      1,
+      3
      ]
     },
     {
@@ -385,9 +410,9 @@
        230
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      1,
+      3
      ]
     }
    ],
@@ -395,6 +420,11 @@
    "penalty_total": [
     0,
     0
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -418,9 +448,9 @@
        226
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      1,
+      3
      ]
     },
     {
@@ -436,9 +466,9 @@
        131
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      3,
+      4
      ]
     }
    ],
@@ -446,6 +476,11 @@
    "penalty_total": [
     0,
     5
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -469,9 +504,9 @@
        156
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      3,
+      4
      ]
     },
     {
@@ -487,9 +522,9 @@
        129
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      1,
+      5
      ]
     }
    ],
@@ -497,6 +532,11 @@
    "penalty_total": [
     0,
     20
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -520,9 +560,9 @@
        153
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      5,
+      2
      ]
     },
     {
@@ -538,9 +578,9 @@
        149
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      3,
+      2
      ]
     }
    ],
@@ -548,6 +588,11 @@
    "penalty_total": [
     15,
     0
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -571,7 +616,7 @@
        134
       ]
      ],
-     "penalty": [
+     "restarts": [
       0,
       0
      ]
@@ -589,9 +634,9 @@
        133
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      4,
+      5
      ]
     }
    ],
@@ -599,6 +644,11 @@
    "penalty_total": [
     5,
     15
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -622,8 +672,8 @@
        117
       ]
      ],
-     "penalty": [
-      0,
+     "restarts": [
+      4,
       0
      ]
     },
@@ -640,9 +690,9 @@
        125
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      5,
+      1
      ]
     }
    ],
@@ -650,6 +700,11 @@
    "penalty_total": [
     20,
     0
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -702,9 +757,9 @@
        127
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      2,
+      3
      ]
     },
     {
@@ -720,8 +775,8 @@
        110
       ]
      ],
-     "penalty": [
-      0,
+     "restarts": [
+      5,
       0
      ]
     }
@@ -730,6 +785,11 @@
    "penalty_total": [
     15,
     0
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -753,9 +813,9 @@
        122
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      4,
+      4
      ]
     },
     {
@@ -771,15 +831,20 @@
        126
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      4,
+      4
      ]
     }
    ],
    "source": "https://t.me/hoth_abyss/525",
    "penalty_total": [
     10,
+    10
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
     10
    ]
   },
@@ -804,8 +869,8 @@
        108
       ]
      ],
-     "penalty": [
-      0,
+     "restarts": [
+      2,
       0
      ]
     },
@@ -822,8 +887,8 @@
        136
       ]
      ],
-     "penalty": [
-      0,
+     "restarts": [
+      4,
       0
      ]
     }
@@ -832,6 +897,11 @@
    "penalty_total": [
     5,
     0
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -855,9 +925,9 @@
        198
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      5,
+      4
      ]
     },
     {
@@ -873,9 +943,9 @@
        133
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      2,
+      3
      ]
     }
    ],
@@ -883,6 +953,11 @@
    "penalty_total": [
     15,
     5
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -906,8 +981,8 @@
        125
       ]
      ],
-     "penalty": [
-      0,
+     "restarts": [
+      1,
       0
      ]
     },
@@ -924,9 +999,9 @@
        112
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      2,
+      3
      ]
     }
    ],
@@ -934,6 +1009,11 @@
    "penalty_total": [
     0,
     0
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -957,9 +1037,9 @@
        120
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      3,
+      4
      ]
     },
     {
@@ -975,15 +1055,20 @@
        117
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      2,
+      4
      ]
     }
    ],
    "source": "https://t.me/hoth_abyss/537",
    "penalty_total": [
     0,
+    10
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
     10
    ]
   },
@@ -1008,9 +1093,9 @@
        115
       ]
      ],
-     "penalty": [
+     "restarts": [
       0,
-      0
+      1
      ]
     },
     {
@@ -1026,9 +1111,9 @@
        121
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      1,
+      1
      ]
     }
    ],
@@ -1036,6 +1121,11 @@
    "penalty_total": [
     0,
     0
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -1088,9 +1178,9 @@
        114
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      3,
+      3
      ]
     },
     {
@@ -1106,8 +1196,8 @@
        129
       ]
      ],
-     "penalty": [
-      0,
+     "restarts": [
+      5,
       0
      ]
     }
@@ -1116,6 +1206,11 @@
    "penalty_total": [
     15,
     0
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -1139,9 +1234,9 @@
        96
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      1,
+      1
      ]
     },
     {
@@ -1157,9 +1252,9 @@
        131
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      5,
+      3
      ]
     }
    ],
@@ -1167,6 +1262,11 @@
    "penalty_total": [
     15,
     0
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -1190,9 +1290,9 @@
        108
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      4,
+      1
      ]
     },
     {
@@ -1208,9 +1308,9 @@
        103
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      3,
+      2
      ]
     }
    ],
@@ -1218,6 +1318,11 @@
    "penalty_total": [
     5,
     0
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -1241,9 +1346,9 @@
        123
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      4,
+      4
      ]
     },
     {
@@ -1259,9 +1364,9 @@
        133
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      2,
+      3
      ]
     }
    ],
@@ -1269,6 +1374,11 @@
    "penalty_total": [
     5,
     5
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -1292,9 +1402,9 @@
        116
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      3,
+      1
      ]
     },
     {
@@ -1310,8 +1420,8 @@
        122
       ]
      ],
-     "penalty": [
-      0,
+     "restarts": [
+      5,
       0
      ]
     }
@@ -1320,6 +1430,11 @@
    "penalty_total": [
     15,
     0
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -1343,9 +1458,9 @@
        136
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      2,
+      1
      ]
     },
     {
@@ -1361,9 +1476,9 @@
        123
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      2,
+      2
      ]
     }
    ],
@@ -1371,6 +1486,5007 @@
    "penalty_total": [
     0,
     0
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_1",
+   "date": "2025-07-24T18:33",
+   "players": [
+    "Remission",
+    "Rer"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       98,
+       103,
+       127
+      ],
+      [
+       88,
+       123,
+       130
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ],
+     "teams": [
+      [
+       "6851cceb08a73e3c00991e3e",
+       "6851cceb08a73e3c00991e39",
+       "6851cce508a73e3c00991e10",
+       "6851cceb08a73e3c00991e3a",
+       "6851cced08a73e3c00991e4b",
+       "6851ccee08a73e3c00991e57",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11"
+      ],
+      [
+       "6851cce508a73e3c00991e15",
+       "6851cce908a73e3c00991e2f",
+       "6851ccec08a73e3c00991e48",
+       "6851cced08a73e3c00991e4d",
+       "6851cced08a73e3c00991e52",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce708a73e3c00991e22",
+       "6851ccec08a73e3c00991e4a"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       146,
+       146,
+       164
+      ],
+      [
+       112,
+       121,
+       142
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ],
+     "teams": [
+      [
+       "6851ccea08a73e3c00991e35",
+       "6851cceb08a73e3c00991e39",
+       "6851ccea08a73e3c00991e31",
+       "6851cce508a73e3c00991e16",
+       "6851cced08a73e3c00991e4b",
+       "6851cce508a73e3c00991e0f",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11"
+      ],
+      [
+       "68547a1908a73e3c00991f11",
+       "6851cce508a73e3c00991e15",
+       "6851cce908a73e3c00991e2f",
+       "6851cce408a73e3c00991e0b",
+       "6851cced08a73e3c00991e52",
+       "6851cce508a73e3c00991e10",
+       "6851cce908a73e3c00991e2d",
+       "6851cce808a73e3c00991e25"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/703",
+   "penalty_total": [
+    15,
+    0
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_1",
+   "date": "2025-07-24T20:51",
+   "players": [
+    "Jericho",
+    "kisselka"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       117,
+       148,
+       171
+      ],
+      [
+       112,
+       116,
+       165
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ],
+     "teams": [
+      [
+       "6851cce208a73e3c00991dfe",
+       "6851cce908a73e3c00991e2f",
+       "6851cce308a73e3c00991e04",
+       "6851ccee08a73e3c00991e57",
+       "6851cce908a73e3c00991e2c",
+       "6851cce408a73e3c00991e0b",
+       "6851cce408a73e3c00991e09",
+       "6851ccee08a73e3c00991e5b"
+      ],
+      [
+       "6851cced08a73e3c00991e4c",
+       "6851ccef08a73e3c00991e60",
+       "6851cceb08a73e3c00991e3a",
+       "6851ccef08a73e3c00991e5e",
+       "6851ccec08a73e3c00991e49",
+       "6851cce708a73e3c00991e1f",
+       "6851cce508a73e3c00991e10",
+       "6851cce508a73e3c00991e11"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       108,
+       134,
+       127
+      ],
+      [
+       105,
+       120,
+       140
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ],
+     "teams": [
+      [
+       "6851ccef08a73e3c00991e60",
+       "6851cce908a73e3c00991e2f",
+       "6851cce708a73e3c00991e1d",
+       "6851cce708a73e3c00991e1f",
+       "6851ccec08a73e3c00991e49",
+       "6851cce408a73e3c00991e0b",
+       "6851cce408a73e3c00991e09",
+       "6851ccee08a73e3c00991e5b"
+      ],
+      [
+       "6851cce208a73e3c00991dfe",
+       "6851ccec08a73e3c00991e48",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce908a73e3c00991e2b",
+       "6851cced08a73e3c00991e50",
+       "6851cce508a73e3c00991e11",
+       "6851cce508a73e3c00991e10",
+       "6851ccec08a73e3c00991e4a"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/705",
+   "penalty_total": [
+    5,
+    0
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_1",
+   "date": "2025-07-26T18:02",
+   "players": [
+    "Rpyt",
+    "Baam"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       79,
+       95,
+       107
+      ],
+      [
+       101,
+       114,
+       117
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ],
+     "teams": [
+      [
+       "6851ccef08a73e3c00991e60",
+       "6851cce908a73e3c00991e2f",
+       "6851cce608a73e3c00991e19",
+       "6851cce308a73e3c00991e04",
+       "6851cced08a73e3c00991e50",
+       "6851cce508a73e3c00991e11",
+       "6851ccee08a73e3c00991e5b",
+       "6851ccee08a73e3c00991e57"
+      ],
+      [
+       "68547a1908a73e3c00991f11",
+       "6851cce208a73e3c00991dfe",
+       "6851cce708a73e3c00991e1d",
+       "6851cceb08a73e3c00991e38",
+       "6851cce808a73e3c00991e24",
+       "6851cce508a73e3c00991e10",
+       "6851cce408a73e3c00991e09",
+       "6851ccec08a73e3c00991e4a"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       101,
+       118,
+       115
+      ],
+      [
+       84,
+       98,
+       124
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ],
+     "teams": [
+      [
+       "68547a1908a73e3c00991f11",
+       "6851cce908a73e3c00991e2f",
+       "6851cce508a73e3c00991e16",
+       "6851cce608a73e3c00991e19",
+       "6851cce808a73e3c00991e24",
+       "6851ccec08a73e3c00991e49",
+       "6851ccee08a73e3c00991e5b",
+       null
+      ],
+      [
+       "6851cced08a73e3c00991e4b",
+       "6851ccee08a73e3c00991e57",
+       "6851ccef08a73e3c00991e60",
+       "6851cce708a73e3c00991e1d",
+       "6851cced08a73e3c00991e50",
+       "6851ccea08a73e3c00991e31",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce508a73e3c00991e11"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/709",
+   "penalty_total": [
+    0,
+    5
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_1",
+   "date": "2025-07-26T20:21",
+   "players": [
+    "Vell1ar",
+    "touchme"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       95,
+       98,
+       100
+      ],
+      [
+       89,
+       94,
+       102
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ],
+     "teams": [
+      [
+       "6851cce708a73e3c00991e1e",
+       "6851ccec08a73e3c00991e49",
+       "6851cce708a73e3c00991e1d",
+       "6851ccec08a73e3c00991e48",
+       "6851cced08a73e3c00991e50",
+       "6851cce508a73e3c00991e11",
+       "6851cced08a73e3c00991e4e",
+       "6851ccee08a73e3c00991e57"
+      ],
+      [
+       "6851ccef08a73e3c00991e60",
+       "6851cce508a73e3c00991e16",
+       "6851ccee08a73e3c00991e5b",
+       "6851cce408a73e3c00991e0b",
+       "6851cced08a73e3c00991e52",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce408a73e3c00991e09",
+       "6851ccec08a73e3c00991e4a"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/710"
+  },
+  {
+   "tournament": "challonge-afc_4_1",
+   "date": "2025-07-27T17:34",
+   "players": [
+    "Ardy",
+    "Peudan"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       105,
+       121,
+       126
+      ],
+      [
+       92,
+       107,
+       114
+      ]
+     ],
+     "restarts": [
+      2,
+      2
+     ],
+     "teams": [
+      [
+       "6851cce508a73e3c00991e15",
+       "6851cce408a73e3c00991e0b",
+       "6851ccef08a73e3c00991e60",
+       "6851cce308a73e3c00991e04",
+       "6851ccec08a73e3c00991e44",
+       "6851ccec08a73e3c00991e43",
+       "6851cce508a73e3c00991e11",
+       "6851cce408a73e3c00991e09"
+      ],
+      [
+       "6851cce708a73e3c00991e1e",
+       "6851ccee08a73e3c00991e5b",
+       "6851cce908a73e3c00991e2f",
+       "6851cce708a73e3c00991e22",
+       "6851ccef08a73e3c00991e5f",
+       null,
+       "6851ccee08a73e3c00991e59",
+       "6851ccec08a73e3c00991e4a"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       101,
+       104,
+       135
+      ],
+      [
+       103,
+       90,
+       118
+      ]
+     ],
+     "restarts": [
+      3,
+      3
+     ],
+     "teams": [
+      [
+       "6851cce508a73e3c00991e15",
+       "6851cce408a73e3c00991e0b",
+       "6851ccef08a73e3c00991e60",
+       "6851cce308a73e3c00991e04",
+       "6851ccec08a73e3c00991e44",
+       "6851ccec08a73e3c00991e43",
+       "6851cce508a73e3c00991e11",
+       "6851cce408a73e3c00991e09"
+      ],
+      [
+       "6851cce708a73e3c00991e1e",
+       "6851cce908a73e3c00991e2c",
+       "6851cceb08a73e3c00991e3a",
+       "6851ccee08a73e3c00991e5b",
+       "6851ccef08a73e3c00991e5f",
+       "6851cceb08a73e3c00991e3d",
+       "6851ccee08a73e3c00991e59",
+       "6851cce708a73e3c00991e1f"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/713",
+   "penalty_total": [
+    5,
+    5
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_1",
+   "date": "2025-07-27T20:14",
+   "players": [
+    "linkle",
+    "dado"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       98,
+       104,
+       145
+      ],
+      [
+       115,
+       128,
+       163
+      ]
+     ],
+     "restarts": [
+      1,
+      3
+     ],
+     "teams": [
+      [
+       "6851cce908a73e3c00991e2c",
+       "6851cce408a73e3c00991e0b",
+       "6851cce708a73e3c00991e1f",
+       "6851ccee08a73e3c00991e5b",
+       "6851ccee08a73e3c00991e55",
+       "6851ccef08a73e3c00991e5e",
+       null,
+       "6851cce508a73e3c00991e0f"
+      ],
+      [
+       "6851cce308a73e3c00991e04",
+       "6851cce908a73e3c00991e2f",
+       "6851cce608a73e3c00991e1b",
+       "6851cce508a73e3c00991e15",
+       "6851cce808a73e3c00991e24",
+       "6851cce808a73e3c00991e28",
+       "6851ccee08a73e3c00991e57",
+       "6851cce508a73e3c00991e11"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       104,
+       108,
+       116
+      ],
+      [
+       94,
+       124,
+       126
+      ]
+     ],
+     "restarts": [
+      2,
+      0
+     ],
+     "teams": [
+      [
+       "6851ccee08a73e3c00991e55",
+       "6851ccef08a73e3c00991e5e",
+       null,
+       "6851cce508a73e3c00991e0f",
+       "6851ccef08a73e3c00991e5f",
+       "6851cce508a73e3c00991e10",
+       "6851cce708a73e3c00991e1f",
+       "6851cce908a73e3c00991e2d"
+      ],
+      [
+       "6851cce508a73e3c00991e16",
+       "6851cce908a73e3c00991e2f",
+       "6851ccee08a73e3c00991e57",
+       "6851cce408a73e3c00991e09",
+       "6851cced08a73e3c00991e50",
+       "6851cce908a73e3c00991e2c",
+       "6851cce608a73e3c00991e1b",
+       "6851cce508a73e3c00991e11"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/714",
+   "penalty_total": [
+    0,
+    5
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_1",
+   "date": "2025-07-29T15:07",
+   "players": [
+    "Northwar",
+    "ClovesCleyton"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       111,
+       117,
+       110
+      ],
+      [
+       95,
+       126,
+       153
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ],
+     "teams": [
+      [
+       "6851ccea08a73e3c00991e31",
+       "6851ccee08a73e3c00991e5b",
+       "6851cce808a73e3c00991e23",
+       "6851cceb08a73e3c00991e40",
+       "6851cce808a73e3c00991e24",
+       null,
+       "6851ccec08a73e3c00991e4a",
+       "6851ccef08a73e3c00991e5e"
+      ],
+      [
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11",
+       "6851ccee08a73e3c00991e57",
+       "6851cce708a73e3c00991e1d",
+       "6851cceb08a73e3c00991e3a",
+       "6851cce908a73e3c00991e2c",
+       "6851cce408a73e3c00991e0b",
+       "6851cced08a73e3c00991e4b"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/717"
+  },
+  {
+   "tournament": "challonge-afc_4_1",
+   "date": "2025-07-29T17:21",
+   "players": [
+    "Neo",
+    "Divizor"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       91,
+       105,
+       124
+      ],
+      [
+       112,
+       109,
+       146
+      ]
+     ],
+     "restarts": [
+      2,
+      2
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e4b",
+       "6851ccee08a73e3c00991e57",
+       "6851cceb08a73e3c00991e3a",
+       "6851cce708a73e3c00991e1d",
+       "6851cce808a73e3c00991e24",
+       "6851ccec08a73e3c00991e4a",
+       null,
+       "6851cce508a73e3c00991e10"
+      ],
+      [
+       "6851ccec08a73e3c00991e46",
+       "6851cce608a73e3c00991e1b",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11",
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e0b",
+       "6851cce608a73e3c00991e19",
+       "6851ccee08a73e3c00991e5b"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       88,
+       112,
+       115
+      ],
+      [
+       99,
+       144,
+       155
+      ]
+     ],
+     "restarts": [
+      3,
+      3
+     ],
+     "teams": [
+      [
+       "68547a1908a73e3c00991f11",
+       "6851ccec08a73e3c00991e48",
+       "6851cceb08a73e3c00991e38",
+       "6851cce708a73e3c00991e1d",
+       "6851cce508a73e3c00991e11",
+       "6851cced08a73e3c00991e4e",
+       "6851cced08a73e3c00991e4b",
+       null
+      ],
+      [
+       "6851ccec08a73e3c00991e46",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce908a73e3c00991e2f",
+       "6851cce708a73e3c00991e1f",
+       "6851cce708a73e3c00991e1e",
+       "6851ccee08a73e3c00991e59",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce408a73e3c00991e09"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/718",
+   "penalty_total": [
+    5,
+    5
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_1",
+   "date": "2025-07-30T17:47",
+   "players": [
+    "oujikun",
+    "Roronoa"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       141,
+       170,
+       221
+      ],
+      [
+       125,
+       148,
+       162
+      ]
+     ],
+     "restarts": [
+      4,
+      4
+     ],
+     "teams": [
+      [
+       "6851cce508a73e3c00991e16",
+       "6851cce608a73e3c00991e18",
+       "6851cce408a73e3c00991e09",
+       null,
+       "6851ccef08a73e3c00991e5f",
+       "6851cce508a73e3c00991e10",
+       "6851ccef08a73e3c00991e5c",
+       "6851cce508a73e3c00991e11"
+      ],
+      [
+       "6851cced08a73e3c00991e4b",
+       "6851ccee08a73e3c00991e57",
+       "6851cceb08a73e3c00991e3a",
+       "6851cce708a73e3c00991e1d",
+       "6851cced08a73e3c00991e4c",
+       "6851ccec08a73e3c00991e4a",
+       "6851ccef08a73e3c00991e5e",
+       "6851ccee08a73e3c00991e5b"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       156,
+       165,
+       175
+      ],
+      [
+       96,
+       87,
+       115
+      ]
+     ],
+     "restarts": [
+      4,
+      3
+     ],
+     "teams": [
+      [
+       "6851cce908a73e3c00991e2c",
+       "6851cce408a73e3c00991e0b",
+       "6851cce508a73e3c00991e16",
+       "6851cce708a73e3c00991e1d",
+       "6851cce808a73e3c00991e24",
+       "6851cce808a73e3c00991e28",
+       "6851cce408a73e3c00991e09",
+       "6851ccec08a73e3c00991e4a"
+      ],
+      [
+       "6851cced08a73e3c00991e4c",
+       "6851cce508a73e3c00991e11",
+       "6851ccee08a73e3c00991e5b",
+       "6851cce608a73e3c00991e18",
+       "6851ccef08a73e3c00991e5f",
+       "6851ccef08a73e3c00991e5e",
+       null,
+       "6851ccee08a73e3c00991e57"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/724",
+   "penalty_total": [
+    30,
+    20
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_1",
+   "date": "2025-07-30T19:55",
+   "players": [
+    "Liroy",
+    "kisselka"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       108,
+       118,
+       138
+      ],
+      [
+       144,
+       142,
+       194
+      ]
+     ],
+     "restarts": [
+      0,
+      3
+     ],
+     "teams": [
+      [
+       "6851cce308a73e3c00991e04",
+       "6851ccef08a73e3c00991e60",
+       "6851cceb08a73e3c00991e3a",
+       "6851cce408a73e3c00991e0b",
+       null,
+       "6851cce508a73e3c00991e10",
+       "6851ccec08a73e3c00991e4a",
+       "6851ccee08a73e3c00991e59"
+      ],
+      [
+       "6851cced08a73e3c00991e4c",
+       "6851cce508a73e3c00991e11",
+       "6851cce708a73e3c00991e1d",
+       "6851cce608a73e3c00991e18",
+       "6851cced08a73e3c00991e52",
+       "6851cce408a73e3c00991e09",
+       "6851cce808a73e3c00991e28",
+       "6851ccee08a73e3c00991e57"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       112,
+       119,
+       127
+      ],
+      [
+       168,
+       300,
+       300
+      ]
+     ],
+     "restarts": [
+      0,
+      4
+     ],
+     "teams": [
+      [
+       "6851cce708a73e3c00991e1e",
+       null,
+       "6851cce708a73e3c00991e1d",
+       "6851cceb08a73e3c00991e3a",
+       "6851cced08a73e3c00991e52",
+       "6851cce508a73e3c00991e10",
+       "6851cce708a73e3c00991e1f",
+       "6851cce908a73e3c00991e2d"
+      ],
+      [
+       "6851cced08a73e3c00991e4c",
+       "6851ccef08a73e3c00991e60",
+       "6851cce608a73e3c00991e18",
+       "6851ccef08a73e3c00991e5e",
+       "6851ccec08a73e3c00991e45",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11",
+       "6851ccee08a73e3c00991e57"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/725",
+   "penalty_total": [
+    0,
+    5
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_1",
+   "date": "2025-08-01T15:42",
+   "players": [
+    "Pmir",
+    "saintplaza"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       101,
+       116,
+       114
+      ],
+      [
+       129,
+       157,
+       178
+      ]
+     ],
+     "restarts": [
+      2,
+      4
+     ],
+     "teams": [
+      [
+       "6851cce208a73e3c00991dfe",
+       "6851cce508a73e3c00991e15",
+       "6851cce608a73e3c00991e19",
+       "6851ccec08a73e3c00991e43",
+       "6851cced08a73e3c00991e52",
+       "6851ccee08a73e3c00991e59",
+       "6851cce908a73e3c00991e2c",
+       "6851cce708a73e3c00991e1f"
+      ],
+      [
+       "6851cceb08a73e3c00991e3b",
+       "6851cceb08a73e3c00991e3c",
+       "6851cce708a73e3c00991e1d",
+       "6851cce908a73e3c00991e2f",
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e0b",
+       "6851cce508a73e3c00991e10",
+       "6851ccee08a73e3c00991e57"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       107,
+       121,
+       136
+      ],
+      [
+       89,
+       97,
+       105
+      ]
+     ],
+     "restarts": [
+      4,
+      2
+     ],
+     "teams": [
+      [
+       "6851cce208a73e3c00991dfe",
+       "6851cce708a73e3c00991e1d",
+       "6851cce608a73e3c00991e19",
+       "6851ccec08a73e3c00991e43",
+       "6851cce708a73e3c00991e1e",
+       "6851cce908a73e3c00991e2c",
+       "6851cce508a73e3c00991e10",
+       "6851cce708a73e3c00991e1f"
+      ],
+      [
+       "6851ccef08a73e3c00991e60",
+       "6851cce908a73e3c00991e2f",
+       "6851cceb08a73e3c00991e3a",
+       "6851cce408a73e3c00991e0b",
+       "6851cced08a73e3c00991e52",
+       "6851cce808a73e3c00991e28",
+       "6851cce408a73e3c00991e09",
+       "6851ccec08a73e3c00991e4a"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/728",
+   "penalty_total": [
+    15,
+    15
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_1",
+   "date": "2025-08-01T18:19",
+   "players": [
+    "DzeN",
+    "NipodZi"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       95,
+       111,
+       165
+      ],
+      [
+       103,
+       133,
+       128
+      ]
+     ],
+     "restarts": [
+      3,
+      3
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e4b",
+       "6851ccee08a73e3c00991e54",
+       "6851cce708a73e3c00991e1d",
+       "6851ccec08a73e3c00991e48",
+       "6851ccee08a73e3c00991e55",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11",
+       null
+      ],
+      [
+       "6851cced08a73e3c00991e53",
+       "6851cce708a73e3c00991e20",
+       "6851cceb08a73e3c00991e3a",
+       "6851cce308a73e3c00991e04",
+       "6851ccec08a73e3c00991e49",
+       "6851cce908a73e3c00991e2c",
+       "6851cce708a73e3c00991e1e",
+       "6851ccee08a73e3c00991e59"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       90,
+       114,
+       167
+      ],
+      [
+       107,
+       116,
+       138
+      ]
+     ],
+     "restarts": [
+      4,
+      2
+     ],
+     "teams": [
+      [
+       "6851cce208a73e3c00991dfe",
+       "6851cce308a73e3c00991e04",
+       "6851cce608a73e3c00991e19",
+       "6851cce708a73e3c00991e1f",
+       "6851ccee08a73e3c00991e55",
+       null,
+       "6851cce708a73e3c00991e20",
+       "6851ccee08a73e3c00991e59"
+      ],
+      [
+       "6851cced08a73e3c00991e4b",
+       "6851cced08a73e3c00991e4e",
+       "6851cce708a73e3c00991e1d",
+       "6851cceb08a73e3c00991e3a",
+       "6851cced08a73e3c00991e53",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11",
+       "6851cce508a73e3c00991e10"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/729",
+   "penalty_total": [
+    20,
+    5
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_2",
+   "date": "2025-08-08T17:01",
+   "players": [
+    "Peudan",
+    "Odin"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       106,
+       122,
+       137
+      ],
+      [
+       135,
+       133,
+       147
+      ]
+     ],
+     "restarts": [
+      3,
+      3
+     ],
+     "teams": [
+      [
+       "6851cce908a73e3c00991e2c",
+       "6851cce408a73e3c00991e0b",
+       "6851cce708a73e3c00991e1d",
+       "6851cceb08a73e3c00991e3a",
+       "6851cce708a73e3c00991e1e",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce508a73e3c00991e10",
+       "6851ccef08a73e3c00991e5e"
+      ],
+      [
+       "6851cceb08a73e3c00991e39",
+       "688bc19806a0a6f5d327bb58",
+       "6851ccec08a73e3c00991e49",
+       "6851ccee08a73e3c00991e5b",
+       "6851cce408a73e3c00991e0c",
+       "6851cceb08a73e3c00991e3c",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       97,
+       122,
+       109
+      ],
+      [
+       111,
+       116,
+       144
+      ]
+     ],
+     "restarts": [
+      2,
+      0
+     ],
+     "teams": [
+      [
+       "6851cce908a73e3c00991e2f",
+       "6851cce708a73e3c00991e1d",
+       "6851cceb08a73e3c00991e3a",
+       "6851ccec08a73e3c00991e43",
+       "6851cce708a73e3c00991e21",
+       "6851cce408a73e3c00991e0b",
+       "6851ccec08a73e3c00991e49",
+       "6851ccee08a73e3c00991e5b"
+      ],
+      [
+       "6851cce908a73e3c00991e2c",
+       "6851cceb08a73e3c00991e39",
+       "688bc19806a0a6f5d327bb58",
+       "6851ccec08a73e3c00991e48",
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e09",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce508a73e3c00991e10"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/738",
+   "penalty_total": [
+    5,
+    5
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_2",
+   "date": "2025-08-08T19:34",
+   "players": [
+    "DzeN",
+    "Neo"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       142,
+       117,
+       127
+      ],
+      [
+       134,
+       113,
+       134
+      ]
+     ],
+     "restarts": [
+      4,
+      3
+     ],
+     "teams": [
+      [
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e0b",
+       "6851cce508a73e3c00991e10",
+       "6851cceb08a73e3c00991e3a",
+       "6851cced08a73e3c00991e52",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce908a73e3c00991e2d",
+       "6851cce708a73e3c00991e1f"
+      ],
+      [
+       "6851cce808a73e3c00991e24",
+       "6851ccee08a73e3c00991e59",
+       null,
+       "6851ccec08a73e3c00991e4a",
+       "6851cced08a73e3c00991e4b",
+       "6851ccee08a73e3c00991e57",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       99,
+       115,
+       128
+      ],
+      [
+       90,
+       98,
+       105
+      ]
+     ],
+     "restarts": [
+      3,
+      4
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e4b",
+       "6851cce708a73e3c00991e1d",
+       "6851cceb08a73e3c00991e3a",
+       "6851cce508a73e3c00991e11",
+       "6851cced08a73e3c00991e52",
+       "6851cce508a73e3c00991e10",
+       "6851cce908a73e3c00991e2d",
+       "6851cce708a73e3c00991e1f"
+      ],
+      [
+       "6851cced08a73e3c00991e4e",
+       "6851ccee08a73e3c00991e57",
+       "6851cce308a73e3c00991e04",
+       "6851ccec08a73e3c00991e48",
+       "6851ccee08a73e3c00991e56",
+       "6851cce708a73e3c00991e20",
+       "6851cce308a73e3c00991e03",
+       "6851cce608a73e3c00991e1b"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/739",
+   "penalty_total": [
+    20,
+    20
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_2",
+   "date": "2025-08-09T17:52",
+   "players": [
+    "Pmir",
+    "Meji"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       116,
+       150,
+       146
+      ],
+      [
+       115,
+       121,
+       112
+      ]
+     ],
+     "restarts": [
+      2,
+      4
+     ],
+     "teams": [
+      [
+       "6851cce508a73e3c00991e15",
+       "6851cce908a73e3c00991e2f",
+       "6851cce708a73e3c00991e1d",
+       "6851cce708a73e3c00991e1f",
+       "6851ccec08a73e3c00991e44",
+       "6851ccee08a73e3c00991e59",
+       "6851cce408a73e3c00991e09",
+       "6851ccec08a73e3c00991e4a"
+      ],
+      [
+       "6851ccee08a73e3c00991e55",
+       null,
+       "6851ccee08a73e3c00991e5b",
+       "6851cce508a73e3c00991e11",
+       "6851cce508a73e3c00991e10",
+       "6851cced08a73e3c00991e52",
+       "6851cce908a73e3c00991e2c",
+       "6851cce608a73e3c00991e1b"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       99,
+       118,
+       144
+      ],
+      [
+       131,
+       141,
+       300
+      ]
+     ],
+     "restarts": [
+      3,
+      4
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e52",
+       "6851cce808a73e3c00991e28",
+       "6851cce908a73e3c00991e2d",
+       "6851cceb08a73e3c00991e3a",
+       "6851ccec08a73e3c00991e44",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11",
+       "6851cce708a73e3c00991e1f"
+      ],
+      [
+       "6851ccee08a73e3c00991e55",
+       null,
+       "6851ccee08a73e3c00991e5b",
+       "6851cced08a73e3c00991e53",
+       "6851cce508a73e3c00991e10",
+       "6851cce808a73e3c00991e24",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce708a73e3c00991e22"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/742",
+   "penalty_total": [
+    5,
+    30
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_2",
+   "date": "2025-08-09T20:08",
+   "players": [
+    "linkle",
+    "Vell1ar"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       84,
+       123,
+       127
+      ],
+      [
+       112,
+       112,
+       137
+      ]
+     ],
+     "restarts": [
+      2,
+      3
+     ],
+     "teams": [
+      [
+       "6851cce208a73e3c00991dfe",
+       "6851ccef08a73e3c00991e60",
+       "6851cce908a73e3c00991e2f",
+       "6851cce608a73e3c00991e19",
+       "6851ccec08a73e3c00991e49",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11",
+       "6851cce708a73e3c00991e1f"
+      ],
+      [
+       "6851ccee08a73e3c00991e55",
+       "6851ccef08a73e3c00991e5e",
+       null,
+       "6851cce508a73e3c00991e0f",
+       "6851ccec08a73e3c00991e47",
+       "6851cce708a73e3c00991e20",
+       "6851ccee08a73e3c00991e57",
+       "6851cced08a73e3c00991e4e"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       107,
+       147,
+       125
+      ],
+      [
+       105,
+       125,
+       119
+      ]
+     ],
+     "restarts": [
+      3,
+      1
+     ],
+     "teams": [
+      [
+       "6851cce508a73e3c00991e16",
+       null,
+       "6851cced08a73e3c00991e53",
+       "6851cce708a73e3c00991e20",
+       "6851ccec08a73e3c00991e49",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11",
+       "6851ccee08a73e3c00991e5b"
+      ],
+      [
+       "6851cce208a73e3c00991dfe",
+       "6851cce708a73e3c00991e1f",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce708a73e3c00991e1d",
+       "6851ccec08a73e3c00991e47",
+       "6851cce708a73e3c00991e1e",
+       "6851ccee08a73e3c00991e57",
+       "6851cce508a73e3c00991e12"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/743",
+   "penalty_total": [
+    5,
+    5
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_2",
+   "date": "2025-08-11T17:53",
+   "players": [
+    "Liroy",
+    "Rpyt"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       99,
+       119,
+       139
+      ],
+      [
+       94,
+       121,
+       145
+      ]
+     ],
+     "restarts": [
+      2,
+      4
+     ],
+     "teams": [
+      [
+       "6851cce708a73e3c00991e1e",
+       "6851ccec08a73e3c00991e49",
+       "6851ccee08a73e3c00991e5b",
+       "6851ccec08a73e3c00991e48",
+       null,
+       "6851ccea08a73e3c00991e31",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce408a73e3c00991e09"
+      ],
+      [
+       "6851cced08a73e3c00991e4c",
+       "6851cceb08a73e3c00991e3a",
+       "6851ccef08a73e3c00991e60",
+       "6851cce508a73e3c00991e11",
+       "6851cce908a73e3c00991e2c",
+       "6851cce408a73e3c00991e0b",
+       "6851cce508a73e3c00991e10",
+       "6851ccee08a73e3c00991e59"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       94,
+       105,
+       121
+      ],
+      [
+       106,
+       112,
+       119
+      ]
+     ],
+     "restarts": [
+      2,
+      3
+     ],
+     "teams": [
+      [
+       "6851cce908a73e3c00991e2c",
+       "6851cce508a73e3c00991e10",
+       "6851cceb08a73e3c00991e3a",
+       "6851ccee08a73e3c00991e5b",
+       "6851ccec08a73e3c00991e44",
+       "6851ccec08a73e3c00991e49",
+       "6851cce508a73e3c00991e11",
+       null
+      ],
+      [
+       "6851ccef08a73e3c00991e60",
+       "6851cce708a73e3c00991e1f",
+       "6851cce308a73e3c00991e04",
+       "6851cce708a73e3c00991e1d",
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e0b",
+       "6851ccee08a73e3c00991e57",
+       "6851cced08a73e3c00991e4e"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/746",
+   "penalty_total": [
+    0,
+    20
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_2",
+   "date": "2025-08-11T20:21",
+   "players": [
+    "Peudan",
+    "NipodZi"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       86,
+       112,
+       102
+      ],
+      [
+       104,
+       111,
+       126
+      ]
+     ],
+     "restarts": [
+      2,
+      3
+     ],
+     "teams": [
+      [
+       "6851cce208a73e3c00991dfe",
+       "6851cce508a73e3c00991e16",
+       "6851cce708a73e3c00991e1f",
+       "6851cce608a73e3c00991e19",
+       "6851cce808a73e3c00991e24",
+       "6851cce808a73e3c00991e28",
+       "6851cce508a73e3c00991e11",
+       "6851ccee08a73e3c00991e57"
+      ],
+      [
+       "6851cced08a73e3c00991e4b",
+       "6851cced08a73e3c00991e4e",
+       "6851cce708a73e3c00991e1d",
+       "6851cceb08a73e3c00991e3a",
+       "6851cce708a73e3c00991e1e",
+       "6851ccec08a73e3c00991e49",
+       "6851cce408a73e3c00991e0b",
+       "6851cce908a73e3c00991e2b"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       97,
+       106,
+       110
+      ],
+      [
+       137,
+       152,
+       237
+      ]
+     ],
+     "restarts": [
+      0,
+      4
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e4b",
+       "6851cced08a73e3c00991e4e",
+       "6851cceb08a73e3c00991e3a",
+       "6851ccec08a73e3c00991e48",
+       "6851ccec08a73e3c00991e49",
+       "6851cce408a73e3c00991e0b",
+       "6851cce508a73e3c00991e11",
+       "6851ccee08a73e3c00991e5b"
+      ],
+      [
+       "6851cce208a73e3c00991dfe",
+       "6851cce708a73e3c00991e1d",
+       "6851cce508a73e3c00991e16",
+       "6851cce608a73e3c00991e1b",
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e09",
+       "6851cce608a73e3c00991e19",
+       "6851ccee08a73e3c00991e57"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/747",
+   "penalty_total": [
+    0,
+    20
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_2",
+   "date": "2025-08-12T17:20",
+   "players": [
+    "koldun",
+    "Baam"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       90,
+       114,
+       126
+      ],
+      [
+       85,
+       103,
+       109
+      ]
+     ],
+     "restarts": [
+      3,
+      1
+     ],
+     "teams": [
+      [
+       "68547a1908a73e3c00991f11",
+       "6851cce908a73e3c00991e2f",
+       "6851cceb08a73e3c00991e3a",
+       "6851cce608a73e3c00991e19",
+       "6851ccee08a73e3c00991e58",
+       "6851ccee08a73e3c00991e59",
+       "6851cce508a73e3c00991e11",
+       "6851ccee08a73e3c00991e5b"
+      ],
+      [
+       "6851cce208a73e3c00991dfe",
+       "6851ccef08a73e3c00991e60",
+       "6851cce708a73e3c00991e1d",
+       "6851ccee08a73e3c00991e57",
+       "6851cced08a73e3c00991e50",
+       "6851cce808a73e3c00991e24",
+       "6851ccec08a73e3c00991e4a",
+       "6851ccef08a73e3c00991e5e"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       79,
+       96,
+       116
+      ],
+      [
+       65,
+       92,
+       83
+      ]
+     ],
+     "restarts": [
+      2,
+      2
+     ],
+     "teams": [
+      [
+       "6851cce208a73e3c00991dfe",
+       "6851cce908a73e3c00991e2f",
+       "6851ccef08a73e3c00991e60",
+       "6851ccec08a73e3c00991e49",
+       "6851cced08a73e3c00991e50",
+       "6851cce508a73e3c00991e11",
+       "6851ccee08a73e3c00991e5b",
+       "6851ccee08a73e3c00991e57"
+      ],
+      [
+       "68547a1908a73e3c00991f11",
+       "6851cce708a73e3c00991e1d",
+       "6851ccec08a73e3c00991e48",
+       "6851cce408a73e3c00991e0b",
+       "6851cce808a73e3c00991e24",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce408a73e3c00991e09",
+       "6851ccec08a73e3c00991e4a"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/752",
+   "penalty_total": [
+    5,
+    0
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_2",
+   "date": "2025-08-12T19:51",
+   "players": [
+    "diagolt",
+    "Roronoa"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       133,
+       127,
+       168
+      ],
+      [
+       145,
+       156,
+       161
+      ]
+     ],
+     "restarts": [
+      1,
+      3
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e4e",
+       "6851ccee08a73e3c00991e57",
+       "6851cce708a73e3c00991e1d",
+       "6851cce308a73e3c00991e04",
+       "6851ccec08a73e3c00991e49",
+       "6851cce408a73e3c00991e09",
+       "6851cce608a73e3c00991e1b",
+       null
+      ],
+      [
+       "6851cced08a73e3c00991e4b",
+       "6851ccee08a73e3c00991e54",
+       "6851cceb08a73e3c00991e3a",
+       "6851cce508a73e3c00991e10",
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e0b",
+       "6851ccec08a73e3c00991e4a",
+       "6851ccee08a73e3c00991e5b"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       148,
+       137,
+       300
+      ],
+      [
+       118,
+       124,
+       154
+      ]
+     ],
+     "restarts": [
+      4,
+      2
+     ],
+     "teams": [
+      [
+       "6851cce408a73e3c00991e09",
+       "6851cce708a73e3c00991e20",
+       "6851cce708a73e3c00991e1d",
+       "6851ccee08a73e3c00991e5b",
+       "6851cced08a73e3c00991e4b",
+       "6851ccee08a73e3c00991e57",
+       null,
+       "6851cce708a73e3c00991e22"
+      ],
+      [
+       "6851cced08a73e3c00991e4c",
+       "6851cce508a73e3c00991e11",
+       "6851cceb08a73e3c00991e3a",
+       "6851cce308a73e3c00991e04",
+       "6851cce708a73e3c00991e1e",
+       "6851cce508a73e3c00991e10",
+       "6851cced08a73e3c00991e4e",
+       "6851cce508a73e3c00991e0f"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/753",
+   "penalty_total": [
+    0,
+    5
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_2",
+   "date": "2025-08-14T17:19",
+   "players": [
+    "Rer",
+    "Smert"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       94,
+       84,
+       99
+      ],
+      [
+       66,
+       107,
+       97
+      ]
+     ],
+     "restarts": [
+      2,
+      1
+     ],
+     "teams": [
+      [
+       "6851ccee08a73e3c00991e55",
+       "6851ccef08a73e3c00991e5e",
+       null,
+       "6851ccec08a73e3c00991e48",
+       "6851ccef08a73e3c00991e5f",
+       "6851ccee08a73e3c00991e57",
+       "6851cce508a73e3c00991e10",
+       "6851cced08a73e3c00991e4d"
+      ],
+      [
+       "6851cce208a73e3c00991dfe",
+       "6851cce908a73e3c00991e2f",
+       "6851ccef08a73e3c00991e60",
+       "6851cce608a73e3c00991e19",
+       "6851cced08a73e3c00991e4c",
+       "6851cce608a73e3c00991e18",
+       "6851ccee08a73e3c00991e5b",
+       "6851cce508a73e3c00991e11"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       88,
+       99,
+       101
+      ],
+      [
+       81,
+       105,
+       126
+      ]
+     ],
+     "restarts": [
+      2,
+      2
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e50",
+       "6851ccee08a73e3c00991e57",
+       "6851cce508a73e3c00991e11",
+       "6851ccec08a73e3c00991e48",
+       "6851ccef08a73e3c00991e5f",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce708a73e3c00991e22",
+       "6851cce508a73e3c00991e10"
+      ],
+      [
+       "6851cce708a73e3c00991e1d",
+       "6851cce908a73e3c00991e2f",
+       "6851cce208a73e3c00991dfe",
+       "6851cce708a73e3c00991e1f",
+       "6851cce408a73e3c00991e09",
+       null,
+       "6851ccee08a73e3c00991e58",
+       "6851ccee08a73e3c00991e59"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/757",
+   "penalty_total": [
+    0,
+    0
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_2",
+   "date": "2025-08-14T20:23",
+   "players": [
+    "Antur",
+    "Liroy"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       115,
+       117,
+       160
+      ],
+      [
+       104,
+       115,
+       136
+      ]
+     ],
+     "restarts": [
+      4,
+      2
+     ],
+     "teams": [
+      [
+       "6851cce508a73e3c00991e16",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11",
+       "6851ccee08a73e3c00991e57",
+       "6851cced08a73e3c00991e52",
+       "6851cce808a73e3c00991e28",
+       "6851cceb08a73e3c00991e39",
+       "6851cce708a73e3c00991e1f"
+      ],
+      [
+       "6851cce708a73e3c00991e1e",
+       "6851cce908a73e3c00991e2c",
+       "6851cce708a73e3c00991e1d",
+       "6851cceb08a73e3c00991e3a",
+       null,
+       "6851cce508a73e3c00991e10",
+       "6851ccee08a73e3c00991e59",
+       "6851ccec08a73e3c00991e4a"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       90,
+       119,
+       128
+      ],
+      [
+       105,
+       113,
+       115
+      ]
+     ],
+     "restarts": [
+      3,
+      2
+     ],
+     "teams": [
+      [
+       "6851cce508a73e3c00991e16",
+       "6851cced08a73e3c00991e53",
+       null,
+       "6851cceb08a73e3c00991e3f",
+       "6851cce808a73e3c00991e24",
+       "6851ccec08a73e3c00991e49",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11"
+      ],
+      [
+       "6851cce908a73e3c00991e2c",
+       "6851cce708a73e3c00991e1e",
+       "6851cce708a73e3c00991e1d",
+       "6851cceb08a73e3c00991e3a",
+       "6851cced08a73e3c00991e52",
+       "6851cce508a73e3c00991e10",
+       "6851cce708a73e3c00991e1f",
+       "6851cce908a73e3c00991e2d"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/758",
+   "penalty_total": [
+    20,
+    0
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_2",
+   "date": "2025-08-15T14:51",
+   "players": [
+    "Secabu",
+    "ClovesCleyton"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       120,
+       121,
+       142
+      ],
+      [
+       89,
+       104,
+       115
+      ]
+     ],
+     "restarts": [
+      4,
+      1
+     ],
+     "teams": [
+      [
+       "6851ccea08a73e3c00991e35",
+       "6851cceb08a73e3c00991e39",
+       "6851cce308a73e3c00991e04",
+       "6851ccea08a73e3c00991e31",
+       "6851cce508a73e3c00991e10",
+       "6851ccec08a73e3c00991e49",
+       "6851cce408a73e3c00991e09",
+       "6851cce908a73e3c00991e2b"
+      ],
+      [
+       "6851cce208a73e3c00991dfe",
+       "6851cce708a73e3c00991e1f",
+       "6851cce708a73e3c00991e1d",
+       "6851cce608a73e3c00991e19",
+       "6851ccef08a73e3c00991e5f",
+       "6851ccee08a73e3c00991e57",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce508a73e3c00991e11"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       111,
+       128,
+       116
+      ],
+      [
+       95,
+       116,
+       137
+      ]
+     ],
+     "restarts": [
+      4,
+      0
+     ],
+     "teams": [
+      [
+       "6851ccea08a73e3c00991e35",
+       "6851cceb08a73e3c00991e3a",
+       "6851ccea08a73e3c00991e31",
+       "6851cce308a73e3c00991e01",
+       "6851ccef08a73e3c00991e5f",
+       "6851ccef08a73e3c00991e5e",
+       "6851ccec08a73e3c00991e49",
+       "6851cce708a73e3c00991e1f"
+      ],
+      [
+       "6851ccee08a73e3c00991e57",
+       "6851cce708a73e3c00991e1d",
+       "6851cce508a73e3c00991e16",
+       "6851cced08a73e3c00991e4e",
+       "6851cced08a73e3c00991e52",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e10"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/761",
+   "penalty_total": [
+    30,
+    0
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_2",
+   "date": "2025-08-15T17:14",
+   "players": [
+    "Kutsuki",
+    "Northwar"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       92,
+       124,
+       120
+      ],
+      [
+       95,
+       94,
+       93
+      ]
+     ],
+     "restarts": [
+      2,
+      1
+     ],
+     "teams": [
+      [
+       "6851cce508a73e3c00991e16",
+       "6851cce708a73e3c00991e1d",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce708a73e3c00991e1f",
+       "6851cced08a73e3c00991e4b",
+       "6851ccee08a73e3c00991e57",
+       "6851cce508a73e3c00991e10",
+       "6851cce508a73e3c00991e11"
+      ],
+      [
+       "6851ccec08a73e3c00991e47",
+       "6851ccec08a73e3c00991e49",
+       "6851ccef08a73e3c00991e61",
+       "6851ccee08a73e3c00991e54",
+       "6851cce808a73e3c00991e24",
+       "6851cce808a73e3c00991e28",
+       "6851cce408a73e3c00991e09",
+       "6851ccec08a73e3c00991e4a"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       93,
+       118,
+       131
+      ],
+      [
+       117,
+       116,
+       118
+      ]
+     ],
+     "restarts": [
+      2,
+      2
+     ],
+     "teams": [
+      [
+       "6851cce508a73e3c00991e16",
+       "6851ccec08a73e3c00991e49",
+       "6851cce708a73e3c00991e1d",
+       "6851cce908a73e3c00991e2b",
+       "6851cced08a73e3c00991e4b",
+       "6851ccee08a73e3c00991e57",
+       "6851cce408a73e3c00991e09",
+       "6851cce708a73e3c00991e20"
+      ],
+      [
+       "6851ccee08a73e3c00991e55",
+       null,
+       "6851ccef08a73e3c00991e5e",
+       "6851cce508a73e3c00991e0f",
+       "6851cce808a73e3c00991e24",
+       "6851cce808a73e3c00991e28",
+       "6851cce708a73e3c00991e1f",
+       "6851cce508a73e3c00991e11"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/762",
+   "penalty_total": [
+    0,
+    0
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-08-23T15:05",
+   "players": [
+    "Pmir",
+    "Rpyt02"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       115,
+       102,
+       121
+      ],
+      [
+       114,
+       107,
+       130
+      ]
+     ],
+     "restarts": [
+      4,
+      2
+     ],
+     "teams": [
+      [
+       "6851cceb08a73e3c00991e38",
+       "6851cce508a73e3c00991e10",
+       "688bc19806a0a6f5d327bb58",
+       "6851ccee08a73e3c00991e57",
+       "68547a1908a73e3c00991f11",
+       "6851ccec08a73e3c00991e49",
+       "6851cce708a73e3c00991e1d",
+       "6851cceb08a73e3c00991e40"
+      ],
+      [
+       "6851ccec08a73e3c00991e47",
+       "6851ccef08a73e3c00991e5c",
+       "6851ccea08a73e3c00991e31",
+       "6851ccea08a73e3c00991e32",
+       "6851cce908a73e3c00991e2c",
+       "6851cce408a73e3c00991e0b",
+       "6851ccef08a73e3c00991e60",
+       "6851ccec08a73e3c00991e43"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       119,
+       110,
+       136
+      ],
+      [
+       109,
+       111,
+       106
+      ]
+     ],
+     "restarts": [
+      1,
+      2
+     ],
+     "teams": [
+      [
+       "6851ccec08a73e3c00991e47",
+       "6851ccea08a73e3c00991e32",
+       "6851ccee08a73e3c00991e54",
+       "6851cce908a73e3c00991e2b",
+       "68547a1908a73e3c00991f11",
+       "6851cce908a73e3c00991e2c",
+       "6851cce908a73e3c00991e2f",
+       "6851cceb08a73e3c00991e40"
+      ],
+      [
+       "688bc19806a0a6f5d327bb58",
+       "6851cce408a73e3c00991e0b",
+       "6851ccee08a73e3c00991e59",
+       "6851cce508a73e3c00991e10",
+       "6851cce708a73e3c00991e1e",
+       "6851ccec08a73e3c00991e49",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/771",
+   "penalty_total": [
+    15,
+    0
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-08-23T17:31",
+   "players": [
+    "TouchMe",
+    "Senoen"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       112,
+       134,
+       109
+      ],
+      [
+       112,
+       120,
+       139
+      ]
+     ],
+     "restarts": [
+      3,
+      4
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e52",
+       "6851cce508a73e3c00991e10",
+       "6851cce408a73e3c00991e0b",
+       "6851cce908a73e3c00991e2b",
+       "6851cced08a73e3c00991e4b",
+       "6851ccee08a73e3c00991e57",
+       null,
+       "6851cce508a73e3c00991e11"
+      ],
+      [
+       "6851cce808a73e3c00991e24",
+       "6851cce408a73e3c00991e09",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce808a73e3c00991e28",
+       "6851ccee08a73e3c00991e58",
+       "6851ccee08a73e3c00991e59",
+       "6851cce908a73e3c00991e2f",
+       "6851cceb08a73e3c00991e3a"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       117,
+       102,
+       118
+      ],
+      [
+       104,
+       101,
+       109
+      ]
+     ],
+     "restarts": [
+      0,
+      2
+     ],
+     "teams": [
+      [
+       "6851cce808a73e3c00991e24",
+       "6851cce808a73e3c00991e28",
+       "6851cce708a73e3c00991e22",
+       "6851ccec08a73e3c00991e4a",
+       "6851cced08a73e3c00991e4b",
+       "6851ccee08a73e3c00991e57",
+       null,
+       "6851cce708a73e3c00991e20"
+      ],
+      [
+       "6851cced08a73e3c00991e52",
+       "6851cce408a73e3c00991e0b",
+       "6851cce608a73e3c00991e1b",
+       "6851ccee08a73e3c00991e59",
+       "6851ccee08a73e3c00991e58",
+       "6851cce508a73e3c00991e11",
+       "6851ccef08a73e3c00991e5e",
+       "6851cceb08a73e3c00991e3a"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/772",
+   "penalty_total": [
+    5,
+    15
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-08-23T19:55",
+   "players": [
+    "Velliar",
+    "Liroy"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       189,
+       179,
+       181
+      ],
+      [
+       124,
+       129,
+       135
+      ]
+     ],
+     "restarts": [
+      0,
+      2
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e50",
+       "6851cce408a73e3c00991e0b",
+       "6851cce408a73e3c00991e0a",
+       "6851cce608a73e3c00991e1b",
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e09",
+       "6851ccef08a73e3c00991e5c",
+       "6851ccee08a73e3c00991e57"
+      ],
+      [
+       "6851cce908a73e3c00991e2c",
+       "6851ccee08a73e3c00991e59",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce908a73e3c00991e2b",
+       "6851ccec08a73e3c00991e44",
+       "6851cce508a73e3c00991e11",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce508a73e3c00991e10"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       150,
+       158,
+       300
+      ],
+      [
+       155,
+       170,
+       127
+      ]
+     ],
+     "restarts": [
+      4,
+      2
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e50",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce508a73e3c00991e10",
+       "6851ccee08a73e3c00991e59",
+       "6851cced08a73e3c00991e4b",
+       "6851ccee08a73e3c00991e57",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce408a73e3c00991e09"
+      ],
+      [
+       "6851cced08a73e3c00991e51",
+       "6851cce908a73e3c00991e2c",
+       "6851cce408a73e3c00991e0b",
+       "6851cce608a73e3c00991e1b",
+       "6851ccee08a73e3c00991e55",
+       "6851cce508a73e3c00991e11",
+       "6851cce708a73e3c00991e22",
+       "6851cce508a73e3c00991e0f"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/773",
+   "penalty_total": [
+    0,
+    0
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-08-24T17:47",
+   "players": [
+    "ClovesCleyton",
+    "Linkle"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       114,
+       105,
+       126
+      ],
+      [
+       117,
+       111,
+       165
+      ]
+     ],
+     "restarts": [
+      2,
+      4
+     ],
+     "teams": [
+      [
+       "6851ccec08a73e3c00991e47",
+       "6851cce408a73e3c00991e0b",
+       "6851cce608a73e3c00991e1b",
+       "6851ccee08a73e3c00991e54",
+       "6851cced08a73e3c00991e52",
+       "6851cce508a73e3c00991e10",
+       null,
+       "6851ccec08a73e3c00991e4a"
+      ],
+      [
+       "6851cce408a73e3c00991e0a",
+       "6851ccee08a73e3c00991e59",
+       "6851cce608a73e3c00991e19",
+       "6851cce708a73e3c00991e1f",
+       "6851ccef08a73e3c00991e5f",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce508a73e3c00991e11",
+       "6851cce908a73e3c00991e2b"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       129,
+       114,
+       149
+      ],
+      [
+       164,
+       179,
+       161
+      ]
+     ],
+     "restarts": [
+      0,
+      3
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e52",
+       "6851cce808a73e3c00991e28",
+       "6851cce408a73e3c00991e09",
+       "6851ccec08a73e3c00991e4a",
+       "6851cced08a73e3c00991e4b",
+       "6851cced08a73e3c00991e4e",
+       "6851ccec08a73e3c00991e49",
+       "6851cce508a73e3c00991e11"
+      ],
+      [
+       "6851ccee08a73e3c00991e59",
+       "6851cce508a73e3c00991e10",
+       "6851cce408a73e3c00991e0b",
+       "6851cce608a73e3c00991e1b",
+       "6851cce208a73e3c00991dfe",
+       "6851cce908a73e3c00991e2f",
+       "6851ccee08a73e3c00991e57",
+       "6851cce708a73e3c00991e1f"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/776",
+   "penalty_total": [
+    0,
+    20
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-08-24T19:25",
+   "players": [
+    "Ardy",
+    "Northwar"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       171,
+       134,
+       157
+      ],
+      [
+       130,
+       169,
+       158
+      ]
+     ],
+     "restarts": [
+      2,
+      2
+     ],
+     "teams": [
+      [
+       "6851cce908a73e3c00991e2c",
+       "6851cce408a73e3c00991e0a",
+       "6851ccea08a73e3c00991e31",
+       "6851cce708a73e3c00991e1f",
+       "6851ccef08a73e3c00991e60",
+       "6851cce208a73e3c00991dfe",
+       "6851cce308a73e3c00991e04",
+       "6851cce608a73e3c00991e19"
+      ],
+      [
+       "6851cce908a73e3c00991e2a",
+       "6851ccee08a73e3c00991e59",
+       "6851cce408a73e3c00991e0b",
+       "6851cce608a73e3c00991e1b",
+       "6851cce808a73e3c00991e23",
+       "6851cce508a73e3c00991e10",
+       "6851cce708a73e3c00991e1d",
+       "6851cce508a73e3c00991e11"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       155,
+       139,
+       159
+      ],
+      [
+       116,
+       112,
+       118
+      ]
+     ],
+     "restarts": [
+      1,
+      2
+     ],
+     "teams": [
+      [
+       "6851cce908a73e3c00991e2c",
+       "6851cce308a73e3c00991e03",
+       "6851cce708a73e3c00991e1f",
+       "6851cce408a73e3c00991e0a",
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e0b",
+       "6851cce608a73e3c00991e1b",
+       null
+      ],
+      [
+       "6851ccec08a73e3c00991e47",
+       "6851cceb08a73e3c00991e38",
+       "6851ccee08a73e3c00991e59",
+       "6851ccee08a73e3c00991e57",
+       "6851cce808a73e3c00991e23",
+       "6851cce708a73e3c00991e1d",
+       "6851cce508a73e3c00991e10",
+       "6851cce508a73e3c00991e11"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/777",
+   "penalty_total": [
+    0,
+    0
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-08-25T14:53",
+   "players": [
+    "Nipodzi",
+    "Roronoa"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       116,
+       123,
+       107
+      ],
+      [
+       120,
+       108,
+       125
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e52",
+       "6851cce908a73e3c00991e2c",
+       "6851cce508a73e3c00991e10",
+       "6851cce708a73e3c00991e1f",
+       "6851cced08a73e3c00991e53",
+       "6851ccee08a73e3c00991e55",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e0f"
+      ],
+      [
+       "6851cce808a73e3c00991e24",
+       "6851ccec08a73e3c00991e4a",
+       "6851ccef08a73e3c00991e5e",
+       null,
+       "6851cced08a73e3c00991e4b",
+       "6851cce408a73e3c00991e0b",
+       "6851ccee08a73e3c00991e57",
+       "6851cce508a73e3c00991e11"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       130,
+       140,
+       118
+      ],
+      [
+       104,
+       110,
+       114
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ],
+     "teams": [
+      [
+       "6851cce408a73e3c00991e0a",
+       "6851cce508a73e3c00991e10",
+       "6851cce908a73e3c00991e2c",
+       "6851cce708a73e3c00991e1f",
+       "6851ccee08a73e3c00991e55",
+       "6851cced08a73e3c00991e53",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce708a73e3c00991e22"
+      ],
+      [
+       "6851cced08a73e3c00991e52",
+       "6851ccea08a73e3c00991e30",
+       "6851cced08a73e3c00991e4e",
+       "6851cce808a73e3c00991e28",
+       "6851cce808a73e3c00991e24",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce508a73e3c00991e11",
+       "6851cce408a73e3c00991e09"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/780",
+   "penalty_total": [
+    5,
+    0
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-08-25T17:14",
+   "players": [
+    "Kutsuki",
+    "Smertik"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       121,
+       130,
+       135
+      ],
+      [
+       121,
+       130,
+       143
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e52",
+       "6851cce908a73e3c00991e2d",
+       "6851cce808a73e3c00991e28",
+       "6851cce608a73e3c00991e1b",
+       "6851ccee08a73e3c00991e54",
+       "6851cce408a73e3c00991e0b",
+       "6851cce908a73e3c00991e2c",
+       "6851cce708a73e3c00991e1f"
+      ],
+      [
+       "6851cceb08a73e3c00991e3e",
+       "6851cceb08a73e3c00991e39",
+       "6851cce808a73e3c00991e26",
+       "6851cce508a73e3c00991e10",
+       "6851ccec08a73e3c00991e49",
+       "6851ccef08a73e3c00991e60",
+       "6851cce408a73e3c00991e09",
+       null
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       117,
+       109,
+       130
+      ],
+      [
+       117,
+       113,
+       129
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ],
+     "teams": [
+      [
+       "6851ccea08a73e3c00991e34",
+       "6851ccec08a73e3c00991e49",
+       "6851cceb08a73e3c00991e3b",
+       "6851cceb08a73e3c00991e3c",
+       "6851cced08a73e3c00991e52",
+       "6851cce908a73e3c00991e2d",
+       "6851cce508a73e3c00991e10",
+       "6851cce708a73e3c00991e1f"
+      ],
+      [
+       "6851cceb08a73e3c00991e3e",
+       "6851cceb08a73e3c00991e39",
+       "6851cce808a73e3c00991e26",
+       "6851ccea08a73e3c00991e31",
+       "6851cce908a73e3c00991e2c",
+       "6851cce708a73e3c00991e1d",
+       "6851ccef08a73e3c00991e60",
+       "6851cce408a73e3c00991e0b"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/781",
+   "penalty_total": [
+    5,
+    20
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-08-28T16:50",
+   "players": [
+    "Velliar",
+    "Pmir"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       91,
+       96,
+       110
+      ],
+      [
+       96,
+       91,
+       112
+      ]
+     ],
+     "restarts": [
+      1,
+      3
+     ],
+     "teams": [
+      [
+       "6851ccec08a73e3c00991e47",
+       "6851cce308a73e3c00991e03",
+       "6851cce708a73e3c00991e1f",
+       "6851ccee08a73e3c00991e59",
+       "6851cce708a73e3c00991e1e",
+       "6851ccec08a73e3c00991e49",
+       "6851ccee08a73e3c00991e57",
+       "6851cced08a73e3c00991e4e"
+      ],
+      [
+       "6851cced08a73e3c00991e52",
+       "6851cce508a73e3c00991e10",
+       "6851ccec08a73e3c00991e4a",
+       null,
+       "6851cced08a73e3c00991e50",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11",
+       "6851cce608a73e3c00991e1b"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       98,
+       97,
+       112
+      ],
+      [
+       96,
+       105,
+       106
+      ]
+     ],
+     "restarts": [
+      3,
+      3
+     ],
+     "teams": [
+      [
+       "6851ccec08a73e3c00991e47",
+       "6851cce308a73e3c00991e03",
+       "6851ccee08a73e3c00991e59",
+       "6851cce708a73e3c00991e1f",
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e0b",
+       "6851ccec08a73e3c00991e49",
+       "6851ccee08a73e3c00991e57"
+      ],
+      [
+       "6851cced08a73e3c00991e52",
+       "6851cce508a73e3c00991e10",
+       null,
+       "6851ccec08a73e3c00991e4a",
+       "6851cced08a73e3c00991e50",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11",
+       "6851cce608a73e3c00991e1b"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/787",
+   "penalty_total": [
+    5,
+    10
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-08-28T19:47",
+   "players": [
+    "Senoen",
+    "gDado"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       87,
+       91,
+       126
+      ],
+      [
+       120,
+       124,
+       127
+      ]
+     ],
+     "restarts": [
+      0,
+      0
+     ],
+     "teams": [
+      [
+       "6851cce808a73e3c00991e24",
+       "6851cce408a73e3c00991e09",
+       "6851ccec08a73e3c00991e4a",
+       "6851ccef08a73e3c00991e5e",
+       "6851ccee08a73e3c00991e58",
+       "6851ccef08a73e3c00991e60",
+       "6851cce908a73e3c00991e2f",
+       "6851cce508a73e3c00991e11"
+      ],
+      [
+       "6851cced08a73e3c00991e52",
+       "6851ccee08a73e3c00991e59",
+       "6851cce808a73e3c00991e26",
+       "6851cce608a73e3c00991e1b",
+       "6851cce708a73e3c00991e1e",
+       "6851cce908a73e3c00991e2c",
+       "6851cce408a73e3c00991e0b",
+       null
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       111,
+       111,
+       132
+      ],
+      [
+       147,
+       149,
+       104
+      ]
+     ],
+     "restarts": [
+      2,
+      2
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e52",
+       "6851ccee08a73e3c00991e59",
+       "6851cceb08a73e3c00991e38",
+       "6851cce608a73e3c00991e1b",
+       "6851cce808a73e3c00991e24",
+       "6851cce508a73e3c00991e10",
+       "6851cce408a73e3c00991e09",
+       "6851ccec08a73e3c00991e4a"
+      ],
+      [
+       "6851cce908a73e3c00991e2c",
+       "6851cce408a73e3c00991e0b",
+       "6851cce908a73e3c00991e2a",
+       "6851cce408a73e3c00991e08",
+       "6851ccee08a73e3c00991e55",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce508a73e3c00991e0f",
+       "6851cce508a73e3c00991e11"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/790",
+   "penalty_total": [
+    0,
+    0
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-08-29T17:19",
+   "players": [
+    "Smertik",
+    "Nipodzi"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       151,
+       166,
+       166
+      ],
+      [
+       208,
+       210,
+       191
+      ]
+     ],
+     "restarts": [
+      2,
+      3
+     ],
+     "teams": [
+      [
+       "6851cce408a73e3c00991e0a",
+       "6851cce408a73e3c00991e0b",
+       "6851cce708a73e3c00991e1f",
+       "6851ccee08a73e3c00991e59",
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e09",
+       "6851ccee08a73e3c00991e5b",
+       "6851ccec08a73e3c00991e43"
+      ],
+      [
+       "6851cce808a73e3c00991e24",
+       "6851cce508a73e3c00991e10",
+       "6851cce908a73e3c00991e2c",
+       "6851cce908a73e3c00991e2b",
+       null,
+       "6851ccea08a73e3c00991e31",
+       "6851cce508a73e3c00991e11",
+       "6851ccec08a73e3c00991e4a"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       128,
+       141,
+       147
+      ],
+      [
+       194,
+       197,
+       300
+      ]
+     ],
+     "restarts": [
+      2,
+      4
+     ],
+     "teams": [
+      [
+       "6851cce408a73e3c00991e0a",
+       "6851cce408a73e3c00991e0b",
+       "6851cce708a73e3c00991e1f",
+       "6851cce508a73e3c00991e10",
+       "6851ccec08a73e3c00991e49",
+       null,
+       "6851ccee08a73e3c00991e5b",
+       "6851cce608a73e3c00991e1b"
+      ],
+      [
+       "6851cce808a73e3c00991e24",
+       "6851cce608a73e3c00991e19",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11",
+       "6851ccee08a73e3c00991e58",
+       "6851ccee08a73e3c00991e59",
+       "6851cce708a73e3c00991e1e",
+       "6851cceb08a73e3c00991e3a"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/793",
+   "penalty_total": [
+    0,
+    5
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-08-29T19:26",
+   "players": [
+    "Linkle",
+    "Ardy"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       126,
+       124,
+       152
+      ],
+      [
+       171,
+       149,
+       161
+      ]
+     ],
+     "restarts": [
+      4,
+      3
+     ],
+     "teams": [
+      [
+       "6851ccea08a73e3c00991e32",
+       "6851ccee08a73e3c00991e59",
+       "6851cce508a73e3c00991e10",
+       "6851cce608a73e3c00991e1b",
+       "68547a1908a73e3c00991f11",
+       "6851cce908a73e3c00991e2f",
+       "6851ccec08a73e3c00991e48",
+       "6851cce408a73e3c00991e0b"
+      ],
+      [
+       "6851cce808a73e3c00991e24",
+       "6851cce808a73e3c00991e28",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce508a73e3c00991e11",
+       "6851ccef08a73e3c00991e60",
+       "6851cce508a73e3c00991e15",
+       "6851cce308a73e3c00991e04",
+       "6851cce708a73e3c00991e1f"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       141,
+       150,
+       175
+      ],
+      [
+       133,
+       129,
+       147
+      ]
+     ],
+     "restarts": [
+      1,
+      3
+     ],
+     "teams": [
+      [
+       "6851ccea08a73e3c00991e32",
+       "6851cce908a73e3c00991e2a",
+       "6851ccee08a73e3c00991e59",
+       "6851cce708a73e3c00991e1f",
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e0b",
+       "6851cce608a73e3c00991e19",
+       "6851ccef08a73e3c00991e60"
+      ],
+      [
+       "6851cce808a73e3c00991e24",
+       "6851cce508a73e3c00991e10",
+       "6851cce508a73e3c00991e11",
+       "6851ccec08a73e3c00991e4a",
+       "68547a1908a73e3c00991f11",
+       "6851cce508a73e3c00991e15",
+       "6851cceb08a73e3c00991e38",
+       "68547a1908a73e3c00991f12"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/794",
+   "penalty_total": [
+    15,
+    10
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-08-31T19:39",
+   "players": [
+    "Liroy",
+    "Rpyt02"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       128,
+       129,
+       115
+      ],
+      [
+       117,
+       100,
+       111
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ],
+     "teams": [
+      [
+       "688bc19806a0a6f5d327bb58",
+       "6851ccee08a73e3c00991e59",
+       "6851cce908a73e3c00991e2b",
+       "6851cce408a73e3c00991e0b",
+       "6851cce808a73e3c00991e24",
+       "6851cce508a73e3c00991e10",
+       "6851cce608a73e3c00991e1b",
+       "6851cce508a73e3c00991e11"
+      ],
+      [
+       "6851ccea08a73e3c00991e32",
+       "6851cced08a73e3c00991e52",
+       "6851cce808a73e3c00991e28",
+       "6851cce708a73e3c00991e1f",
+       "6851cce708a73e3c00991e1e",
+       "6851cce908a73e3c00991e2c",
+       "6851cce608a73e3c00991e19",
+       "6851cce508a73e3c00991e0f"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       120,
+       131,
+       141
+      ],
+      [
+       110,
+       115,
+       110
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ],
+     "teams": [
+      [
+       "6851ccea08a73e3c00991e32",
+       "6851cce908a73e3c00991e2c",
+       "6851cce708a73e3c00991e1f",
+       "6851ccee08a73e3c00991e59",
+       "6851cce808a73e3c00991e24",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11"
+      ],
+      [
+       "688bc19806a0a6f5d327bb58",
+       "6851cce508a73e3c00991e10",
+       "6851cceb08a73e3c00991e38",
+       "6851cce608a73e3c00991e1b",
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e0b",
+       "6851cce608a73e3c00991e19",
+       "6851ccee08a73e3c00991e57"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/797",
+   "penalty_total": [
+    5,
+    0
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-09-01T15:19",
+   "players": [
+    "Northwar",
+    "ClovesCleyton"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       115,
+       110,
+       135
+      ],
+      [
+       152,
+       118,
+       144
+      ]
+     ],
+     "restarts": [
+      2,
+      2
+     ],
+     "teams": [
+      [
+       "6851ccec08a73e3c00991e47",
+       "6851cce308a73e3c00991e03",
+       "6851ccec08a73e3c00991e43",
+       "6851ccee08a73e3c00991e59",
+       "6851cce708a73e3c00991e21",
+       "6851cce908a73e3c00991e2c",
+       "6851cce408a73e3c00991e0b",
+       "6851ccee08a73e3c00991e57"
+      ],
+      [
+       "6851cce808a73e3c00991e24",
+       "6851cce808a73e3c00991e28",
+       "6851cce708a73e3c00991e1f",
+       "6851cce508a73e3c00991e11",
+       null,
+       "6851ccec08a73e3c00991e4a",
+       "6851cce508a73e3c00991e10",
+       "6851ccef08a73e3c00991e5e"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       120,
+       135,
+       126
+      ],
+      [
+       129,
+       119,
+       124
+      ]
+     ],
+     "restarts": [
+      0,
+      2
+     ],
+     "teams": [
+      [
+       "6851cce908a73e3c00991e2a",
+       "6851ccee08a73e3c00991e59",
+       "6851cce908a73e3c00991e2c",
+       "6851cce608a73e3c00991e1b",
+       "6851cce808a73e3c00991e24",
+       "6851cce808a73e3c00991e28",
+       "6851cce408a73e3c00991e09",
+       "6851ccec08a73e3c00991e4a"
+      ],
+      [
+       "6851ccec08a73e3c00991e47",
+       "6851cce308a73e3c00991e03",
+       "6851cce508a73e3c00991e10",
+       "6851cce908a73e3c00991e2b",
+       "6851cce708a73e3c00991e21",
+       "6851cce408a73e3c00991e0b",
+       "6851ccee08a73e3c00991e57",
+       "6851cced08a73e3c00991e4e"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/800",
+   "penalty_total": [
+    0,
+    0
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-09-01T18:03",
+   "players": [
+    "TouchMe",
+    "Peudan"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       129,
+       138,
+       149
+      ],
+      [
+       133,
+       136,
+       125
+      ]
+     ],
+     "restarts": [
+      4,
+      2
+     ],
+     "teams": [
+      [
+       "6851cce808a73e3c00991e24",
+       "6851cce408a73e3c00991e0b",
+       "6851cce608a73e3c00991e1b",
+       "6851ccee08a73e3c00991e57",
+       "6851cced08a73e3c00991e52",
+       "6851cce908a73e3c00991e2d",
+       "6851cced08a73e3c00991e4e",
+       "6851ccea08a73e3c00991e30"
+      ],
+      [
+       "6851cced08a73e3c00991e50",
+       "6851cce808a73e3c00991e26",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce508a73e3c00991e10",
+       null,
+       "6851cce408a73e3c00991e09",
+       "6851ccec08a73e3c00991e4a",
+       "6851ccee08a73e3c00991e59"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       135,
+       125,
+       129
+      ],
+      [
+       117,
+       116,
+       119
+      ]
+     ],
+     "restarts": [
+      3,
+      2
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e52",
+       "6851cce808a73e3c00991e28",
+       "6851cce908a73e3c00991e2b",
+       "6851cceb08a73e3c00991e38",
+       "6851cce708a73e3c00991e1e",
+       "6851ccef08a73e3c00991e5e",
+       "6851cced08a73e3c00991e4e",
+       "6851ccee08a73e3c00991e57"
+      ],
+      [
+       "6851cce808a73e3c00991e24",
+       "6851ccee08a73e3c00991e59",
+       "6851cce408a73e3c00991e0b",
+       "6851cce608a73e3c00991e1b",
+       "6851cced08a73e3c00991e50",
+       "6851cce408a73e3c00991e09",
+       "6851cce608a73e3c00991e19",
+       "6851ccec08a73e3c00991e43"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/801",
+   "penalty_total": [
+    20,
+    0
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-09-01T20:05",
+   "players": [
+    "Kutsuki",
+    "Roronoa"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       145,
+       175,
+       152
+      ],
+      [
+       123,
+       122,
+       135
+      ]
+     ],
+     "restarts": [
+      4,
+      1
+     ],
+     "teams": [
+      [
+       "6851ccef08a73e3c00991e5f",
+       "6851cce508a73e3c00991e10",
+       "6851cce708a73e3c00991e1f",
+       "6851cce608a73e3c00991e19",
+       "6851cceb08a73e3c00991e3b",
+       "6851cceb08a73e3c00991e3c",
+       null,
+       "6851cce508a73e3c00991e11"
+      ],
+      [
+       "6851cced08a73e3c00991e52",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce808a73e3c00991e28",
+       "6851cceb08a73e3c00991e3d",
+       "6851cced08a73e3c00991e4b",
+       "6851cced08a73e3c00991e4e",
+       "6851cce408a73e3c00991e0b",
+       "6851cce408a73e3c00991e09"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       164,
+       194,
+       300
+      ],
+      [
+       187,
+       178,
+       205
+      ]
+     ],
+     "restarts": [
+      4,
+      0
+     ],
+     "teams": [
+      [
+       "6851cce508a73e3c00991e10",
+       "6851cce608a73e3c00991e19",
+       "6851cceb08a73e3c00991e3b",
+       "6851cceb08a73e3c00991e3c",
+       "6851cce908a73e3c00991e2c",
+       "6851cce408a73e3c00991e09",
+       null,
+       "6851cce708a73e3c00991e1f"
+      ],
+      [
+       "6851cce408a73e3c00991e0b",
+       "6851ccee08a73e3c00991e59",
+       "6851cce408a73e3c00991e0a",
+       "6851cce608a73e3c00991e1b",
+       "6851cce708a73e3c00991e1e",
+       "6851ccec08a73e3c00991e4a",
+       "6851ccea08a73e3c00991e31",
+       "6851cce508a73e3c00991e11"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/803",
+   "penalty_total": [
+    30,
+    0
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-09-03T17:55",
+   "players": [
+    "Smertik",
+    "ClovesCleyton"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       105,
+       105,
+       122
+      ],
+      [
+       145,
+       147,
+       167
+      ]
+     ],
+     "restarts": [
+      2,
+      3
+     ]
+    },
+    {
+     "rooms": [
+      [
+       162,
+       163,
+       158
+      ],
+      [
+       141,
+       158,
+       140
+      ]
+     ],
+     "restarts": [
+      2,
+      3
+     ],
+     "teams": [
+      [
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e0b",
+       "6851ccea08a73e3c00991e31",
+       "6851cce708a73e3c00991e1f",
+       "6851ccef08a73e3c00991e60",
+       "6851cce908a73e3c00991e2f",
+       "6851cce708a73e3c00991e1d",
+       "6851cce308a73e3c00991e04"
+      ],
+      [
+       "6851cce608a73e3c00991e1b",
+       "6851cce308a73e3c00991e03",
+       "6851cce508a73e3c00991e10",
+       "6851ccee08a73e3c00991e59",
+       "6851cced08a73e3c00991e4b",
+       "6851ccee08a73e3c00991e57",
+       "6851ccec08a73e3c00991e49",
+       "6851cce508a73e3c00991e11"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/808",
+   "penalty_total": [
+    0,
+    10
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-09-03T19:23",
+   "players": [
+    "Senoen",
+    "Liroy"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       103,
+       108,
+       91
+      ],
+      [
+       107,
+       111,
+       114
+      ]
+     ],
+     "restarts": [
+      1,
+      2
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e52",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce408a73e3c00991e0b",
+       "6851cce608a73e3c00991e1b",
+       "6851ccee08a73e3c00991e58",
+       "6851cce508a73e3c00991e11",
+       null,
+       "6851cce808a73e3c00991e26"
+      ],
+      [
+       "6851cce908a73e3c00991e2c",
+       "688bc19806a0a6f5d327bb58",
+       "6851ccee08a73e3c00991e59",
+       "6851cce908a73e3c00991e2b",
+       "6851cce808a73e3c00991e24",
+       "6851cce808a73e3c00991e28",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce708a73e3c00991e22"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       112,
+       115,
+       130
+      ],
+      [
+       117,
+       300,
+       300
+      ]
+     ],
+     "restarts": [
+      0,
+      4
+     ],
+     "teams": [
+      [
+       "6851cce808a73e3c00991e24",
+       "6851ccee08a73e3c00991e59",
+       "6851ccec08a73e3c00991e4a",
+       null,
+       "6851ccee08a73e3c00991e58",
+       "6851cce808a73e3c00991e28",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce908a73e3c00991e2f"
+      ],
+      [
+       "6851cced08a73e3c00991e52",
+       "688bc19806a0a6f5d327bb58",
+       "6851cce408a73e3c00991e0b",
+       "6851ccec08a73e3c00991e43",
+       "6851cce908a73e3c00991e2c",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11",
+       "6851cce908a73e3c00991e2b"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/809",
+   "penalty_total": [
+    0,
+    15
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-09-04T16:58",
+   "players": [
+    "TouchMe",
+    "Velliar"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       101,
+       95,
+       111
+      ],
+      [
+       121,
+       146,
+       153
+      ]
+     ],
+     "restarts": [
+      1,
+      4
+     ],
+     "teams": [
+      [
+       "6851ccec08a73e3c00991e47",
+       "6851ccee08a73e3c00991e59",
+       "6851cce908a73e3c00991e2b",
+       "6851cce308a73e3c00991e03",
+       "6851cce508a73e3c00991e11",
+       "6851cced08a73e3c00991e50",
+       "6851cce608a73e3c00991e1b",
+       "6851cce608a73e3c00991e19"
+      ],
+      [
+       "6851ccea08a73e3c00991e32",
+       "6851ccec08a73e3c00991e49",
+       "6851cce508a73e3c00991e10",
+       "6851ccef08a73e3c00991e5c",
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e0b",
+       "6851ccee08a73e3c00991e57",
+       "6851cced08a73e3c00991e4e"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       109,
+       99,
+       113
+      ],
+      [
+       99,
+       100,
+       121
+      ]
+     ],
+     "restarts": [
+      1,
+      3
+     ],
+     "teams": [
+      [
+       "6851ccee08a73e3c00991e59",
+       "6851cced08a73e3c00991e52",
+       "6851ccef08a73e3c00991e5c",
+       "6851cceb08a73e3c00991e38",
+       "6851cced08a73e3c00991e4e",
+       "6851ccee08a73e3c00991e57",
+       "6851cced08a73e3c00991e50",
+       null
+      ],
+      [
+       "6851ccec08a73e3c00991e47",
+       "6851cce308a73e3c00991e03",
+       "6851ccee08a73e3c00991e54",
+       "6851cce908a73e3c00991e2b",
+       "6851cce708a73e3c00991e1e",
+       "6851ccec08a73e3c00991e49",
+       "6851cce408a73e3c00991e0b",
+       "6851cce608a73e3c00991e1b"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/812",
+   "penalty_total": [
+    0,
+    20
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-09-04T18:49",
+   "players": [
+    "Linkle",
+    "Kutsuki"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       130,
+       119,
+       116
+      ],
+      [
+       154,
+       146,
+       162
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e52",
+       "6851cce508a73e3c00991e10",
+       "6851cce908a73e3c00991e2d",
+       "6851cce608a73e3c00991e1b",
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e0b",
+       "6851cce608a73e3c00991e19",
+       null
+      ],
+      [
+       "6851ccef08a73e3c00991e5f",
+       "6851ccee08a73e3c00991e59",
+       "6851cce808a73e3c00991e28",
+       "6851cce508a73e3c00991e11",
+       "6851cce508a73e3c00991e16",
+       "6851cce908a73e3c00991e2f",
+       "6851ccef08a73e3c00991e60",
+       "6851cce708a73e3c00991e1d"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/813",
+   "penalty_total": [
+    0,
+    5
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-09-06T17:33",
+   "players": [
+    "Senoen",
+    "Linkle"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       117,
+       99,
+       132
+      ],
+      [
+       122,
+       108,
+       128
+      ]
+     ],
+     "restarts": [
+      4,
+      3
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e52",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce608a73e3c00991e1b",
+       "6851cceb08a73e3c00991e38",
+       "6851cce808a73e3c00991e24",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce808a73e3c00991e28",
+       null
+      ],
+      [
+       "6851ccea08a73e3c00991e32",
+       "6851cce508a73e3c00991e10",
+       "6851ccee08a73e3c00991e59",
+       "6851ccef08a73e3c00991e5c",
+       "68547a1908a73e3c00991f11",
+       "6851ccef08a73e3c00991e60",
+       "6851ccec08a73e3c00991e48",
+       "6851cce408a73e3c00991e0b"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       118,
+       97,
+       109
+      ],
+      [
+       111,
+       118,
+       108
+      ]
+     ],
+     "restarts": [
+      0,
+      3
+     ],
+     "teams": [
+      [
+       "6851cce808a73e3c00991e24",
+       "6851cceb08a73e3c00991e38",
+       "6851ccec08a73e3c00991e43",
+       "6851ccee08a73e3c00991e59",
+       "68547a1908a73e3c00991f11",
+       "6851ccef08a73e3c00991e60",
+       "6851cce908a73e3c00991e2f",
+       "6851cce308a73e3c00991e03"
+      ],
+      [
+       "6851cced08a73e3c00991e52",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce408a73e3c00991e09",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce708a73e3c00991e1e",
+       "6851cce508a73e3c00991e11",
+       "6851cce408a73e3c00991e0b",
+       "6851cce608a73e3c00991e1b"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/816",
+   "penalty_total": [
+    15,
+    10
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-09-06T19:47",
+   "players": [
+    "Smertik",
+    "TouchMe"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       89,
+       113,
+       115
+      ],
+      [
+       96,
+       94,
+       124
+      ]
+     ],
+     "restarts": [
+      3,
+      2
+     ],
+     "teams": [
+      [
+       "6851cce908a73e3c00991e2c",
+       "6851ccef08a73e3c00991e60",
+       "6851cce708a73e3c00991e1f",
+       "6851cce508a73e3c00991e10",
+       "6851ccee08a73e3c00991e56",
+       "6851cce608a73e3c00991e19",
+       "6851cce408a73e3c00991e09",
+       "6851ccee08a73e3c00991e5b"
+      ],
+      [
+       "6851ccec08a73e3c00991e47",
+       "6851cce308a73e3c00991e03",
+       "6851ccee08a73e3c00991e59",
+       "6851cce908a73e3c00991e2b",
+       "6851cced08a73e3c00991e50",
+       "6851cce508a73e3c00991e11",
+       "6851cce408a73e3c00991e0b",
+       "6851cce608a73e3c00991e1b"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       114,
+       114,
+       112
+      ],
+      [
+       124,
+       131,
+       111
+      ]
+     ],
+     "restarts": [
+      1,
+      2
+     ],
+     "teams": [
+      [
+       "6851ccee08a73e3c00991e56",
+       "6851cce408a73e3c00991e09",
+       "6851cce908a73e3c00991e2c",
+       "6851ccee08a73e3c00991e5b",
+       "6851ccee08a73e3c00991e58",
+       null,
+       "6851ccef08a73e3c00991e60",
+       "6851cce508a73e3c00991e11"
+      ],
+      [
+       "6851cced08a73e3c00991e52",
+       "6851ccee08a73e3c00991e59",
+       "6851cce408a73e3c00991e0b",
+       "6851ccef08a73e3c00991e5c",
+       "6851cced08a73e3c00991e50",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce608a73e3c00991e19",
+       "6851cce908a73e3c00991e2b"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/817",
+   "penalty_total": [
+    5,
+    0
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-09-07T14:44",
+   "players": [
+    "Rpyt02",
+    "Roronoa"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       119,
+       111,
+       115
+      ],
+      [
+       131,
+       105,
+       117
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ],
+     "teams": [
+      [
+       "6851ccea08a73e3c00991e32",
+       "6851ccee08a73e3c00991e59",
+       "6851cce708a73e3c00991e1f",
+       "6851cced08a73e3c00991e52",
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e0b",
+       "6851cce508a73e3c00991e0f",
+       "6851cce608a73e3c00991e19"
+      ],
+      [
+       "6851cce808a73e3c00991e24",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce408a73e3c00991e09",
+       "6851cce808a73e3c00991e28",
+       "6851cced08a73e3c00991e4b",
+       "6851ccef08a73e3c00991e5e",
+       "6851ccee08a73e3c00991e57",
+       "6851cce508a73e3c00991e10"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       135,
+       144,
+       147
+      ],
+      [
+       107,
+       121,
+       109
+      ]
+     ],
+     "penalty": [
+      0,
+      0
+     ],
+     "teams": [
+      [
+       "6851cce808a73e3c00991e24",
+       "6851cce508a73e3c00991e10",
+       "6851ccee08a73e3c00991e57",
+       "6851cce608a73e3c00991e19",
+       "6851cced08a73e3c00991e4b",
+       "6851cced08a73e3c00991e4e",
+       "6851cce508a73e3c00991e11",
+       "6851cce408a73e3c00991e09"
+      ],
+      [
+       "6851cced08a73e3c00991e52",
+       "6851cceb08a73e3c00991e3d",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce808a73e3c00991e28",
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e0b",
+       "6851cce908a73e3c00991e2c",
+       "6851cce608a73e3c00991e1b"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/821"
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-09-07T17:17",
+   "players": [
+    "Northwar",
+    "Peudan"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       161,
+       217,
+       232
+      ],
+      [
+       165,
+       151,
+       181
+      ]
+     ],
+     "restarts": [
+      4,
+      1
+     ],
+     "teams": [
+      [
+       "6851ccee08a73e3c00991e59",
+       "6851cce508a73e3c00991e10",
+       null,
+       "6851cce608a73e3c00991e1b",
+       "6851ccea08a73e3c00991e31",
+       "6851cceb08a73e3c00991e40",
+       "6851cce808a73e3c00991e23",
+       "6851cce508a73e3c00991e11"
+      ],
+      [
+       "6851cce908a73e3c00991e2a",
+       "6851cce408a73e3c00991e0b",
+       "6851cceb08a73e3c00991e38",
+       "6851cce708a73e3c00991e1f",
+       "6851cce708a73e3c00991e1d",
+       "6851cce908a73e3c00991e2f",
+       "6851cceb08a73e3c00991e3a",
+       "6851ccee08a73e3c00991e57"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       140,
+       131,
+       134
+      ],
+      [
+       140,
+       146,
+       152
+      ]
+     ],
+     "restarts": [
+      3,
+      1
+     ],
+     "teams": [
+      [
+       "6851cce808a73e3c00991e24",
+       null,
+       "6851ccec08a73e3c00991e4a",
+       "6851cce308a73e3c00991e01",
+       "6851ccea08a73e3c00991e31",
+       "6851cce808a73e3c00991e23",
+       "6851cce708a73e3c00991e1d",
+       "6851cce508a73e3c00991e11"
+      ],
+      [
+       "6851cce308a73e3c00991e03",
+       "6851ccee08a73e3c00991e59",
+       "6851cce508a73e3c00991e10",
+       "6851cce708a73e3c00991e1f",
+       "6851ccee08a73e3c00991e57",
+       "6851cce408a73e3c00991e0b",
+       "6851cce408a73e3c00991e09",
+       "6851ccee08a73e3c00991e5b"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/822",
+   "penalty_total": [
+    20,
+    0
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-09-09T20:05",
+   "players": [
+    "Senoen",
+    "Northwar"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       106,
+       99,
+       104
+      ],
+      [
+       111,
+       116,
+       125
+      ]
+     ],
+     "restarts": [
+      2,
+      1
+     ],
+     "teams": [
+      [
+       "6851cce808a73e3c00991e24",
+       "6851ccee08a73e3c00991e59",
+       "6851ccec08a73e3c00991e43",
+       "6851cce808a73e3c00991e26",
+       "6851ccee08a73e3c00991e56",
+       "6851cce308a73e3c00991e03",
+       null,
+       "6851cce608a73e3c00991e1b"
+      ],
+      [
+       "6851cce408a73e3c00991e0a",
+       "6851cce508a73e3c00991e10",
+       "6851cce408a73e3c00991e0b",
+       "6851cce708a73e3c00991e1f",
+       "6851ccee08a73e3c00991e58",
+       "6851cce508a73e3c00991e11",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce808a73e3c00991e28"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       123,
+       123,
+       117
+      ],
+      [
+       119,
+       122,
+       127
+      ]
+     ],
+     "restarts": [
+      1,
+      2
+     ],
+     "teams": [
+      [
+       "6851ccee08a73e3c00991e56",
+       "6851cce308a73e3c00991e03",
+       "6851cce408a73e3c00991e09",
+       "6851cce608a73e3c00991e1b",
+       "6851ccee08a73e3c00991e58",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce808a73e3c00991e28",
+       null
+      ],
+      [
+       "6851ccee08a73e3c00991e59",
+       "6851cce508a73e3c00991e10",
+       "6851cce408a73e3c00991e0b",
+       "6851cce708a73e3c00991e1f",
+       "6851cce808a73e3c00991e24",
+       "6851cce908a73e3c00991e2c",
+       "6851ccee08a73e3c00991e57",
+       "6851cce508a73e3c00991e11"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/826",
+   "penalty_total": [
+    0,
+    0
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-09-10T15:18",
+   "players": [
+    "Rpyt02",
+    "Smertik"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       103,
+       112,
+       150
+      ],
+      [
+       138,
+       139,
+       137
+      ]
+     ],
+     "restarts": [
+      4,
+      3
+     ],
+     "teams": [
+      [
+       "6851ccea08a73e3c00991e32",
+       "6851ccee08a73e3c00991e59",
+       "6851cce708a73e3c00991e1f",
+       "6851cce408a73e3c00991e0a",
+       "6851ccee08a73e3c00991e56",
+       "6851cce608a73e3c00991e19",
+       "6851cce608a73e3c00991e1b",
+       "6851cce708a73e3c00991e22"
+      ],
+      [
+       "6851cce908a73e3c00991e2c",
+       "6851cce408a73e3c00991e0b",
+       "6851cce908a73e3c00991e2b",
+       "6851cce508a73e3c00991e10",
+       "6851ccee08a73e3c00991e58",
+       "6851cce708a73e3c00991e20",
+       "6851cce408a73e3c00991e09",
+       "6851ccee08a73e3c00991e5b"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       119,
+       113,
+       143
+      ],
+      [
+       115,
+       124,
+       140
+      ]
+     ],
+     "restarts": [
+      1,
+      4
+     ],
+     "teams": [
+      [
+       "6851cce808a73e3c00991e24",
+       "6851cce408a73e3c00991e0b",
+       "6851cce608a73e3c00991e1b",
+       "6851cce808a73e3c00991e28",
+       "6851cced08a73e3c00991e4b",
+       "6851cced08a73e3c00991e4e",
+       "6851cce908a73e3c00991e2c",
+       "6851cce408a73e3c00991e09"
+      ],
+      [
+       "6851cce808a73e3c00991e26",
+       "6851ccee08a73e3c00991e59",
+       "6851cce708a73e3c00991e1f",
+       "6851cce508a73e3c00991e10",
+       "6851ccee08a73e3c00991e56",
+       "6851cce508a73e3c00991e11",
+       "6851ccec08a73e3c00991e43",
+       "6851cce608a73e3c00991e19"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/830",
+   "penalty_total": [
+    15,
+    20
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-09-12T17:14",
+   "players": [
+    "Peudan",
+    "Roronoa"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       129,
+       121,
+       144
+      ],
+      [
+       144,
+       128,
+       163
+      ]
+     ],
+     "restarts": [
+      3,
+      4
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e52",
+       "6851cceb08a73e3c00991e38",
+       "6851ccee08a73e3c00991e59",
+       "6851ccec08a73e3c00991e43",
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e0b",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce408a73e3c00991e09"
+      ],
+      [
+       "6851cce808a73e3c00991e24",
+       null,
+       "6851ccec08a73e3c00991e4a",
+       "6851cce808a73e3c00991e28",
+       "6851cced08a73e3c00991e4b",
+       "6851cce508a73e3c00991e10",
+       "6851cced08a73e3c00991e4e",
+       "6851cce708a73e3c00991e20"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       120,
+       99,
+       114
+      ],
+      [
+       138,
+       136,
+       144
+      ]
+     ],
+     "restarts": [
+      0,
+      3
+     ],
+     "teams": [
+      [
+       "6851cce808a73e3c00991e24",
+       "6851cce808a73e3c00991e26",
+       "6851cce808a73e3c00991e28",
+       "6851cce908a73e3c00991e2b",
+       "6851ccef08a73e3c00991e5f",
+       "6851ccef08a73e3c00991e5e",
+       "6851ccee08a73e3c00991e57",
+       "6851ccef08a73e3c00991e5c"
+      ],
+      [
+       "6851cced08a73e3c00991e52",
+       "6851cce408a73e3c00991e0b",
+       "6851ccea08a73e3c00991e31",
+       "6851cce908a73e3c00991e2b",
+       "6851cced08a73e3c00991e4b",
+       "6851cce508a73e3c00991e11",
+       "6851cced08a73e3c00991e4e",
+       "6851cce408a73e3c00991e09"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/833",
+   "penalty_total": [
+    5,
+    20
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-09-12T19:21",
+   "players": [
+    "Senoen",
+    "Smertik"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       122,
+       131,
+       127
+      ],
+      [
+       101,
+       109,
+       119
+      ]
+     ],
+     "restarts": [
+      1,
+      3
+     ],
+     "teams": [
+      [
+       "6851cce408a73e3c00991e0b",
+       "6851cce508a73e3c00991e10",
+       "6851ccef08a73e3c00991e5c",
+       "6851ccee08a73e3c00991e59",
+       "6851cce808a73e3c00991e24",
+       "6851cce408a73e3c00991e09",
+       "6851ccec08a73e3c00991e4a",
+       "6851ccef08a73e3c00991e5e"
+      ],
+      [
+       "6851ccee08a73e3c00991e56",
+       null,
+       "6851cce708a73e3c00991e1f",
+       "6851ccee08a73e3c00991e5b",
+       "6851ccee08a73e3c00991e58",
+       "6851cce508a73e3c00991e11",
+       "6851ccef08a73e3c00991e60",
+       "6851cce608a73e3c00991e19"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       109,
+       103,
+       123
+      ],
+      [
+       91,
+       104,
+       91
+      ]
+     ],
+     "restarts": [
+      4,
+      2
+     ],
+     "teams": [
+      [
+       "6851cce808a73e3c00991e24",
+       null,
+       "6851ccec08a73e3c00991e4a",
+       "6851cce808a73e3c00991e28",
+       "6851ccee08a73e3c00991e58",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce908a73e3c00991e2f",
+       "6851ccef08a73e3c00991e60"
+      ],
+      [
+       "6851cce908a73e3c00991e2c",
+       "6851cce408a73e3c00991e0b",
+       "6851cce608a73e3c00991e1b",
+       "6851ccee08a73e3c00991e59",
+       "6851ccee08a73e3c00991e56",
+       "6851cce408a73e3c00991e09",
+       "6851ccee08a73e3c00991e5b",
+       "6851cce608a73e3c00991e19"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/834",
+   "penalty_total": [
+    15,
+    5
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_3",
+   "date": "2025-09-14T15:03",
+   "players": [
+    "Roronoa",
+    "Smertik"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       123,
+       111,
+       121
+      ],
+      [
+       111,
+       101,
+       88
+      ]
+     ],
+     "restarts": [
+      4,
+      2
+     ],
+     "teams": [
+      [
+       "6851cce808a73e3c00991e24",
+       "6851cce408a73e3c00991e0b",
+       "6851ccee08a73e3c00991e59",
+       "6851cce608a73e3c00991e1b",
+       "6851ccef08a73e3c00991e5f",
+       "6851ccef08a73e3c00991e5e",
+       null,
+       "6851cce908a73e3c00991e2b"
+      ],
+      [
+       "6851cce708a73e3c00991e1e",
+       "6851cce908a73e3c00991e2c",
+       "6851cce508a73e3c00991e10",
+       "6851cce708a73e3c00991e1f",
+       "6851ccee08a73e3c00991e58",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11",
+       "6851ccee08a73e3c00991e5b"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       119,
+       119,
+       105
+      ],
+      [
+       102,
+       103,
+       108
+      ]
+     ],
+     "restarts": [
+      3,
+      0
+     ],
+     "teams": [
+      [
+       "6851cce808a73e3c00991e24",
+       "6851cce408a73e3c00991e0b",
+       "6851cce908a73e3c00991e2c",
+       "6851cce608a73e3c00991e1b",
+       "6851ccef08a73e3c00991e5f",
+       "6851cce808a73e3c00991e28",
+       "6851ccee08a73e3c00991e57",
+       "6851cced08a73e3c00991e4e"
+      ],
+      [
+       "6851ccee08a73e3c00991e59",
+       "6851cce508a73e3c00991e10",
+       "6851cce708a73e3c00991e1f",
+       "6851cce608a73e3c00991e19",
+       "6851ccee08a73e3c00991e58",
+       "6851ccef08a73e3c00991e60",
+       "6851ccee08a73e3c00991e5b",
+       "6851cce508a73e3c00991e11"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/837",
+   "penalty_total": [
+    20,
+    0
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -1397,6 +6513,28 @@
      "penalty": [
       0,
       0
+     ],
+     "teams": [
+      [
+       "6851ccee08a73e3c00991e5a",
+       "6851ccec08a73e3c00991e4a",
+       null,
+       "6851cce508a73e3c00991e10",
+       "6851ccee08a73e3c00991e55",
+       "6851cce708a73e3c00991e22",
+       "6851cce508a73e3c00991e0f",
+       "6851cced08a73e3c00991e53"
+      ],
+      [
+       "6851cced08a73e3c00991e50",
+       "6851cce608a73e3c00991e1b",
+       "6851cce508a73e3c00991e11",
+       "6851cce408a73e3c00991e09",
+       "6851ccea08a73e3c00991e35",
+       "6851cceb08a73e3c00991e39",
+       "6851cce408a73e3c00991e0b",
+       "6851ccea08a73e3c00991e31"
+      ]
      ]
     },
     {
@@ -1415,6 +6553,28 @@
      "penalty": [
       0,
       0
+     ],
+     "teams": [
+      [
+       "6851ccee08a73e3c00991e5a",
+       "6851cce408a73e3c00991e09",
+       null,
+       "6851cce508a73e3c00991e0f",
+       "6851cced08a73e3c00991e4b",
+       "6851cce708a73e3c00991e1d",
+       "6851ccec08a73e3c00991e48",
+       "6851ccee08a73e3c00991e57"
+      ],
+      [
+       "6851cced08a73e3c00991e50",
+       "6851ccec08a73e3c00991e4a",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce508a73e3c00991e10",
+       "6851cce208a73e3c00991dfe",
+       "6851cce708a73e3c00991e1f",
+       "6851cce908a73e3c00991e2f",
+       "6851cce608a73e3c00991e19"
+      ]
      ]
     }
    ],
@@ -1441,9 +6601,31 @@
        153
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      3,
+      2
+     ],
+     "teams": [
+      [
+       "6851cce808a73e3c00991e24",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce408a73e3c00991e09",
+       "6851cce808a73e3c00991e28",
+       "6851cce508a73e3c00991e16",
+       "6851cce508a73e3c00991e11",
+       null,
+       "6851cced08a73e3c00991e53"
+      ],
+      [
+       "6851cce708a73e3c00991e1e",
+       "6851cce508a73e3c00991e10",
+       "6851ccee08a73e3c00991e57",
+       "6851cce508a73e3c00991e0f",
+       "6851cceb08a73e3c00991e3e",
+       "6851cce408a73e3c00991e0b",
+       "6851cceb08a73e3c00991e3d",
+       "6851ccea08a73e3c00991e31"
+      ]
      ]
     },
     {
@@ -1459,9 +6641,31 @@
        163
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      3,
+      4
+     ],
+     "teams": [
+      [
+       "6851cce808a73e3c00991e24",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce408a73e3c00991e09",
+       "6851ccea08a73e3c00991e31",
+       "6851cce208a73e3c00991dfe",
+       "6851cce608a73e3c00991e19",
+       "6851cce708a73e3c00991e1d",
+       "6851cce708a73e3c00991e1f"
+      ],
+      [
+       "6851cceb08a73e3c00991e3e",
+       "6851cce508a73e3c00991e10",
+       "6851cceb08a73e3c00991e3d",
+       "6851cce508a73e3c00991e0f",
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e0b",
+       "6851ccee08a73e3c00991e5b",
+       "6851cce508a73e3c00991e11"
+      ]
      ]
     }
    ],
@@ -1469,6 +6673,11 @@
    "penalty_total": [
     10,
     15
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -1492,9 +6701,31 @@
        157
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      2,
+      2
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e4b",
+       "6851cce708a73e3c00991e1d",
+       "6851cced08a73e3c00991e4e",
+       "6851cce508a73e3c00991e0f",
+       "6851cced08a73e3c00991e52",
+       "6851cce508a73e3c00991e10",
+       "6851cced08a73e3c00991e53",
+       "6851cce408a73e3c00991e09"
+      ],
+      [
+       "6851ccee08a73e3c00991e5a",
+       null,
+       "6851ccee08a73e3c00991e59",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce908a73e3c00991e2c",
+       "6851cce608a73e3c00991e19",
+       "6851ccec08a73e3c00991e43",
+       "6851ccee08a73e3c00991e5b"
+      ]
      ]
     },
     {
@@ -1510,9 +6741,31 @@
        176
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      2,
+      2
+     ],
+     "teams": [
+      [
+       "6851ccee08a73e3c00991e54",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11",
+       "6851ccee08a73e3c00991e5b",
+       "6851cce708a73e3c00991e1e",
+       "6851cce708a73e3c00991e1d",
+       "6851cced08a73e3c00991e4e",
+       "6851cce508a73e3c00991e0f"
+      ],
+      [
+       "6851cced08a73e3c00991e52",
+       "6851cce508a73e3c00991e10",
+       null,
+       "6851ccec08a73e3c00991e4a",
+       "6851cce908a73e3c00991e2c",
+       "6851cce408a73e3c00991e0b",
+       "6851ccec08a73e3c00991e43",
+       "6851ccec08a73e3c00991e48"
+      ]
      ]
     }
    ],
@@ -1520,6 +6773,11 @@
    "penalty_total": [
     0,
     0
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -1543,9 +6801,31 @@
        120
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      3,
+      1
+     ],
+     "teams": [
+      [
+       "6851cceb08a73e3c00991e3f",
+       "6851cce908a73e3c00991e2a",
+       "6851cce408a73e3c00991e09",
+       "6851ccec08a73e3c00991e4a",
+       "6851ccee08a73e3c00991e57",
+       "6851cce508a73e3c00991e0f",
+       "6851ccec08a73e3c00991e48",
+       "6851cced08a73e3c00991e4e"
+      ],
+      [
+       "6851ccee08a73e3c00991e5a",
+       null,
+       "6851cce708a73e3c00991e1f",
+       "6851cce508a73e3c00991e11",
+       "6851ccea08a73e3c00991e35",
+       "6851cceb08a73e3c00991e39",
+       "6851ccec08a73e3c00991e49",
+       "6851ccea08a73e3c00991e31"
+      ]
      ]
     },
     {
@@ -1561,9 +6841,31 @@
        122
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      2,
+      3
+     ],
+     "teams": [
+      [
+       "6851ccee08a73e3c00991e5a",
+       "6851cce508a73e3c00991e0f",
+       null,
+       "6851cce508a73e3c00991e11",
+       "6851ccec08a73e3c00991e47",
+       "6851ccee08a73e3c00991e57",
+       "6851cce608a73e3c00991e19",
+       "6851cce608a73e3c00991e1b"
+      ],
+      [
+       "6851cced08a73e3c00991e52",
+       "6851cce508a73e3c00991e10",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce408a73e3c00991e09",
+       "6851cce208a73e3c00991dfe",
+       "6851ccec08a73e3c00991e49",
+       "6851ccec08a73e3c00991e48",
+       "6851cce908a73e3c00991e2b"
+      ]
      ]
     }
    ],
@@ -1571,6 +6873,11 @@
    "penalty_total": [
     5,
     5
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -1594,9 +6901,31 @@
        135
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      4,
+      2
+     ],
+     "teams": [
+      [
+       "6851cce508a73e3c00991e11",
+       "6851cce408a73e3c00991e09",
+       "6851ccec08a73e3c00991e4a",
+       "6851ccee08a73e3c00991e59",
+       "6851cced08a73e3c00991e50",
+       "6851cce908a73e3c00991e2c",
+       "6851cce408a73e3c00991e0b",
+       "6851cce708a73e3c00991e1f"
+      ],
+      [
+       "6851ccef08a73e3c00991e5f",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce508a73e3c00991e10",
+       "6851ccee08a73e3c00991e57",
+       "6851cce208a73e3c00991dfe",
+       "6851ccec08a73e3c00991e49",
+       "6851ccee08a73e3c00991e5b",
+       "6851cce908a73e3c00991e2b"
+      ]
      ]
     },
     {
@@ -1612,9 +6941,31 @@
        130
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      4,
+      1
+     ],
+     "teams": [
+      [
+       "6851ccef08a73e3c00991e5f",
+       "6851cce508a73e3c00991e10",
+       null,
+       "6851ccec08a73e3c00991e4a",
+       "6851cce208a73e3c00991dfe",
+       "6851cce708a73e3c00991e1d",
+       "6851cce708a73e3c00991e1f",
+       "6851cce608a73e3c00991e19"
+      ],
+      [
+       "6851cced08a73e3c00991e50",
+       "6851cce408a73e3c00991e09",
+       "6851cce608a73e3c00991e1b",
+       "6851cce508a73e3c00991e0f",
+       "6851ccec08a73e3c00991e46",
+       "6851cced08a73e3c00991e53",
+       "6851cce708a73e3c00991e20",
+       "6851cce708a73e3c00991e22"
+      ]
      ]
     }
    ],
@@ -1622,6 +6973,11 @@
    "penalty_total": [
     30,
     0
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -1645,9 +7001,31 @@
        147
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      2,
+      4
+     ],
+     "teams": [
+      [
+       "6851ccef08a73e3c00991e5f",
+       "6851cce808a73e3c00991e28",
+       null,
+       "6851ccec08a73e3c00991e4a",
+       "6851ccec08a73e3c00991e46",
+       "6851cce408a73e3c00991e0b",
+       "6851ccee08a73e3c00991e5b",
+       "6851cce608a73e3c00991e1b"
+      ],
+      [
+       "6851cce808a73e3c00991e29",
+       "6851cce508a73e3c00991e0f",
+       "6851cce508a73e3c00991e10",
+       "6851cce808a73e3c00991e27",
+       "6851cce408a73e3c00991e09",
+       "6851cce708a73e3c00991e1f",
+       "6851cce708a73e3c00991e1d",
+       "6851cce508a73e3c00991e11"
+      ]
      ]
     },
     {
@@ -1663,9 +7041,31 @@
        127
       ]
      ],
-     "penalty": [
-      0,
+     "restarts": [
+      1,
       0
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e52",
+       "6851cce808a73e3c00991e28",
+       "6851cce608a73e3c00991e1b",
+       "6851cce508a73e3c00991e0f",
+       "6851cce908a73e3c00991e2c",
+       "6851cce408a73e3c00991e0b",
+       "6851cce708a73e3c00991e1d",
+       "6851cce708a73e3c00991e1f"
+      ],
+      [
+       "6851cce508a73e3c00991e11",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce508a73e3c00991e10",
+       "6851cce408a73e3c00991e09",
+       "6851ccec08a73e3c00991e49",
+       "6851ccea08a73e3c00991e31",
+       "6851cceb08a73e3c00991e3e",
+       "6851cceb08a73e3c00991e3d"
+      ]
      ]
     }
    ],
@@ -1673,6 +7073,11 @@
    "penalty_total": [
     0,
     15
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -1696,9 +7101,31 @@
        185
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      1,
+      3
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e52",
+       "6851ccef08a73e3c00991e5e",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce708a73e3c00991e22",
+       "6851cced08a73e3c00991e4c",
+       "6851cce508a73e3c00991e0f",
+       "6851cced08a73e3c00991e4e",
+       "6851ccee08a73e3c00991e5b"
+      ],
+      [
+       "6851cce508a73e3c00991e11",
+       "6851cce508a73e3c00991e10",
+       "6851cce408a73e3c00991e0b",
+       "6851cce408a73e3c00991e09",
+       "6851ccec08a73e3c00991e49",
+       "6851cce608a73e3c00991e1b",
+       "6851cce708a73e3c00991e21",
+       "6851cce608a73e3c00991e19"
+      ]
      ]
     },
     {
@@ -1714,9 +7141,31 @@
        164
       ]
      ],
-     "penalty": [
-      0,
+     "restarts": [
+      1,
       0
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e4c",
+       "6851cce508a73e3c00991e0f",
+       "6851cced08a73e3c00991e4e",
+       "6851ccee08a73e3c00991e5b",
+       "6851cced08a73e3c00991e53",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce708a73e3c00991e22",
+       "6851cce508a73e3c00991e11"
+      ],
+      [
+       "6851cce708a73e3c00991e21",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce508a73e3c00991e10",
+       "6851cce408a73e3c00991e09",
+       "6851cce408a73e3c00991e0b",
+       "6851ccea08a73e3c00991e31",
+       "6851cceb08a73e3c00991e3e",
+       null
+      ]
      ]
     }
    ],
@@ -1724,6 +7173,11 @@
    "penalty_total": [
     0,
     5
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -1747,9 +7201,9 @@
        300
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      2,
+      5
      ]
     },
     {
@@ -1765,9 +7219,9 @@
        115
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      5,
+      2
      ]
     }
    ],
@@ -1775,6 +7229,11 @@
    "penalty_total": [
     0,
     0
+   ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -1849,9 +7308,9 @@
        119
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      3,
+      4
      ]
     },
     {
@@ -1867,9 +7326,9 @@
        114
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      4,
+      2
      ]
     }
    ],
@@ -1877,6 +7336,11 @@
    "penalty_total": [
     20,
     15
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -1900,7 +7364,7 @@
        126
       ]
      ],
-     "penalty": [
+     "restarts": [
       0,
       0
      ]
@@ -1918,9 +7382,9 @@
        129
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      4,
+      3
      ]
     }
    ],
@@ -1928,6 +7392,11 @@
    "penalty_total": [
     15,
     5
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -1951,9 +7420,31 @@
        87
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      1,
+      1
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e4b",
+       "6851ccee08a73e3c00991e57",
+       "6851cce708a73e3c00991e1d",
+       "6851cce608a73e3c00991e19",
+       "6851cced08a73e3c00991e50",
+       "6851cced08a73e3c00991e53",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e0f"
+      ],
+      [
+       "6851ccec08a73e3c00991e47",
+       "6851ccec08a73e3c00991e49",
+       "6851cce708a73e3c00991e1f",
+       "6851ccee08a73e3c00991e59",
+       "6851cced08a73e3c00991e52",
+       "6851cce508a73e3c00991e10",
+       null,
+       "6851ccec08a73e3c00991e4a"
+      ]
      ]
     },
     {
@@ -1969,9 +7460,31 @@
        105
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      1,
+      1
+     ],
+     "teams": [
+      [
+       "6851ccea08a73e3c00991e32",
+       "6851ccec08a73e3c00991e49",
+       "6851ccef08a73e3c00991e60",
+       "6851ccee08a73e3c00991e5b",
+       "6851cce708a73e3c00991e1e",
+       "6851cce508a73e3c00991e10",
+       "6851ccec08a73e3c00991e4a",
+       "6851cce508a73e3c00991e11"
+      ],
+      [
+       "6851cce908a73e3c00991e2c",
+       "6851cce408a73e3c00991e0b",
+       "6851cce708a73e3c00991e1f",
+       "6851ccee08a73e3c00991e57",
+       "6851cced08a73e3c00991e50",
+       "6851cced08a73e3c00991e53",
+       "6851cce408a73e3c00991e09",
+       null
+      ]
      ]
     }
    ],
@@ -1979,6 +7492,111 @@
    "penalty_total": [
     0,
     0
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_fast_4",
+   "date": "2025-06-13T19:58",
+   "players": [
+    "ardyardy",
+    "liarlialin"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       110,
+       138,
+       125
+      ],
+      [
+       99,
+       151,
+       101
+      ]
+     ],
+     "restarts": [
+      2,
+      3
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e4b",
+       "6851ccee08a73e3c00991e54",
+       "6851ccee08a73e3c00991e59",
+       "6851ccef08a73e3c00991e5e",
+       "6851cced08a73e3c00991e53",
+       "6851cce508a73e3c00991e10",
+       "6851cce508a73e3c00991e11",
+       null
+      ],
+      [
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e0b",
+       "6851cce608a73e3c00991e19",
+       "6851cce208a73e3c00991dff",
+       "6851ccee08a73e3c00991e55",
+       "6851cce708a73e3c00991e20",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e0f"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       110,
+       127,
+       103
+      ],
+      [
+       104,
+       150,
+       109
+      ]
+     ],
+     "restarts": [
+      2,
+      4
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e4b",
+       "6851ccee08a73e3c00991e54",
+       "6851cceb08a73e3c00991e3f",
+       "6851cce508a73e3c00991e11",
+       "6851ccee08a73e3c00991e55",
+       "6851ccef08a73e3c00991e5e",
+       null,
+       "6851cce908a73e3c00991e2d"
+      ],
+      [
+       "6851cce708a73e3c00991e1e",
+       "6851cce208a73e3c00991dfe",
+       "6851cce408a73e3c00991e0b",
+       "6851cce208a73e3c00991dff",
+       "6851cced08a73e3c00991e53",
+       "6851cce508a73e3c00991e10",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e0f"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/654",
+   "penalty_total": [
+    0,
+    20
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -2002,9 +7620,31 @@
        75
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      1,
+      2
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e50",
+       "6851cce508a73e3c00991e11",
+       "6851cce608a73e3c00991e19",
+       "6851cce608a73e3c00991e1b",
+       "6851ccec08a73e3c00991e4a",
+       "6851cced08a73e3c00991e52",
+       "6851cce508a73e3c00991e10",
+       "6851cce708a73e3c00991e22"
+      ],
+      [
+       "6851cce408a73e3c00991e0b",
+       "6851ccec08a73e3c00991e49",
+       "6851ccef08a73e3c00991e60",
+       "6851ccee08a73e3c00991e5b",
+       "6851cced08a73e3c00991e4b",
+       null,
+       "6851cced08a73e3c00991e53",
+       "6851cced08a73e3c00991e4e"
+      ]
      ]
     },
     {
@@ -2020,9 +7660,31 @@
        92
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      3,
+      3
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e52",
+       "6851cce508a73e3c00991e10",
+       "6851cce608a73e3c00991e1b",
+       "6851cce908a73e3c00991e2d",
+       "6851cced08a73e3c00991e50",
+       "6851cce508a73e3c00991e11",
+       "6851ccea08a73e3c00991e33",
+       "6851ccef08a73e3c00991e5c"
+      ],
+      [
+       "6851cce208a73e3c00991dfe",
+       "6851ccec08a73e3c00991e49",
+       "6851ccef08a73e3c00991e60",
+       "6851cce908a73e3c00991e2f",
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e09",
+       null,
+       "6851ccee08a73e3c00991e5b"
+      ]
      ]
     }
    ],
@@ -2030,6 +7692,11 @@
    "penalty_total": [
     5,
     5
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -2053,9 +7720,31 @@
        117
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      2,
+      4
+     ],
+     "teams": [
+      [
+       null,
+       "6851ccec08a73e3c00991e49",
+       "6851cce908a73e3c00991e2c",
+       "6851cce508a73e3c00991e10",
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e09",
+       "6851cce908a73e3c00991e2b",
+       "6851cce508a73e3c00991e0f"
+      ],
+      [
+       "6851cced08a73e3c00991e50",
+       "6851cce408a73e3c00991e0b",
+       "6851cce708a73e3c00991e1f",
+       "6851cce508a73e3c00991e11",
+       "6851cceb08a73e3c00991e3e",
+       "6851cceb08a73e3c00991e39",
+       "6851cce408a73e3c00991e07",
+       "6851ccea08a73e3c00991e34"
+      ]
      ]
     },
     {
@@ -2071,9 +7760,31 @@
        169
       ]
      ],
-     "penalty": [
+     "restarts": [
       0,
-      0
+      4
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e4c",
+       "6851ccee08a73e3c00991e5b",
+       "6851cce608a73e3c00991e18",
+       "6851ccec08a73e3c00991e49",
+       "6851cce708a73e3c00991e1e",
+       "6851ccea08a73e3c00991e31",
+       "6851cce408a73e3c00991e09",
+       "6851ccec08a73e3c00991e4a"
+      ],
+      [
+       "6851cced08a73e3c00991e50",
+       "6851ccef08a73e3c00991e5e",
+       "6851cce708a73e3c00991e1f",
+       "6851cce408a73e3c00991e0b",
+       "6851cceb08a73e3c00991e3e",
+       "6851cce508a73e3c00991e10",
+       "6851cceb08a73e3c00991e3d",
+       null
+      ]
      ]
     }
    ],
@@ -2081,6 +7792,11 @@
    "penalty_total": [
     0,
     30
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -2104,9 +7820,31 @@
        105
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      1,
+      4
+     ],
+     "teams": [
+      [
+       "6851cce908a73e3c00991e2c",
+       "6851ccec08a73e3c00991e49",
+       "6851cce908a73e3c00991e2b",
+       "6851cce408a73e3c00991e0b",
+       "6851cceb08a73e3c00991e3e",
+       "6851cceb08a73e3c00991e39",
+       "6851cce508a73e3c00991e11",
+       "6851cce508a73e3c00991e10"
+      ],
+      [
+       "6851cce808a73e3c00991e24",
+       "6851ccee08a73e3c00991e57",
+       "6851cce708a73e3c00991e1f",
+       "6851cce808a73e3c00991e28",
+       "6851ccec08a73e3c00991e4a",
+       null,
+       "6851ccee08a73e3c00991e59",
+       "6851ccee08a73e3c00991e58"
+      ]
      ]
     },
     {
@@ -2122,9 +7860,31 @@
        78
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      1,
+      2
+     ],
+     "teams": [
+      [
+       "6851ccec08a73e3c00991e49",
+       "6851cce508a73e3c00991e10",
+       "6851cce708a73e3c00991e1f",
+       "6851cce608a73e3c00991e19",
+       "6851cce708a73e3c00991e1e",
+       "6851cce908a73e3c00991e2c",
+       "6851cce408a73e3c00991e09",
+       "6851ccee08a73e3c00991e5b"
+      ],
+      [
+       "6851ccec08a73e3c00991e47",
+       "6851ccee08a73e3c00991e54",
+       "6851cce208a73e3c00991dff",
+       "6851cce408a73e3c00991e0b",
+       "6851cce808a73e3c00991e24",
+       null,
+       "6851ccec08a73e3c00991e4a",
+       "6851cce808a73e3c00991e28"
+      ]
      ]
     }
    ],
@@ -2132,6 +7892,111 @@
    "penalty_total": [
     0,
     15
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ]
+  },
+  {
+   "tournament": "challonge-afc_fast_5",
+   "date": "2025-07-04T17:37",
+   "players": [
+    "liarlialin",
+    "rouziee_uwu"
+   ],
+   "games": [
+    {
+     "rooms": [
+      [
+       148,
+       153,
+       155
+      ],
+      [
+       151,
+       188,
+       300
+      ]
+     ],
+     "restarts": [
+      3,
+      4
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e50",
+       "6851cce908a73e3c00991e2c",
+       "6851cced08a73e3c00991e4e",
+       "6851cce508a73e3c00991e0f",
+       "6851ccee08a73e3c00991e58",
+       "6851cce508a73e3c00991e11",
+       "6851cce708a73e3c00991e1d",
+       "6851ccee08a73e3c00991e5b"
+      ],
+      [
+       "6851cce808a73e3c00991e24",
+       "6851cce508a73e3c00991e10",
+       "6851cce708a73e3c00991e1f",
+       "6851cce908a73e3c00991e2d",
+       "6851cce708a73e3c00991e1e",
+       "6851ccec08a73e3c00991e49",
+       "6851cceb08a73e3c00991e3a",
+       "6851ccec08a73e3c00991e48"
+      ]
+     ]
+    },
+    {
+     "rooms": [
+      [
+       147,
+       209,
+       178
+      ],
+      [
+       125,
+       174,
+       152
+      ]
+     ],
+     "restarts": [
+      1,
+      4
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e4b",
+       "6851ccee08a73e3c00991e57",
+       "6851cce708a73e3c00991e1e",
+       "6851cce508a73e3c00991e10",
+       "6851cced08a73e3c00991e50",
+       "6851cce708a73e3c00991e1d",
+       "6851cce308a73e3c00991e04",
+       "6851cce708a73e3c00991e20"
+      ],
+      [
+       "6851cce808a73e3c00991e24",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11",
+       "6851cce408a73e3c00991e0b",
+       "6851ccec08a73e3c00991e49",
+       "6851cce908a73e3c00991e2c",
+       "6851cce708a73e3c00991e1f",
+       "6851ccec08a73e3c00991e48"
+      ]
+     ]
+    }
+   ],
+   "source": "https://t.me/hoth_abyss/676",
+   "penalty_total": [
+    5,
+    30
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -2155,9 +8020,31 @@
        141
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      3,
+      2
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e50",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11",
+       "6851cce508a73e3c00991e0f",
+       "6851ccec08a73e3c00991e46",
+       "6851cce208a73e3c00991dfe",
+       "6851cce908a73e3c00991e2f",
+       "6851cce908a73e3c00991e2c"
+      ],
+      [
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e0b",
+       "6851ccec08a73e3c00991e49",
+       "6851ccee08a73e3c00991e57",
+       "6851cce508a73e3c00991e16",
+       "6851ccef08a73e3c00991e60",
+       "6851cce708a73e3c00991e1d",
+       "6851ccee08a73e3c00991e5b"
+      ]
      ]
     },
     {
@@ -2173,9 +8060,31 @@
        174
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      2,
+      4
+     ],
+     "teams": [
+      [
+       "6851ccef08a73e3c00991e5f",
+       "6851ccee08a73e3c00991e59",
+       "6851cce408a73e3c00991e09",
+       "6851cce508a73e3c00991e11",
+       "6851cce908a73e3c00991e2c",
+       "6851ccec08a73e3c00991e49",
+       "6851ccec08a73e3c00991e48",
+       "6851cce708a73e3c00991e1d"
+      ],
+      [
+       "6851cced08a73e3c00991e50",
+       "6851ccef08a73e3c00991e5e",
+       "6851ccee08a73e3c00991e57",
+       "6851cce708a73e3c00991e1f",
+       "6851cce708a73e3c00991e1e",
+       "6851cce208a73e3c00991dfe",
+       "6851cce408a73e3c00991e0b",
+       "6851ccee08a73e3c00991e5b"
+      ]
      ]
     }
    ],
@@ -2183,6 +8092,11 @@
    "penalty_total": [
     5,
     15
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -2206,9 +8120,31 @@
        107
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      4,
+      1
+     ],
+     "teams": [
+      [
+       "6851ccec08a73e3c00991e49",
+       "6851ccee08a73e3c00991e5b",
+       "6851cced08a73e3c00991e4b",
+       "6851cced08a73e3c00991e50",
+       "6851cceb08a73e3c00991e39",
+       "6851cce508a73e3c00991e10",
+       "6851cce508a73e3c00991e16",
+       "6851ccea08a73e3c00991e35"
+      ],
+      [
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e09",
+       "6851cce408a73e3c00991e0b",
+       "6851cce908a73e3c00991e2c",
+       "6851cced08a73e3c00991e4c",
+       "6851cceb08a73e3c00991e3a",
+       "6851cce708a73e3c00991e1d",
+       "6851cce508a73e3c00991e11"
+      ]
      ]
     },
     {
@@ -2224,9 +8160,31 @@
        141
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      2,
+      1
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e4b",
+       "6851cce408a73e3c00991e09",
+       "6851ccee08a73e3c00991e57",
+       "6851ccef08a73e3c00991e5e",
+       "6851cced08a73e3c00991e50",
+       "6851cceb08a73e3c00991e3a",
+       "6851cce308a73e3c00991e04",
+       "6851cce508a73e3c00991e11"
+      ],
+      [
+       "6851cce708a73e3c00991e1e",
+       "6851ccec08a73e3c00991e49",
+       "6851ccee08a73e3c00991e5b",
+       "6851cce908a73e3c00991e2c",
+       "6851cceb08a73e3c00991e3e",
+       "6851cceb08a73e3c00991e39",
+       "6851ccec08a73e3c00991e48",
+       "6851ccea08a73e3c00991e31"
+      ]
      ]
     }
    ],
@@ -2234,6 +8192,11 @@
    "penalty_total": [
     15,
     0
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -2257,9 +8220,31 @@
        104
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      2,
+      1
+     ],
+     "teams": [
+      [
+       "6851cce708a73e3c00991e1e",
+       "6851ccec08a73e3c00991e49",
+       "6851ccee08a73e3c00991e57",
+       "6851cce408a73e3c00991e0b",
+       "6851cced08a73e3c00991e4b",
+       "6851cced08a73e3c00991e4e",
+       "6851ccef08a73e3c00991e60",
+       "6851cce908a73e3c00991e2f"
+      ],
+      [
+       "6851ccec08a73e3c00991e44",
+       "6851cce708a73e3c00991e1f",
+       "6851cce508a73e3c00991e11",
+       "6851cce408a73e3c00991e09",
+       "6851cced08a73e3c00991e50",
+       "6851cce708a73e3c00991e1d",
+       "6851cce608a73e3c00991e1b",
+       "6851ccee08a73e3c00991e5b"
+      ]
      ]
     },
     {
@@ -2275,9 +8260,31 @@
        119
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      1,
+      3
+     ],
+     "teams": [
+      [
+       "6851cced08a73e3c00991e50",
+       "6851cce708a73e3c00991e1e",
+       "6851cce608a73e3c00991e1b",
+       "6851ccee08a73e3c00991e5b",
+       "6851ccef08a73e3c00991e60",
+       "6851cced08a73e3c00991e4b",
+       "6851cce308a73e3c00991e04",
+       "6851ccee08a73e3c00991e57"
+      ],
+      [
+       "6851ccec08a73e3c00991e49",
+       "6851cce508a73e3c00991e11",
+       "6851cce408a73e3c00991e09",
+       "6851ccec08a73e3c00991e48",
+       "6851cce708a73e3c00991e1d",
+       "6851cce408a73e3c00991e0b",
+       "6851cce508a73e3c00991e10",
+       "6851cce808a73e3c00991e24"
+      ]
      ]
     }
    ],
@@ -2285,6 +8292,11 @@
    "penalty_total": [
     0,
     5
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
@@ -2308,9 +8320,31 @@
        109
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      3,
+      2
+     ],
+     "teams": [
+      [
+       "6851ccee08a73e3c00991e56",
+       "6851ccee08a73e3c00991e57",
+       "6851cced08a73e3c00991e4e",
+       "6851cce408a73e3c00991e09",
+       "6851ccee08a73e3c00991e5a",
+       "6851cce608a73e3c00991e1b",
+       "6851ccee08a73e3c00991e5b",
+       "6851ccec08a73e3c00991e48"
+      ],
+      [
+       "6851ccec08a73e3c00991e49",
+       "6851cce708a73e3c00991e1e",
+       null,
+       "6851cce608a73e3c00991e19",
+       "6851ccef08a73e3c00991e60",
+       "6851cce208a73e3c00991dfe",
+       "6851cce308a73e3c00991e04",
+       "6851cce708a73e3c00991e1d"
+      ]
      ]
     },
     {
@@ -2326,9 +8360,31 @@
        83
       ]
      ],
-     "penalty": [
+     "restarts": [
       0,
       0
+     ],
+     "teams": [
+      [
+       "6851cce708a73e3c00991e1e",
+       "6851ccec08a73e3c00991e49",
+       "6851cce408a73e3c00991e0b",
+       "6851ccee08a73e3c00991e5b",
+       "6851ccef08a73e3c00991e60",
+       "6851ccee08a73e3c00991e57",
+       "6851cced08a73e3c00991e4e",
+       "6851cce308a73e3c00991e04"
+      ],
+      [
+       "6851ccee08a73e3c00991e56",
+       "6851cce608a73e3c00991e19",
+       "6851cce708a73e3c00991e20",
+       "6851cce608a73e3c00991e1b",
+       "6851cce908a73e3c00991e2f",
+       "6851cce208a73e3c00991dfe",
+       "6851cce708a73e3c00991e1f",
+       "6851cceb08a73e3c00991e3a"
+      ]
      ]
     }
    ],
@@ -2336,2592 +8392,206 @@
    "penalty_total": [
     5,
     0
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
    ]
   },
   {
-   "tournament": "challonge-afc_4_1",
-   "date": "2025-07-24T18:33",
+   "tournament": "challonge-afc_fast_5",
+   "date": "2025-07-06T17:09",
    "players": [
-    "Remission",
-    "Rer"
+    "smertikk",
+    "rpyt02"
    ],
    "games": [
     {
      "rooms": [
       [
-       98,
-       103,
-       127
-      ],
-      [
-       88,
-       123,
-       130
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
+       117,
        146,
-       146,
-       164
-      ],
-      [
-       112,
-       121,
-       142
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/703",
-   "penalty_total": [
-    15,
-    0
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_1",
-   "date": "2025-07-24T20:51",
-   "players": [
-    "Jericho",
-    "kisselka"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       117,
-       148,
-       171
-      ],
-      [
-       112,
-       116,
-       165
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       108,
-       134,
-       127
-      ],
-      [
-       105,
-       120,
-       140
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/705",
-   "penalty_total": [
-    5,
-    0
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_1",
-   "date": "2025-07-26T18:02",
-   "players": [
-    "Rpyt",
-    "Baam"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       79,
-       95,
-       107
-      ],
-      [
-       101,
-       114,
-       117
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       101,
-       118,
-       115
-      ],
-      [
-       84,
-       98,
-       124
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/709",
-   "penalty_total": [
-    0,
-    5
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_1",
-   "date": "2025-07-26T20:21",
-   "players": [
-    "Vell1ar",
-    "touchme"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       95,
-       98,
-       100
-      ],
-      [
-       89,
-       94,
-       102
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/710"
-  },
-  {
-   "tournament": "challonge-afc_4_1",
-   "date": "2025-07-27T17:34",
-   "players": [
-    "Ardy",
-    "Peudan"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       105,
-       121,
-       126
-      ],
-      [
-       92,
-       107,
-       114
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       101,
-       104,
-       135
-      ],
-      [
-       103,
-       90,
-       118
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/713",
-   "penalty_total": [
-    5,
-    5
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_1",
-   "date": "2025-07-27T20:14",
-   "players": [
-    "linkle",
-    "dado"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       98,
-       104,
-       145
-      ],
-      [
-       115,
-       128,
-       163
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       104,
-       108,
-       116
-      ],
-      [
-       94,
-       124,
-       126
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/714",
-   "penalty_total": [
-    0,
-    5
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_1",
-   "date": "2025-07-29T15:07",
-   "players": [
-    "Northwar",
-    "ClovesCleyton"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       111,
-       117,
-       110
-      ],
-      [
-       95,
-       126,
-       153
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/717"
-  },
-  {
-   "tournament": "challonge-afc_4_1",
-   "date": "2025-07-29T17:21",
-   "players": [
-    "Neo",
-    "Divizor"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       91,
-       105,
-       124
-      ],
-      [
-       112,
-       109,
-       146
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       88,
-       112,
-       115
-      ],
-      [
-       99,
-       144,
-       155
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/718",
-   "penalty_total": [
-    5,
-    5
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_1",
-   "date": "2025-07-30T17:47",
-   "players": [
-    "oujikun",
-    "Roronoa"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       141,
-       170,
-       221
-      ],
-      [
-       125,
-       148,
-       162
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       156,
-       165,
-       175
-      ],
-      [
-       96,
-       87,
-       115
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/724",
-   "penalty_total": [
-    30,
-    20
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_1",
-   "date": "2025-07-30T19:55",
-   "players": [
-    "Liroy",
-    "kisselka"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       108,
-       118,
-       138
-      ],
-      [
-       144,
-       142,
-       194
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       112,
-       119,
-       127
-      ],
-      [
-       168,
-       300,
-       300
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/725",
-   "penalty_total": [
-    0,
-    5
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_1",
-   "date": "2025-08-01T15:42",
-   "players": [
-    "Pmir",
-    "saintplaza"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       101,
-       116,
-       114
-      ],
-      [
-       129,
-       157,
-       178
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       107,
-       121,
-       136
-      ],
-      [
-       89,
-       97,
-       105
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/728",
-   "penalty_total": [
-    15,
-    15
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_1",
-   "date": "2025-08-01T18:19",
-   "players": [
-    "DzeN",
-    "NipodZi"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       95,
-       111,
-       165
-      ],
-      [
-       103,
-       133,
-       128
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       90,
-       114,
-       167
-      ],
-      [
-       107,
-       116,
-       138
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/729",
-   "penalty_total": [
-    20,
-    5
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_2",
-   "date": "2025-08-08T17:01",
-   "players": [
-    "Peudan",
-    "Odin"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       106,
-       122,
-       137
-      ],
-      [
-       135,
-       133,
-       147
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       97,
-       122,
-       109
-      ],
-      [
-       111,
-       116,
-       144
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/738",
-   "penalty_total": [
-    5,
-    5
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_2",
-   "date": "2025-08-08T19:34",
-   "players": [
-    "DzeN",
-    "Neo"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       142,
-       117,
-       127
-      ],
-      [
-       134,
-       113,
-       134
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       99,
-       115,
-       128
-      ],
-      [
-       90,
-       98,
-       105
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/739",
-   "penalty_total": [
-    20,
-    20
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_2",
-   "date": "2025-08-09T17:52",
-   "players": [
-    "Pmir",
-    "Meji"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       116,
-       150,
-       146
-      ],
-      [
-       115,
-       121,
-       112
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       99,
-       118,
-       144
-      ],
-      [
-       131,
-       141,
-       300
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/742",
-   "penalty_total": [
-    5,
-    30
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_2",
-   "date": "2025-08-09T20:08",
-   "players": [
-    "linkle",
-    "Vell1ar"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       84,
-       123,
-       127
-      ],
-      [
-       112,
-       112,
-       137
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       107,
-       147,
-       125
-      ],
-      [
-       105,
-       125,
-       119
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/743",
-   "penalty_total": [
-    5,
-    5
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_2",
-   "date": "2025-08-11T17:53",
-   "players": [
-    "Liroy",
-    "Rpyt"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       99,
-       119,
-       139
-      ],
-      [
-       94,
-       121,
-       145
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       94,
-       105,
-       121
-      ],
-      [
-       106,
-       112,
-       119
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/746",
-   "penalty_total": [
-    0,
-    20
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_2",
-   "date": "2025-08-11T20:21",
-   "players": [
-    "Peudan",
-    "NipodZi"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       86,
-       112,
-       102
-      ],
-      [
-       104,
-       111,
-       126
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       97,
-       106,
-       110
-      ],
-      [
-       137,
-       152,
-       237
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/747",
-   "penalty_total": [
-    0,
-    20
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_2",
-   "date": "2025-08-12T17:20",
-   "players": [
-    "koldun",
-    "Baam"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       90,
-       114,
-       126
-      ],
-      [
-       85,
-       103,
-       109
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       79,
-       96,
-       116
-      ],
-      [
-       65,
-       92,
-       83
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/752",
-   "penalty_total": [
-    5,
-    0
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_2",
-   "date": "2025-08-12T19:51",
-   "players": [
-    "diagolt",
-    "Roronoa"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       133,
-       127,
-       168
-      ],
-      [
-       145,
-       156,
-       161
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       148,
-       137,
-       300
-      ],
-      [
-       118,
-       124,
-       154
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/753",
-   "penalty_total": [
-    0,
-    5
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_2",
-   "date": "2025-08-14T17:19",
-   "players": [
-    "Rer",
-    "Smert"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       94,
-       84,
-       99
-      ],
-      [
-       66,
-       107,
-       97
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       88,
-       99,
-       101
-      ],
-      [
-       81,
-       105,
-       126
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/757",
-   "penalty_total": [
-    0,
-    0
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_2",
-   "date": "2025-08-14T20:23",
-   "players": [
-    "Antur",
-    "Liroy"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       115,
-       117,
-       160
-      ],
-      [
-       104,
-       115,
-       136
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       90,
-       119,
-       128
-      ],
-      [
-       105,
-       113,
-       115
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/758",
-   "penalty_total": [
-    20,
-    0
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_2",
-   "date": "2025-08-15T14:51",
-   "players": [
-    "Secabu",
-    "ClovesCleyton"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       120,
-       121,
-       142
-      ],
-      [
-       89,
-       104,
-       115
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       111,
-       128,
-       116
-      ],
-      [
-       95,
-       116,
-       137
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/761",
-   "penalty_total": [
-    30,
-    0
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_2",
-   "date": "2025-08-15T17:14",
-   "players": [
-    "Kutsuki",
-    "Northwar"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       92,
-       124,
-       120
-      ],
-      [
-       95,
-       94,
-       93
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       93,
-       118,
-       131
-      ],
-      [
-       117,
-       116,
-       118
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/762",
-   "penalty_total": [
-    0,
-    0
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-08-23T15:05",
-   "players": [
-    "Pmir",
-    "Rpyt02"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       115,
-       102,
-       121
-      ],
-      [
-       114,
-       107,
        130
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       119,
-       110,
-       136
-      ],
-      [
-       109,
-       111,
-       106
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/771",
-   "penalty_total": [
-    15,
-    0
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-08-23T17:31",
-   "players": [
-    "TouchMe",
-    "Senoen"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       112,
-       134,
-       109
-      ],
-      [
-       112,
-       120,
-       139
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       117,
-       102,
-       118
-      ],
-      [
-       104,
-       101,
-       109
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/772",
-   "penalty_total": [
-    5,
-    15
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-08-23T19:55",
-   "players": [
-    "Velliar",
-    "Liroy"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       189,
-       179,
-       181
-      ],
-      [
-       124,
-       129,
-       135
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       150,
-       158,
-       300
-      ],
-      [
-       155,
-       170,
-       127
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/773",
-   "penalty_total": [
-    0,
-    0
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-08-24T17:47",
-   "players": [
-    "ClovesCleyton",
-    "Linkle"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       114,
-       105,
-       126
-      ],
-      [
-       117,
-       111,
-       165
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       129,
-       114,
-       149
-      ],
-      [
-       164,
-       179,
-       161
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/776",
-   "penalty_total": [
-    0,
-    20
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-08-24T19:25",
-   "players": [
-    "Ardy",
-    "Northwar"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       171,
-       134,
-       157
       ],
       [
        130,
-       169,
-       158
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       155,
        139,
-       159
-      ],
-      [
-       116,
-       112,
-       118
+       110
       ]
      ],
      "penalty": [
       0,
       0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/777",
-   "penalty_total": [
-    0,
-    0
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-08-25T14:53",
-   "players": [
-    "Nipodzi",
-    "Roronoa"
-   ],
-   "games": [
-    {
-     "rooms": [
+     ],
+     "teams": [
       [
-       116,
-       123,
-       107
+       "6851ccee08a73e3c00991e56",
+       null,
+       "6851ccee08a73e3c00991e5b",
+       "6851cce408a73e3c00991e09",
+       "6851ccef08a73e3c00991e60",
+       "6851cce908a73e3c00991e2f",
+       "6851cce708a73e3c00991e1d",
+       "6851cce408a73e3c00991e0b"
       ],
       [
-       120,
-       108,
-       125
+       "6851cce708a73e3c00991e1e",
+       "6851cce908a73e3c00991e2c",
+       "6851ccee08a73e3c00991e57",
+       "6851cce608a73e3c00991e19",
+       "6851cce208a73e3c00991dfe",
+       "6851ccec08a73e3c00991e49",
+       "6851cce608a73e3c00991e1b",
+       "6851cce508a73e3c00991e16"
       ]
-     ],
-     "penalty": [
-      0,
-      0
      ]
     },
     {
      "rooms": [
       [
-       130,
-       140,
-       118
+       111,
+       142,
+       117
       ],
       [
-       104,
-       110,
-       114
+       144,
+       162,
+       123
       ]
      ],
      "penalty": [
       0,
       0
+     ],
+     "teams": [
+      [
+       "6851cce708a73e3c00991e1e",
+       "6851ccec08a73e3c00991e49",
+       "6851cce408a73e3c00991e09",
+       "6851cce908a73e3c00991e2b",
+       "6851cced08a73e3c00991e4c",
+       "6851cce708a73e3c00991e1d",
+       "6851cceb08a73e3c00991e3a",
+       "6851cce508a73e3c00991e11"
+      ],
+      [
+       "6851cce908a73e3c00991e2c",
+       "6851cce408a73e3c00991e0b",
+       "6851cce708a73e3c00991e1f",
+       null,
+       "6851ccef08a73e3c00991e60",
+       "6851ccee08a73e3c00991e5b",
+       "6851cce508a73e3c00991e0f",
+       "6851cced08a73e3c00991e4b"
+      ]
      ]
     }
    ],
-   "source": "https://t.me/hoth_abyss/780",
+   "source": "https://t.me/hoth_abyss/689",
    "penalty_total": [
-    5,
-    0
+    0,
+    15
    ]
   },
   {
    "tournament": "challonge-afc_4_3",
-   "date": "2025-08-25T17:14",
+   "date": "2025-09-14T18:09",
    "players": [
-    "Kutsuki",
+    "Peudan",
     "Smertik"
    ],
    "games": [
     {
      "rooms": [
       [
-       121,
-       130,
-       135
-      ],
-      [
-       121,
-       130,
-       143
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       117,
-       109,
-       130
-      ],
-      [
-       117,
        113,
-       129
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/781",
-   "penalty_total": [
-    5,
-    20
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-08-28T16:50",
-   "players": [
-    "Velliar",
-    "Pmir"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       91,
-       96,
-       110
-      ],
-      [
-       96,
-       91,
-       112
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       98,
-       97,
-       112
-      ],
-      [
-       96,
-       105,
-       106
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/787",
-   "penalty_total": [
-    5,
-    10
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-08-28T19:47",
-   "players": [
-    "Senoen",
-    "gDado"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       87,
-       91,
-       126
-      ],
-      [
-       120,
-       124,
-       127
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       111,
-       111,
-       132
-      ],
-      [
-       147,
-       149,
-       104
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/790",
-   "penalty_total": [
-    0,
-    0
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-08-29T17:19",
-   "players": [
-    "Smertik",
-    "Nipodzi"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       151,
-       166,
-       166
-      ],
-      [
-       208,
-       210,
-       191
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       128,
-       141,
-       147
-      ],
-      [
-       194,
-       197,
-       300
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/793",
-   "penalty_total": [
-    0,
-    5
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-08-29T19:26",
-   "players": [
-    "Linkle",
-    "Ardy"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       126,
-       124,
-       152
-      ],
-      [
-       171,
-       149,
-       161
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       141,
-       150,
-       175
-      ],
-      [
-       133,
-       129,
-       147
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/794",
-   "penalty_total": [
-    15,
-    10
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-08-31T19:39",
-   "players": [
-    "Liroy",
-    "Rpyt02"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       128,
-       129,
-       115
-      ],
-      [
-       117,
-       100,
-       111
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       120,
-       131,
-       141
-      ],
-      [
-       110,
-       115,
-       110
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/797",
-   "penalty_total": [
-    5,
-    0
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-09-01T15:19",
-   "players": [
-    "Northwar",
-    "ClovesCleyton"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       115,
-       110,
-       135
-      ],
-      [
-       152,
-       118,
-       144
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       120,
-       135,
-       126
-      ],
-      [
-       129,
-       119,
-       124
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/800",
-   "penalty_total": [
-    0,
-    0
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-09-01T18:03",
-   "players": [
-    "TouchMe",
-    "Peudan"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       129,
-       138,
-       149
-      ],
-      [
-       133,
-       136,
-       125
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       135,
-       125,
-       129
-      ],
-      [
-       117,
-       116,
-       119
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/801",
-   "penalty_total": [
-    20,
-    0
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-09-01T20:05",
-   "players": [
-    "Kutsuki",
-    "Roronoa"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       145,
-       175,
-       152
-      ],
-      [
-       123,
-       122,
-       135
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       164,
-       194,
-       300
-      ],
-      [
-       187,
-       178,
-       205
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/803",
-   "penalty_total": [
-    30,
-    0
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-09-03T17:55",
-   "players": [
-    "Smertik",
-    "ClovesCleyton"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       105,
-       105,
+       113,
        122
       ],
       [
-       145,
-       147,
-       167
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       162,
-       163,
-       158
-      ],
-      [
-       141,
-       158,
-       140
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/808",
-   "penalty_total": [
-    0,
-    10
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-09-03T19:23",
-   "players": [
-    "Senoen",
-    "Liroy"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       103,
-       108,
-       91
-      ],
-      [
-       107,
-       111,
-       114
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       112,
-       115,
-       130
-      ],
-      [
-       117,
-       300,
-       300
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/809",
-   "penalty_total": [
-    0,
-    15
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-09-04T16:58",
-   "players": [
-    "TouchMe",
-    "Velliar"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       101,
-       95,
-       111
-      ],
-      [
-       121,
-       146,
-       153
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       109,
-       99,
-       113
-      ],
-      [
-       99,
-       100,
-       121
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/812",
-   "penalty_total": [
-    0,
-    20
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-09-04T18:49",
-   "players": [
-    "Linkle",
-    "Kutsuki"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       130,
-       119,
-       116
-      ],
-      [
-       154,
-       146,
-       162
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/813",
-   "penalty_total": [
-    0,
-    5
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-09-06T17:33",
-   "players": [
-    "Senoen",
-    "Linkle"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       117,
-       99,
-       132
-      ],
-      [
-       122,
-       108,
-       128
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       118,
-       97,
-       109
-      ],
-      [
-       111,
-       118,
-       108
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/816",
-   "penalty_total": [
-    15,
-    10
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-09-06T19:47",
-   "players": [
-    "Smertik",
-    "TouchMe"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       89,
-       113,
-       115
-      ],
-      [
-       96,
-       94,
-       124
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       114,
-       114,
-       112
-      ],
-      [
-       124,
-       131,
-       111
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/817",
-   "penalty_total": [
-    5,
-    0
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-09-07T14:44",
-   "players": [
-    "Rpyt02",
-    "Roronoa"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       119,
-       111,
-       115
-      ],
-      [
-       131,
-       105,
-       117
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       135,
-       144,
-       147
-      ],
-      [
-       107,
-       121,
-       109
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/821"
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-09-07T17:17",
-   "players": [
-    "Northwar",
-    "Peudan"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       161,
-       217,
-       232
-      ],
-      [
-       165,
-       151,
-       181
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       140,
-       131,
-       134
-      ],
-      [
-       140,
-       146,
-       152
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/822",
-   "penalty_total": [
-    20,
-    0
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-09-09T20:05",
-   "players": [
-    "Senoen",
-    "Northwar"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       106,
-       99,
-       104
-      ],
-      [
-       111,
-       116,
-       125
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       123,
-       123,
-       117
-      ],
-      [
-       119,
-       122,
-       127
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/826",
-   "penalty_total": [
-    0,
-    0
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-09-10T15:18",
-   "players": [
-    "Rpyt02",
-    "Smertik"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       103,
-       112,
-       150
-      ],
-      [
-       138,
-       139,
-       137
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
-       119,
-       113,
-       143
-      ],
-      [
-       115,
-       124,
-       140
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/830",
-   "penalty_total": [
-    15,
-    20
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-09-12T17:14",
-   "players": [
-    "Peudan",
-    "Roronoa"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       129,
-       121,
-       144
-      ],
-      [
-       144,
-       128,
-       163
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    },
-    {
-     "rooms": [
-      [
        120,
-       99,
-       114
-      ],
-      [
-       138,
-       136,
-       144
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/833",
-   "penalty_total": [
-    5,
-    20
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-09-12T19:21",
-   "players": [
-    "Senoen",
-    "Smertik"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       122,
-       131,
+       121,
        127
-      ],
-      [
-       101,
-       109,
-       119
       ]
      ],
-     "penalty": [
-      0,
-      0
+     "restarts": [
+      2,
+      2
+     ],
+     "teams": [
+      [
+       "6851cce908a73e3c00991e2c",
+       "6851ccee08a73e3c00991e59",
+       "6851cce408a73e3c00991e0a",
+       "6851cce708a73e3c00991e1f",
+       "6851ccec08a73e3c00991e49",
+       "6851cce808a73e3c00991e26",
+       "6851ccef08a73e3c00991e60",
+       "6851cce908a73e3c00991e2f"
+      ],
+      [
+       "688bc19806a0a6f5d327bb58",
+       "6851cce508a73e3c00991e10",
+       "6851cceb08a73e3c00991e38",
+       "6851cce608a73e3c00991e1b",
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e0b",
+       "6851cce408a73e3c00991e09",
+       "6851ccee08a73e3c00991e5b"
+      ]
      ]
     },
     {
      "rooms": [
       [
-       109,
-       103,
-       123
-      ],
-      [
-       91,
-       104,
-       91
-      ]
-     ],
-     "penalty": [
-      0,
-      0
-     ]
-    }
-   ],
-   "source": "https://t.me/hoth_abyss/834",
-   "penalty_total": [
-    15,
-    5
-   ]
-  },
-  {
-   "tournament": "challonge-afc_4_3",
-   "date": "2025-09-14T15:03",
-   "players": [
-    "Roronoa",
-    "Smertik"
-   ],
-   "games": [
-    {
-     "rooms": [
-      [
-       123,
-       111,
-       121
+       127,
+       137,
+       137
       ],
       [
        111,
-       101,
-       88
+       98,
+       115
       ]
      ],
-     "penalty": [
-      0,
+     "restarts": [
+      1,
       0
-     ]
-    },
-    {
-     "rooms": [
+     ],
+     "teams": [
       [
-       119,
-       119,
-       105
+       "6851ccec08a73e3c00991e49",
+       "6851cce808a73e3c00991e26",
+       "6851cce408a73e3c00991e0a",
+       "6851cce608a73e3c00991e1b",
+       "6851cce708a73e3c00991e1e",
+       "6851cce408a73e3c00991e0b",
+       "6851cce608a73e3c00991e19",
+       "6851ccee08a73e3c00991e5b"
       ],
       [
-       102,
-       103,
-       108
+       "688bc19806a0a6f5d327bb58",
+       "6851ccee08a73e3c00991e59",
+       "6851cce708a73e3c00991e1f",
+       "6851cceb08a73e3c00991e38",
+       "6851cce908a73e3c00991e2c",
+       "6851ccef08a73e3c00991e60",
+       "6851cce908a73e3c00991e2f",
+       "6851cce708a73e3c00991e1d"
       ]
-     ],
-     "penalty": [
-      0,
-      0
      ]
     }
    ],
-   "source": "https://t.me/hoth_abyss/837",
+   "source": "https://t.me/hoth_abyss/838",
    "penalty_total": [
-    20,
+    0,
     0
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
    ]
   }
  ]

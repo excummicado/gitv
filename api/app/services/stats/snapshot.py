@@ -111,6 +111,7 @@ class Snapshot:
     standings: list[dict] | None = None  # filled on first use by standings.tournament_standings
     qualified: dict | None = None  # filled on first use by qualifiers.qualification_results
     bracket_ranks: dict | None = None  # filled on first use by standings.bracket_places
+    elo: dict | None = None  # filled on first use by elo.elo_ratings
 
 
 # One snapshot per scope: "all" tournaments, or "major" ones only (see major_tournament_ids), each optionally
@@ -261,7 +262,8 @@ def build(session: Session, key: tuple, only: set[str] | None = None) -> Snapsho
     constellations: dict[int, dict[str, int]] = defaultdict(dict)
     for pk in sorted(session.exec(select(MatchPick)), key=lambda pk: pk.position):
         agents_by_player[pk.player_id].append(pk.agent_id)
-        constellations[pk.player_id].setdefault(pk.agent_id, pk.agent_mindscape)
+        if pk.agent_mindscape >= 0:  # UNKNOWN_CONSTELLATION: e.g. a team read off a post, constellations not shown
+            constellations[pk.player_id].setdefault(pk.agent_id, pk.agent_mindscape)
     bans = session.exec(
         select(DraftAction.draft_id, DraftAction.slot, DraftAction.agent_id).where(
             DraftAction.type.in_(["BAN", "PREBAN"]), DraftAction.agent_id.is_not(None)

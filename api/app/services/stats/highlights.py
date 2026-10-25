@@ -67,13 +67,16 @@ def popular_characters(snap: Snapshot, tid: str | None = None, count: int = POPU
     if not drafts:
         return None
     picks, wins, losses, bans, cons = Counter(), Counter(), Counter(), Counter(), Counter()
+    known = Counter()  # picks whose constellation is known
     seen: dict[str, set[str]] = {}
     for g in games:
         for agent_id in set(g.agents):
             picks[agent_id] += 1
             wins[agent_id] += g.result == "W"
             losses[agent_id] += g.result == "L"
-            cons[agent_id] += g.constellations.get(agent_id, 0)
+            if (c := g.constellations.get(agent_id)) is not None:
+                cons[agent_id] += c
+                known[agent_id] += 1
             seen.setdefault(agent_id, set()).add(g.draft_id)
     for pd in snap.players.values():
         for draft_id, banned in pd.bans_by_draft.items():
@@ -98,7 +101,7 @@ def popular_characters(snap: Snapshot, tid: str | None = None, count: int = POPU
                 "presence": pct(len(seen[agent_id]), len(drafts)),
                 "pick_winrate": pct(wins[agent_id], wins[agent_id] + losses[agent_id]),
                 # The average constellation it's picked at
-                "avg_constellation": round(cons[agent_id] / picks[agent_id], 1) if picks[agent_id] else None,
+                "avg_constellation": round(cons[agent_id] / known[agent_id], 1) if known[agent_id] else None,
             }
             for agent_id in top
         ],

@@ -91,12 +91,12 @@ def test_old_games_are_stored_with_their_drafts(session, folder, client):
     actions = session.exec(select(DraftAction).order_by(DraftAction.seq)).all()
     assert [(a.slot, a.type, a.agent_id) for a in actions] == [(1, "BAN", "amc-boy"), (0, "IMMUNE", "furina")]
     picks = session.exec(select(MatchPick).where(MatchPick.draft_id == "manual-cup-a7-g1")).all()
-    # A's constellations and levels come from the replay's roster; B has none saved
+    # A's constellations and levels come from the replay's roster; B has none saved, so B's are unknown
     assert {(p.position, p.agent_id, p.agent_mindscape, p.agent_level) for p in picks} == {
-        (0, "amc-boy", 0, None),
+        (0, "amc-boy", -1, None),  # not in the roster the replay sent
         (1, "furina", 2, 90),
-        (0, "furina", 0, None),
-        (1, "amc-boy", 0, None),
+        (0, "furina", -1, None),  # not known
+        (1, "amc-boy", -1, None),
     }
 
 

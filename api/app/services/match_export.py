@@ -117,7 +117,8 @@ def export_xlsx(session: Session, path: str) -> dict[str, int]:
 
     def team(p: MatchPlayer) -> str:
         return " | ".join(
-            f"{A(pk.agent_id)} C{pk.agent_mindscape} + {E(pk.engine_id)} R{pk.engine_refinement}"
+            f"{A(pk.agent_id)} C{pk.agent_mindscape if pk.agent_mindscape >= 0 else '?'} + {E(pk.engine_id)} "
+            f"R{pk.engine_refinement}"
             for pk in picks_by_player[p.id]
         )
 
@@ -340,7 +341,8 @@ def export_xlsx(session: Session, path: str) -> dict[str, int]:
         a = agent_stats[pk.agent_id]
         a["teams"].add(p.id)
         a["players"].add(key(p))
-        a["ms"].append(pk.agent_mindscape)
+        if pk.agent_mindscape >= 0:
+            a["ms"].append(pk.agent_mindscape)
         if pk.engine_id:
             e = engine_stats[pk.engine_id]
             e["teams"].add(p.id)
@@ -356,7 +358,7 @@ def export_xlsx(session: Session, path: str) -> dict[str, int]:
 
     agent_rows = sorted(
         (
-            [A(aid), *rates(a["teams"]), len(a["players"]), round(sum(a["ms"]) / len(a["ms"]), 2)]
+            [A(aid), *rates(a["teams"]), len(a["players"]), round(sum(a["ms"]) / len(a["ms"]), 2) if a["ms"] else None]
             for aid, a in agent_stats.items()
         ),
         key=lambda r: -r[1],
@@ -382,7 +384,8 @@ def export_xlsx(session: Session, path: str) -> dict[str, int]:
             continue
         x = pa[(key(p), pk.agent_id)]
         x["teams"].add(p.id)
-        x["ms"].append(pk.agent_mindscape)
+        if pk.agent_mindscape >= 0:
+            x["ms"].append(pk.agent_mindscape)
     player_agent_rows = sorted(
         (
             [
@@ -391,7 +394,7 @@ def export_xlsx(session: Session, path: str) -> dict[str, int]:
                 len(x["teams"]),
                 pct(len(x["teams"]), stats[k]["games"]),
                 winrate(x["teams"]),
-                round(sum(x["ms"]) / len(x["ms"]), 2),
+                round(sum(x["ms"]) / len(x["ms"]), 2) if x["ms"] else None,
             ]
             for (k, aid), x in pa.items()
         ),
@@ -432,7 +435,7 @@ def export_xlsx(session: Session, path: str) -> dict[str, int]:
                 pk.position + 1,
                 A(pk.agent_id),
                 pk.agent_level,
-                pk.agent_mindscape,
+                pk.agent_mindscape if pk.agent_mindscape >= 0 else None,
                 E(pk.engine_id),
                 pk.engine_level,
                 pk.engine_refinement,

@@ -31,6 +31,7 @@ def character_stats(
     # Who banned: bans are stored against the player they hit, so the banner is that player's opponent.
     opponent = {(pid, g.draft_id): g.opponent for pid, pd in snap.players.items() for g in pd.games}
     picks, wins, losses, cons, banned_actions = Counter(), Counter(), Counter(), Counter(), Counter()
+    known = Counter()  # picks whose constellation is known
     times: dict[str, list[int]] = defaultdict(list)
     present: dict[str, set[str]] = defaultdict(set)
     banned_in: dict[str, set[str]] = defaultdict(set)
@@ -38,12 +39,15 @@ def character_stats(
     player_wins: dict[str, Counter] = defaultdict(Counter)
     for pid, g in games:
         for agent_id in set(g.agents):
-            if constellations and not constellations[0] <= g.constellations.get(agent_id, 0) <= constellations[1]:
+            c = g.constellations.get(agent_id)
+            if constellations and (c is None or not constellations[0] <= c <= constellations[1]):
                 continue
             picks[agent_id] += 1
             wins[agent_id] += g.result == "W"
             losses[agent_id] += g.result == "L"
-            cons[agent_id] += g.constellations.get(agent_id, 0)
+            if c is not None:
+                cons[agent_id] += c
+                known[agent_id] += 1
             present[agent_id].add(g.draft_id)
             by_player[agent_id][pid] += 1
             player_wins[agent_id][pid] += g.result == "W"
@@ -74,7 +78,7 @@ def character_stats(
                 "wins": wins[agent_id],
                 "losses": losses[agent_id],
                 "winrate": pct(wins[agent_id], wins[agent_id] + losses[agent_id]),
-                "avg_constellation": round(cons[agent_id] / picks[agent_id], 1) if picks[agent_id] else None,
+                "avg_constellation": round(cons[agent_id] / known[agent_id], 1) if known[agent_id] else None,
                 "avg_time": avg(times[agent_id]),
                 "players": len(by_player[agent_id]),
                 "top_player": {
@@ -114,8 +118,8 @@ def character_players(
                 continue
             if agent_id not in g.agents:
                 continue
-            c = g.constellations.get(agent_id, 0)
-            if constellations and not constellations[0] <= c <= constellations[1]:
+            c = g.constellations.get(agent_id)
+            if constellations and (c is None or not constellations[0] <= c <= constellations[1]):
                 continue
             row = rows.setdefault(
                 pid,
@@ -133,18 +137,21 @@ def character_players(
             row["picks"] += 1
             row["wins"] += g.result == "W"
             row["losses"] += g.result == "L"
-            row["constellations"].add(c)
+            if c is not None:
+                row["constellations"].add(c)
             row["first"] = min(row["first"], g.created_at)
             if g.created_at >= row["last"]:
-                row["last"], row["last_constellation"] = g.created_at, c
+                row["last"] = g.created_at
+                if c is not None:
+                    row["last_constellation"] = c
     out = []
     for row in rows.values():
         cons = sorted(row.pop("constellations"))
         out.append(
             {
                 **row,
-                "min_constellation": cons[0],
-                "max_constellation": cons[-1],
+                "min_constellation": cons[0] if cons else None,
+                "max_constellation": cons[-1] if cons else None,
                 "winrate": pct(row["wins"], row["wins"] + row["losses"]),
             }
         )
@@ -205,7 +212,10 @@ def character_constellations(
                     held["banned_games"] += agent_id in pd.bans_by_draft.get(g.draft_id, {})
             if agent_id not in g.agents:
                 continue
-            row = by_cons[min(6, max(0, g.constellations.get(agent_id, 0)))]
+            c = g.constellations.get(agent_id)
+            if c is None:  # not known: no place in the breakdown
+                continue
+            row = by_cons[min(6, max(0, c))]
             row["picks"] += 1
             row["wins"] += g.result == "W"
             row["losses"] += g.result == "L"

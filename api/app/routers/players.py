@@ -15,8 +15,10 @@ from ..services.draft_systems import character_cost, cost_tables, weapon_cost
 from ..services.player_names import merges
 from ..services.roster_stats import character_roster
 from ..services.stats import (
+    Rating,
     detail,
     el_clasico,
+    elo_ratings,
     head_to_head,
     in_tournament,
     player_tournaments,
@@ -31,6 +33,14 @@ from .suggestions import PlayerInfo, ProfileChangeOut, player_info, profile_hist
 from .tournaments import rows as tournament_rows
 
 router = APIRouter(prefix="/players", tags=["players"])
+
+
+class EloInfo(BaseModel):
+    rating: int
+    peak: int
+    peak_at: datetime
+    active: bool  # played in the last six months; inactive players keep their rating but aren't ranked
+    rank: int | None  # among active players
 
 
 class PlayerSummary(BaseModel):
@@ -52,6 +62,7 @@ class PlayerSummary(BaseModel):
     tech_loss_rate: float | None  # % of all games lost technically
     avg_restarts: float | None  # restarts per game, games with a result only
     last_played: datetime | None
+    elo: EloInfo | None  # from all tournaments, whatever the scope
 
 
 class CharacterCount(BaseModel):
@@ -220,7 +231,16 @@ Scope = Annotated[str, Query(pattern="^(all|major)$", description="major: Abyss 
 def list_players(session: SessionDep, scope: Scope = "all"):
     """Everyone who played an imported match (in the scope), most matches first; the page sorts and filters it."""
     snap = snapshot(session, scope)
-    return sorted((summary(p) for p in snap.players.values()), key=lambda p: -p["matches"])
+    elo = elo_ratings(session, snapshot(session))
+    return sorted(
+        ({**summary(p), "elo": elo_info(elo.get(p.id))} for p in snap.players.values()), key=lambda p: -p["matches"]
+    )
+
+
+def elo_info(r: Rating | None) -> dict | None:
+    if r is None:
+        return None
+    return {"rating": r.elo, "peak": r.peak, "peak_at": r.peak_at, "active": r.active, "rank": r.rank}
 
 
 class ChampionTournament(BaseModel):
@@ -233,13 +253,16 @@ class Champion(BaseModel):
     tournament: ChampionTournament
     date: datetime
     final_match_id: str
+    elo: EloInfo | None
 
 
 @router.get("/champions", response_model=list[Champion])
 def list_champions(session: SessionDep, limit: Annotated[int, Query(ge=1, le=20)] = 5):
     """Winners of the latest tournaments, each player once; older tournaments fill in when someone won
     several. Group stages and league rounds are skipped."""
-    return recent_champions(snapshot(session), limit)
+    snap = snapshot(session)
+    elo = elo_ratings(session, snap)
+    return [{**c, "elo": elo_info(elo.get(c["player"]["id"]))} for c in recent_champions(snap, limit)]
 
 
 class ElClasico(BaseModel):
@@ -321,6 +344,7 @@ def read_player(
     ]
     return {
         **data,
+        "elo": elo_info(elo_ratings(session, everything).get(player_id)),
         "tournament_list": tournament_list,
         "tournament": tournament,
         "profile": player_info(session, player_id),

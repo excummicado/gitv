@@ -60,7 +60,7 @@ class Character(BaseModel):
 class TeamMember(BaseModel):
     character: Character
     level: int | None
-    constellation: int
+    constellation: int | None  # None when not known
     weapon: Character | None
     weapon_level: int | None
     refinement: int | None
@@ -714,7 +714,7 @@ def match_detail(session: SessionDep, m: Match, snap: Snapshot | None = None) ->
                             TeamMember(
                                 character=character(pk.agent_id),
                                 level=pk.agent_level,
-                                constellation=pk.agent_mindscape,
+                                constellation=pk.agent_mindscape if pk.agent_mindscape >= 0 else None,
                                 weapon=weapon(pk.engine_id),
                                 weapon_level=pk.engine_level,
                                 refinement=pk.engine_refinement,

@@ -10,7 +10,10 @@ without games (only its winner known) gets one game with no times, so it's there
 
 File: {"matches": [{"tournament": id, "date": "YYYY-MM-DDTHH:MM", "players": [a, b], "games": [{"rooms": [[a's
 three rooms], [b's]], "penalty": [a's restart seconds, b's]}], "winner": a or b, "source": url, optional
-"penalty_total": [a's, b's] when a picture gives only the match's penalties, kept with the match}]}. Importing a file
+"penalty_total": [a's, b's] when a picture gives only the match's penalties, kept with the match}]}. When the restarts
+themselves are known, a match has "free_restarts" (per game) and "paid_restarts" (seconds for each one beyond, the last
+repeating, e.g. [5, 10]) and each game "restarts": [a's, b's] in place of "penalty". A game may also have "teams":
+[a's eight characters, b's] (site agent ids in team order, null for one not known), stored as picks. Importing a file
 again replaces the matches of its tournaments.
 """
 
@@ -19,8 +22,9 @@ from datetime import UTC, datetime
 
 from sqlmodel import Session, delete, select
 
-from ..models import DraftState, Match, MatchDraft, MatchPlayer, Tournament
+from ..models import DraftState, Match, MatchDraft, MatchPick, MatchPlayer, Tournament
 from .challonge import normalize
+from .match_checks import UNKNOWN_CONSTELLATION
 from .stats import snapshot
 
 # Each restart penalty counts as paid restarts of this many seconds, with no free ones, so the site's adjusted time
@@ -43,6 +47,8 @@ def import_manual_games(session: Session, spec: dict) -> dict[str, int]:
     snap = snapshot(session)
     for tid in tournaments:
         old = [m.id for m in session.exec(select(Match).where(Match.tournament_id == tid))]
+        drafts = select(MatchDraft.id).where(MatchDraft.match_id.in_(old))
+        session.exec(delete(MatchPick).where(MatchPick.draft_id.in_(drafts)))
         for table in (MatchPlayer, DraftState, MatchDraft):
             session.exec(delete(table).where(table.match_id.in_(old)))
         session.exec(delete(Match).where(Match.id.in_(old)))
@@ -58,8 +64,8 @@ def import_manual_games(session: Session, spec: dict) -> dict[str, int]:
             Match(
                 id=mid,
                 tournament_id=tid,
-                free_restarts=0,
-                paid_restarts=json.dumps([PENALTY_STEP]),
+                free_restarts=m.get("free_restarts", 0),
+                paid_restarts=json.dumps(m.get("paid_restarts", [PENALTY_STEP])),
                 created_at=when,
                 raw=json.dumps(
                     {"source": m.get("source"), "entered_by_hand": True}
@@ -71,19 +77,33 @@ def import_manual_games(session: Session, spec: dict) -> dict[str, int]:
             draft_id = f"{mid}-g{game_no}"
             session.add(MatchDraft(id=draft_id, match_id=mid, game_no=game_no, status="FINISHED"))
             rooms = game["rooms"] if game else [[0, 0, 0], [0, 0, 0]]
-            penalty = game["penalty"] if game else [0, 0]
+            penalty = game.get("penalty", [0, 0]) if game else [0, 0]
+            restarts = game.get("restarts") if game else None
+            teams = game.get("teams") if game else None
             for slot, name in enumerate(m["players"]):
-                session.add(
-                    MatchPlayer(
-                        draft_id=draft_id,
-                        match_id=mid,
-                        slot=slot,
-                        user_id=ids.get(normalize(name)),
-                        full_name=name,
-                        restarts=penalty[slot] // PENALTY_STEP,
-                        clear_time=sum(rooms[slot]),
-                    )
+                player = MatchPlayer(
+                    draft_id=draft_id,
+                    match_id=mid,
+                    slot=slot,
+                    user_id=ids.get(normalize(name)),
+                    full_name=name,
+                    restarts=restarts[slot] if restarts else penalty[slot] // PENALTY_STEP,
+                    clear_time=sum(rooms[slot]),
                 )
+                session.add(player)
+                if teams and teams[slot]:
+                    session.flush()
+                    for position, agent in enumerate(teams[slot]):
+                        if agent:
+                            session.add(
+                                MatchPick(
+                                    player_id=player.id,
+                                    draft_id=draft_id,
+                                    position=position,
+                                    agent_id=agent,
+                                    agent_mindscape=UNKNOWN_CONSTELLATION,
+                                )
+                            )
             if game:
                 players = [{f"clearTimeRoom{i + 1}": t for i, t in enumerate(r)} for r in rooms]
                 session.add(

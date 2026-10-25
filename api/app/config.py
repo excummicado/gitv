@@ -31,6 +31,13 @@ class Settings(BaseSettings):
     # Telegram app keys from my.telegram.org, for app.cli export-telegram only (reading a channel's history).
     telegram_api_id: int | None = None
     telegram_api_hash: str | None = None
+    # The stream: the Telegram channel whose posts announce the matches on stream (read from its public page, no
+    # keys needed) and the Twitch channel they're played on (services/stream.py). Twitch's live status needs an
+    # app's keys from dev.twitch.tv; without them the channel's posts alone tell what's on.
+    stream_telegram_channel: str = "abysscup"
+    twitch_channel: str = "abyss__cup"
+    twitch_client_id: str | None = None
+    twitch_client_secret: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env")
 
