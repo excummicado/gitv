@@ -1,5 +1,5 @@
 -r requirements.txt
-pytest
-telethon
-ocrmac; sys_platform == "darwin"
-ruff
+pytest==9.1.1
+telethon==1.45.0
+ocrmac==1.0.1; sys_platform == "darwin"
+ruff==0.17.1

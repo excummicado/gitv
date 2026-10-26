@@ -23,6 +23,7 @@ from .routers import (
     matches,
     news,
     players,
+    preview,
     schedule,
     suggestions,
     tournaments,
@@ -62,7 +63,25 @@ async def lifespan(app: FastAPI):
             await task
 
 
-app = FastAPI(title=settings.app_name, lifespan=lifespan)
+# The interactive API docs only when running locally: in production they'd hand out the whole API's map.
+LOCAL = settings.frontend_url.startswith(("http://localhost", "http://127.0.0.1"))
+app = FastAPI(
+    title=settings.app_name,
+    lifespan=lifespan,
+    docs_url="/docs" if LOCAL else None,
+    redoc_url="/redoc" if LOCAL else None,
+    openapi_url="/openapi.json" if LOCAL else None,
+)
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    """The API's answers are data, never pages: not to be sniffed into something else or framed."""
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    return response
 
 
 @app.exception_handler(StarletteHTTPException)
@@ -82,6 +101,7 @@ app.include_router(players.router, prefix=settings.api_prefix)
 app.include_router(suggestions.router, prefix=settings.api_prefix)
 app.include_router(schedule.router, prefix=settings.api_prefix)
 app.include_router(news.router, prefix=settings.api_prefix)
+app.include_router(preview.router, prefix=settings.api_prefix)
 app.include_router(tournaments.router, prefix=settings.api_prefix)
 app.include_router(characters.router, prefix=settings.api_prefix)
 app.include_router(analytics.router, prefix=settings.api_prefix)

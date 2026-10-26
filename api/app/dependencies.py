@@ -1,23 +1,26 @@
-"""Shared dependencies: the current user from a Bearer token."""
+"""Shared dependencies: the current user, from the session cookie (the site) or a Bearer token (scripts, tests)."""
 
 import uuid
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt.exceptions import InvalidTokenError
 
 from .config import settings
 from .database import SessionDep
 from .models import Role, User
+from .security import CSRF_HEADER, SESSION_COOKIE
 
 # Tokens come from Discord sign-in, so there is no password token URL; a plain Bearer scheme fits.
-bearer_scheme = HTTPBearer()
+bearer_scheme = HTTPBearer(auto_error=False)
+SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
 
 async def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
+    request: Request,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
     session: SessionDep,
 ):
     credentials_exception = HTTPException(
@@ -25,8 +28,15 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    token = credentials.credentials if credentials else request.cookies.get(SESSION_COOKIE)
+    if not token:
+        raise credentials_exception
+    # A cookie goes with every request to the site, so a change made with it must show it came from the site's own
+    # scripts (another site can't set this header without CORS, which the API doesn't allow).
+    if not credentials and request.method not in SAFE_METHODS and request.headers.get(CSRF_HEADER) != "1":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Missing the site's request header.")
     try:
-        payload = jwt.decode(credentials.credentials, settings.secret_key, algorithms=[settings.algorithm])
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         user_id = uuid.UUID(payload.get("sub"))
     except (InvalidTokenError, TypeError, ValueError) as error:
         raise credentials_exception from error

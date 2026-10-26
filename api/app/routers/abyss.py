@@ -120,6 +120,7 @@ class PhaseSummary(BaseModel):
     starts_on: date
     ends_on: date
     current: bool
+    upcoming: bool  # the next phase, from alioth's beta data: may still change before it starts
     hp_ratio: float | None
     total_hp: int | None
     blessings: list[str]
@@ -191,7 +192,11 @@ def bosses(rooms: list[Chamber]) -> list[Monster]:
 
 
 def phases(session: Session) -> list[AbyssPhase]:
-    return sorted(session.exec(select(AbyssPhase)), key=lambda p: p.starts_on)
+    """Every phase up to the next one (none further ahead), oldest first."""
+    ordered = sorted(session.exec(select(AbyssPhase)), key=lambda p: p.starts_on)
+    today = date.today()
+    ahead = [p for p in ordered if p.starts_on > today]
+    return [p for p in ordered if p.starts_on <= today] + ahead[:1]
 
 
 def match_days(session: Session) -> dict[str, list[tuple[str, date]]]:
@@ -230,6 +235,7 @@ def summary(p: AbyssPhase, current_id: int | None, used: Counter) -> PhaseSummar
         starts_on=p.starts_on,
         ends_on=p.ends_on,
         current=p.id == current_id,
+        upcoming=p.starts_on > date.today(),
         hp_ratio=p.hp_ratio,
         total_hp=p.total_hp,
         blessings=[b["name"] for b in json.loads(p.blessings) if b.get("name")],
@@ -242,7 +248,8 @@ def summary(p: AbyssPhase, current_id: int | None, used: Counter) -> PhaseSummar
 def current_id(ordered: list[AbyssPhase]) -> int | None:
     today = date.today()
     running = phase_of(today, ordered)
-    return running.id if running else (ordered[-1].id if ordered else None)
+    started = [p for p in ordered if p.starts_on <= today]
+    return running.id if running else (started[-1].id if started else None)
 
 
 @router.get("", response_model=list[PhaseSummary])

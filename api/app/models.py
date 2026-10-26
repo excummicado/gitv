@@ -59,11 +59,6 @@ class UserPublic(UserBase):
     role: Role
 
 
-class Token(SQLModel):
-    access_token: str
-    token_type: str
-
-
 # Matches imported from the tournament site's API (app.cli import-matches).
 # Ids are the site's own ids, so re-importing a match replaces it instead of duplicating it.
 

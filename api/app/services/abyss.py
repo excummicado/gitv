@@ -106,30 +106,30 @@ class FetchResult:
 
 
 def fetch_abyss(session: Session, refetch: bool = False) -> FetchResult:
-    """Stores every phase alioth lists that isn't stored yet (refetch: all again), and the current one again in
-    case alioth corrected it; then downloads the icons it doesn't have."""
+    """Stores every phase alioth lists that isn't stored yet (refetch: all again), and the running and next ones
+    again in case alioth corrected them; then downloads the icons it doesn't have. alioth lists phases ahead of the
+    game (from the beta); only the next one is kept, its data may still change before it starts."""
     result = FetchResult()
     stored = {p.id for p in session.exec(select(AbyssPhase))}
     with httpx.Client(timeout=30, headers=HEADERS, follow_redirects=True) as client:
         index = payload(client.get(f"{SITE}/en/gi/abyss").raise_for_status().text)["data"]
         listing = index["gi:en:abyss:index"]["Phases"]
-        latest_id = max(p["_id"] for p in listing)
-        for p in sorted(listing, key=lambda p: p["_id"]):
+        today = date.today()
+        listing = sorted(listing, key=lambda p: p["_id"])
+        ahead = [p["_id"] for p in listing if phase_dates(p["Time"])[0] > today][1:]
+        for p in listing:
             pid = p["_id"]
-            if pid in stored and not refetch and pid != latest_id:
+            start, end = phase_dates(p["Time"])
+            # (index["abyss_phase_latest_en"] is the running phase, not the newest listed: every phase by its page)
+            if pid in ahead or (pid in stored and not refetch and end <= today):
                 continue
             try:
-                if pid == latest_id:
-                    data = index["abyss_phase_latest_en"]
-                else:
-                    time.sleep(PAUSE)
-                    page = payload(client.get(f"{SITE}/en/gi/abyss/{pid}").raise_for_status().text)["data"]
-                    data = page[f"abyss_phase_{pid}_en"]
-                f = floor12(data)
+                time.sleep(PAUSE)
+                page = payload(client.get(f"{SITE}/en/gi/abyss/{pid}").raise_for_status().text)["data"]
+                f = floor12(page[f"abyss_phase_{pid}_en"])
             except (httpx.HTTPError, ValueError, KeyError) as e:
                 result.errors.append(f"phase {pid}: {e}")
                 continue
-            start, end = phase_dates(p["Time"])
             session.merge(
                 AbyssPhase(
                     id=pid,

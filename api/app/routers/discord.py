@@ -8,7 +8,7 @@ from urllib.parse import quote, urlencode
 
 import httpx
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 from jwt.exceptions import InvalidTokenError
 from pydantic import BaseModel, Field
@@ -16,9 +16,9 @@ from sqlmodel import func, select
 
 from ..config import settings
 from ..database import SessionDep
-from ..models import NICKNAME_PATTERN, Token, User
+from ..models import NICKNAME_PATTERN, User, UserPublic
 from ..rate_limit import rate_limit
-from ..security import create_access_token
+from ..security import clear_session_cookie, create_access_token, set_session_cookie
 
 router = APIRouter(prefix="/auth/discord", tags=["login"])
 
@@ -48,13 +48,21 @@ def suggest_nickname(discord_username: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.]", "", discord_username)[:32]
 
 
+def token_minutes(user: User) -> int:
+    return settings.admin_access_token_expire_minutes if user.role.is_staff else settings.access_token_expire_minutes
+
+
 def issue_access_token(user: User) -> str:
-    minutes = settings.admin_access_token_expire_minutes if user.role.is_staff else settings.access_token_expire_minutes
     # The role is recorded so a token stops working once that user's role changes.
     return create_access_token(
         data={"sub": str(user.id), "role": user.role.value},
-        expires_delta=timedelta(minutes=minutes),
+        expires_delta=timedelta(minutes=token_minutes(user)),
     )
+
+
+def sign_in(response: Response, user: User) -> None:
+    """Signs the browser in: the token goes in an httpOnly cookie, never to the page."""
+    set_session_cookie(response, issue_access_token(user), token_minutes(user))
 
 
 # Per client address: sign-in is the one thing anyone can call without an account.
@@ -139,11 +147,13 @@ async def discord_callback(
         session.add(user)
         session.commit()
 
-    return back_to_frontend(f"access_token={issue_access_token(user)}")
+    response = back_to_frontend("signed_in=1")
+    sign_in(response, user)
+    return response
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED, dependencies=[Depends(rate_limit("register", 10, 3600))])
-def discord_register(data: DiscordSignup, session: SessionDep) -> Token:
+def discord_register(data: DiscordSignup, session: SessionDep, response: Response) -> UserPublic:
     try:
         payload = jwt.decode(data.signup_token, settings.secret_key, algorithms=[settings.algorithm])
     except InvalidTokenError:
@@ -174,4 +184,11 @@ def discord_register(data: DiscordSignup, session: SessionDep) -> Token:
     session.add(user)
     session.commit()
     session.refresh(user)
-    return Token(access_token=issue_access_token(user), token_type="bearer")
+    sign_in(response, user)
+    return UserPublic.model_validate(user)
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(response: Response):
+    """Signs the browser out (the cookie is the only copy of its token)."""
+    clear_session_cookie(response)

@@ -124,3 +124,30 @@ def test_estimated_tournament_dates_are_flagged(session):
     w.snap()
     found = tournament_abyss(session, tid)
     assert found and found[0].estimated
+
+
+def test_only_the_next_phase_ahead_is_shown(session):
+    from datetime import timedelta
+
+    from app.routers.abyss import current_id, phases
+
+    today = date.today()
+    for pid, start in (
+        (1, today - timedelta(days=40)),
+        (2, today - timedelta(days=10)),
+        (3, today + timedelta(days=20)),
+        (4, today + timedelta(days=50)),
+    ):
+        session.add(
+            AbyssPhase(
+                id=pid,
+                version=str(pid),
+                starts_on=start,
+                ends_on=start + timedelta(days=30),
+                fetched_at=datetime.now(UTC),
+            )
+        )
+    session.commit()
+    shown = phases(session)
+    assert [p.id for p in shown] == [1, 2, 3]  # 4 is two ahead
+    assert current_id(shown) == 2
