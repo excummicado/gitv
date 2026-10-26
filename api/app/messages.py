@@ -44,6 +44,10 @@ RU = {
     "Pick two different players.": "Выберите двух разных игроков.",
     "No such scheduled match.": "Такого матча дня нет.",
     "Only its author or an admin can remove it.": "Удалить может только автор или админ.",
+    # Articles and news
+    "No such article.": "Такой статьи нет.",
+    "No such news.": "Такой новости нет.",
+    "Write the news first.": "Сначала напишите новость.",
 }
 
 # Messages with numbers or dates in them.

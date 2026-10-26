@@ -36,7 +36,7 @@ def percent(part: int, whole: int) -> str:
 @router.get("", response_model=Preview | None)
 def preview(
     session: SessionDep,
-    kind: Literal["player", "tournament", "match", "news", "abyss"],
+    kind: Literal["player", "tournament", "match", "article", "abyss"],
     id: str = Query(max_length=200),
     lang: Literal["en", "ru"] = "en",
 ):
@@ -46,7 +46,7 @@ def preview(
     def t(en: str, rus: str) -> str:
         return rus if ru else en
 
-    if kind == "news":
+    if kind == "article":
         post = session.get(NewsPost, int(id)) if id.isdigit() else None
         if post is None:
             return None
@@ -126,18 +126,18 @@ def preview(
 class Pages(BaseModel):
     players: list[str]
     tournaments: list[str]
-    news: list[int]
+    articles: list[int]
     abyss: list[int]
 
 
 @router.get("/pages", response_model=Pages)
 def pages(session: SessionDep):
-    """Every player, tournament, news post and Abyss phase page, for the sitemap."""
+    """Every player, tournament, article and Abyss phase page, for the sitemap."""
     snap = snapshot(session)
     return Pages(
         # Players with a page of their own: a site account or one added by hand (not a bare bracket name)
         players=sorted(p for p in snap.players if re.fullmatch(r"[0-9a-f]{24}|offsite-.+", p)),
         tournaments=sorted(set(snap.match_tournament.values())),
-        news=[n for n in session.exec(select(NewsPost.id))],
+        articles=[n for n in session.exec(select(NewsPost.id))],
         abyss=[a for a in session.exec(select(AbyssPhase.id))],
     )

@@ -179,20 +179,28 @@ is picked up within an hour of starting, then followed every five minutes.
 
 ### News
 
-News on the home page are written by people, never added automatically: a writer, event organizer or admin opens
-`/news` and imports a Word document (.docx, up to 100 MB) or a Google document shared as "anyone with the link can view" (Google
+The home page's right column shows short news (`newsitem`, `routers/news.py`): plain text up to 500 characters,
+links in it shown as links. Writers, event organizers and admins write one right there; its author or an admin
+removes it. `GET /api/v1/news?limit=&before=` lists them newest first (`before`: the next page), `POST` adds one,
+`DELETE /api/v1/news/{id}` removes it.
+
+### Articles
+
+Articles (`newspost`, `routers/articles.py`) are written by people, never added automatically: a writer, event
+organizer or admin opens `/articles` and imports a Word document (.docx, up to 100 MB) or a Google document shared as "anyone with the link can view" (Google
 exports it as .docx). `services/news.py` turns it into HTML with mammoth (headings, paragraphs, lists, bold and
 italics, links, tables, pictures) and cleans it with nh3, so a post holds only that formatting: no scripts,
 styles or event handlers, links only to the web or mail. Its pictures (PNG, JPEG, GIF, WebP, checked by their bytes)
 are saved as files under `media/news` and removed with the post. A reverse proxy in front of the API must let
 100 MB requests through (nginx: `client_max_body_size 100m;`). The title is the one given, else the document's first
-heading or line. `GET /api/v1/news` lists them; the author or an admin removes one.
+heading or line. `GET /api/v1/articles` lists them; the author or an admin removes one. The site's old `/news`
+addresses redirect to `/articles`.
 
-### Translating news
+### Translating articles
 
-A news post can carry a translation into the other language (English <-> Russian): its importer or an admin uploads
-the translated document (.docx or a Google Docs link) on the post's page, or `app.cli set-news-translation <news id>
-<file.docx>`. It's cleaned like any document; the page shows the post in the reader's language with a "show the
+An article can carry a translation into the other language (English <-> Russian): its importer or an admin uploads
+the translated document (.docx or a Google Docs link) on the article's page, or `app.cli set-news-translation <article id>
+<file.docx>`. It's cleaned like any document; the page shows the article in the reader's language with a "show the
 original" switch. `glossary.json` lists the game terms as the Russian version of the game says them, for whoever
 translates.
 

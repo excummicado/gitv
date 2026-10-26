@@ -106,19 +106,19 @@ def writer(session):
 
 def test_import_list_and_remove(writer):
     files = {"file": ("news.docx", docx([p("Анонс"), p("Текст новости")]), "application/octet-stream")}
-    created = writer.post("/api/v1/news", files=files)
+    created = writer.post("/api/v1/articles", files=files)
     assert created.status_code == 201, created.text
-    news = writer.get("/api/v1/news").json()
+    news = writer.get("/api/v1/articles").json()
     assert [(n["title"], n["author"]) for n in news] == [("Анонс", "writer1")]
     assert "Текст новости" in news[0]["body_html"]
-    assert writer.post("/api/v1/news", files={"file": ("x.docx", b"not a docx", "text/plain")}).status_code == 422
+    assert writer.post("/api/v1/articles", files={"file": ("x.docx", b"not a docx", "text/plain")}).status_code == 422
     # The article's author can be given by hand; who imported it is kept apart
     files = {"file": ("b.docx", docx([p("Интервью")]), "application/octet-stream")}
-    other = writer.post("/api/v1/news", files=files, data={"author": "Spartanchick"}).json()
+    other = writer.post("/api/v1/articles", files=files, data={"author": "Spartanchick"}).json()
     assert (other["author"], other["imported_by"]) == ("Spartanchick", "writer1")
-    writer.delete(f"/api/v1/news/{other['id']}")
-    assert writer.delete(f"/api/v1/news/{news[0]['id']}").status_code == 204
-    assert writer.get("/api/v1/news").json() == []
+    writer.delete(f"/api/v1/articles/{other['id']}")
+    assert writer.delete(f"/api/v1/articles/{news[0]['id']}").status_code == 204
+    assert writer.get("/api/v1/articles").json() == []
 
 
 def test_only_news_roles():
@@ -131,11 +131,11 @@ def test_pictures_are_files_removed_with_their_post(writer, tmp_path, monkeypatc
 
     monkeypatch.setattr(news, "MEDIA_DIR", tmp_path)
     data = docx([p("С картинкой"), picture("img1"), picture("bad")], images={"img1": PNG, "bad": b"<svg/>"})
-    post = writer.post("/api/v1/news", files={"file": ("pic.docx", data, "application/octet-stream")}).json()
+    post = writer.post("/api/v1/articles", files={"file": ("pic.docx", data, "application/octet-stream")}).json()
     saved = list((tmp_path / "news").iterdir())
     assert len(saved) == 1 and saved[0].suffix == ".png"  # the one that isn't a picture is left out
     assert f'src="/api/v1/media/news/{saved[0].name}"' in post["body_html"] and post["body_html"].count("<img") == 1
-    writer.delete(f"/api/v1/news/{post['id']}")
+    writer.delete(f"/api/v1/articles/{post['id']}")
     assert not saved[0].exists()
 
 
@@ -167,14 +167,16 @@ def test_a_translation_is_attached_by_hand(writer):
     files = {
         "file": ("en.docx", docx([p("Frame rate theory"), p("The game runs on frames")]), "application/octet-stream")
     }
-    post = writer.post("/api/v1/news", files=files).json()
+    post = writer.post("/api/v1/articles", files=files).json()
     same = {"file": ("en2.docx", docx([p("Still English")]), "application/octet-stream")}
-    assert writer.put(f"/api/v1/news/{post['id']}/translation", files=same).status_code == 422  # not the other language
+    assert (
+        writer.put(f"/api/v1/articles/{post['id']}/translation", files=same).status_code == 422
+    )  # not the other language
     ru = {"file": ("ru.docx", docx([p("Теория кадров"), p("Игра идёт по кадрам")]), "application/octet-stream")}
-    done = writer.put(f"/api/v1/news/{post['id']}/translation", files=ru).json()
+    done = writer.put(f"/api/v1/articles/{post['id']}/translation", files=ru).json()
     assert (done["lang"], done["title_tr"]) == ("en", "Теория кадров") and "по кадрам" in done["body_html_tr"]
-    assert writer.delete(f"/api/v1/news/{post['id']}/translation").status_code == 204
-    assert writer.get(f"/api/v1/news/{post['id']}").json()["body_html_tr"] is None
+    assert writer.delete(f"/api/v1/articles/{post['id']}/translation").status_code == 204
+    assert writer.get(f"/api/v1/articles/{post['id']}").json()["body_html_tr"] is None
 
 
 def test_a_translation_keeps_the_pictures_it_shares():

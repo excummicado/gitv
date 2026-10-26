@@ -457,8 +457,8 @@ class ScheduledMatch(SQLModel, table=True):
 
 
 class NewsPost(SQLModel, table=True):
-    """A news post on the home page, imported from a Word (.docx) or Google document by a writer, event organizer
-    or admin (services/news.py). The body is the document as cleaned HTML."""
+    """An article (/articles), imported from a Word (.docx) or Google document by a writer, event organizer or admin
+    (services/news.py, routers/articles.py). The body is the document as cleaned HTML."""
 
     id: int | None = Field(default=None, primary_key=True)
     title: str
@@ -470,6 +470,16 @@ class NewsPost(SQLModel, table=True):
     lang: str | None = None
     title_tr: str | None = None
     body_html_tr: str | None = None
+    created_by: uuid.UUID = Field(foreign_key="user.id")
+    created_at: datetime = Field(index=True)
+
+
+class NewsItem(SQLModel, table=True):
+    """A short news item in the home page's news column, written there by a writer, event organizer or admin
+    (routers/news.py). Plain text; links in it are shown as links."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    text: str
     created_by: uuid.UUID = Field(foreign_key="user.id")
     created_at: datetime = Field(index=True)
 

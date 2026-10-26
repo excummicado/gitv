@@ -17,6 +17,7 @@ from .routers import (
     abyss,
     admin,
     analytics,
+    articles,
     characters,
     discord,
     health,
@@ -98,6 +99,7 @@ app.include_router(admin.router, prefix=settings.api_prefix)
 app.include_router(matches.router, prefix=settings.api_prefix)
 app.include_router(players.router, prefix=settings.api_prefix)
 app.include_router(schedule.router, prefix=settings.api_prefix)
+app.include_router(articles.router, prefix=settings.api_prefix)
 app.include_router(news.router, prefix=settings.api_prefix)
 app.include_router(preview.router, prefix=settings.api_prefix)
 app.include_router(tournaments.router, prefix=settings.api_prefix)
