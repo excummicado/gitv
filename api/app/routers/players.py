@@ -29,7 +29,6 @@ from ..services.stats import (
 )
 from ..services.stats.snapshot import major_tournament_ids
 from .matches import Character
-from .suggestions import PlayerInfo, ProfileChangeOut, player_info, profile_history
 from .tournaments import rows as tournament_rows
 
 router = APIRouter(prefix="/players", tags=["players"])
@@ -194,10 +193,6 @@ class PlayerDetail(PlayerSummary):
     tournament_list: list[PlayedTournament]
     # The tournament the statistics are limited to, if one was picked
     tournament: str | None
-    # Real name, birthday and avatar from accepted suggestions
-    profile: PlayerInfo | None
-    # Who changed the profile and when, newest first
-    profile_history: list[ProfileChangeOut]
     # Top-4 places, newest first
     finishes: list[Finish]
     # Major tournaments won, newest first, whatever the shown scope
@@ -365,8 +360,6 @@ def read_player(
         "elo": elo_info(elo_ratings(session, everything).get(player_id)),
         "tournament_list": tournament_list,
         "tournament": tournament,
-        "profile": player_info(session, player_id),
-        "profile_history": profile_history(session, player_id),
         "major_titles": major_titles(session, everything, player_id),
     }
 
@@ -639,7 +632,6 @@ class CompareSide(PlayerSummary):
     tournament_wins: int
     finals: int  # 2nd places
     top_four: int  # 1st-4th places
-    profile: PlayerInfo | None
 
 
 class PickRecord(BaseModel):
@@ -717,7 +709,6 @@ def compare_players(player_id: str, other_id: str, session: SessionDep, scope: S
             "tournament_wins": places.count(1),
             "finals": places.count(2),
             "top_four": len(places),
-            "profile": player_info(session, pid),
         }
 
     def character(agent_id: str) -> Character:

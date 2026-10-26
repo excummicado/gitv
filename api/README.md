@@ -41,7 +41,7 @@ venv/bin/fastapi dev app/main.py
 Tests: `venv/bin/pip install -r requirements-dev.txt`, then `venv/bin/python -m pytest`.
 
 Error messages come in the site's language: the API reads the `gitv-lang` cookie (or `Accept-Language`) and
-answers in Russian from `app/messages.py`. Sign-in, sign-up, suggestions, profile edits, matches of the day
+answers in Russian from `app/messages.py`. Sign-in, sign-up, news imports, matches of the day
 and nickname changes are rate limited per client address or member (`app/rate_limit.py`, in memory; a
 blocked request gets 429 with `Retry-After`). Behind a reverse proxy set `TRUST_FORWARDED_FOR=true` so
 clients are told apart by `X-Forwarded-For`.
@@ -514,35 +514,12 @@ other series (New Gen, HotH, Abyss Ascend) are left out. The rule is `MAJOR_SYST
 `match_checks.py`. Challonge-only tournaments count when marked major (`add-challonge-tournament --major`): the numbered
 Abyss Fight Club events (Abyss Fight Club 2, 3, 4, every stage), not the Abyss Fight Club weekends and fast cups.
 
-### Player info: real name, birthday, avatar
+### No personal details of players
 
-Shown under the nickname on the player page (real name, age, avatar), from `playerprofile`.
-
-| Who | Can |
-| --- | --- |
-| members, writers | suggest a name, birthday and/or avatar (bottom of the player page) |
-| event organizers | write the name and birthday directly; no suggesting, no reviewing |
-| admins, super admins | write directly, accept or reject suggestions (their profile page), stop a member from suggesting |
-
-Every change leaves a trace in `playerprofilechange`: the field, old and new value, who made it, when, and
-the suggestion it came from (so its author too). The player page lists these changes publicly.
-
-| Table | Holds |
-| --- | --- |
-| `playerprofile` | what the player page shows |
-| `playerprofilechange` | every change to it |
-| `playersuggestion` | every suggestion: the filled-in fields, author, status (pending, accepted, rejected), reviewer |
-| `suggestionban` | members who may not suggest |
-
-A member has at most one pending suggestion per player and 10 in all. Names are letters (any alphabet)
-with spaces, hyphens, apostrophes and dots, up to 80 characters; birthdays from 1950 up to 8 years ago.
-Avatars are PNG, JPEG or WebP up to 2 MB, recognised by their bytes rather than the file name, stored
-under `media/avatars` (not in git) and served at `/api/v1/media/`. Rejected and replaced avatars are deleted.
-
-Endpoints: `POST /api/v1/players/{id}/suggestions` (multipart: `real_name`, `birth_date`, `avatar`),
-`GET /api/v1/suggestions/me`, `PUT /api/v1/players/{id}/profile` (editors; JSON, only the fields sent change,
-null clears); staff: `GET /api/v1/admin/suggestions?status=pending`, `POST /api/v1/admin/suggestions/{id}/accept|reject`,
-`GET|POST /api/v1/admin/suggestion-bans`, `DELETE /api/v1/admin/suggestion-bans/{nickname}`.
+GITV keeps no real names, birthdays or avatars of players: only what tournaments publish (nicknames, matches,
+results). The member suggestions of those details were removed; their tables (`playerprofile`,
+`playerprofilechange`, `playersuggestion`, `suggestionban`) are dropped from older databases at startup
+(`database.REMOVED_TABLES`).
 
 ### Matches of the day
 

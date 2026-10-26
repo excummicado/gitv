@@ -4,7 +4,6 @@ import uuid
 from datetime import date, datetime
 from enum import StrEnum
 
-from pydantic import EmailStr
 from sqlmodel import Field, SQLModel
 
 # Letters, digits, underscores and periods: the same characters Discord usernames use.
@@ -27,7 +26,7 @@ class Role(StrEnum):
 
     @property
     def can_edit_players(self) -> bool:
-        """May write a tournament player's real name and birthday directly (no review)."""
+        """May schedule the matches of the day."""
         return self in (Role.event_organizer, Role.admin, Role.super_admin)
 
     @property
@@ -37,8 +36,7 @@ class Role(StrEnum):
 
 
 class UserBase(SQLModel):
-    # The verified email Discord returns; GITV doesn't verify it again.
-    email: EmailStr = Field(unique=True, index=True, max_length=255)
+    # No email: Discord is asked only for the account's id and username (routers/discord.py).
     nickname: str = Field(unique=True, index=True, min_length=3, max_length=32)
 
 
@@ -336,66 +334,6 @@ class ChallongeTournament(SQLModel, table=True):
     team: bool = False
     # Counts as a major tournament (the site's «major tournaments» filter), e.g. the numbered Abyss Fight Club events
     major: bool | None = None
-    created_at: datetime
-
-
-# Real names, birthdays and avatars of tournament players come from site members: anyone signed in
-# suggests, admins accept or reject (routers/suggestions.py).
-
-
-class PlayerProfile(SQLModel, table=True):
-    """What is shown for a tournament player, from accepted suggestions."""
-
-    # The tournament site's user id (matchplayer.user_id)
-    player_id: str = Field(primary_key=True)
-    real_name: str | None = None
-    birth_date: date | None = None
-    # Path under the media folder, e.g. "avatars/<uuid>.png"
-    avatar: str | None = None
-    updated_at: datetime
-    updated_by: uuid.UUID | None = Field(default=None, foreign_key="user.id")
-
-
-class SuggestionStatus(StrEnum):
-    pending = "pending"
-    accepted = "accepted"
-    rejected = "rejected"
-
-
-class PlayerSuggestion(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    player_id: str = Field(index=True)
-    author_id: uuid.UUID = Field(foreign_key="user.id", index=True)
-    # Only the fields the author filled in; at least one is set.
-    real_name: str | None = None
-    birth_date: date | None = None
-    avatar: str | None = None
-    status: SuggestionStatus = Field(default=SuggestionStatus.pending, index=True)
-    created_at: datetime
-    reviewed_by: uuid.UUID | None = Field(default=None, foreign_key="user.id")
-    reviewed_at: datetime | None = None
-
-
-class SuggestionBan(SQLModel, table=True):
-    """Members who may not make suggestions (set by admins)."""
-
-    user_id: uuid.UUID = Field(primary_key=True, foreign_key="user.id")
-    banned_by: uuid.UUID | None = Field(default=None, foreign_key="user.id")
-    created_at: datetime
-
-
-class PlayerProfileChange(SQLModel, table=True):
-    """Every change to a PlayerProfile, so each edit leaves a trace: who, when, what it was and became."""
-
-    id: int | None = Field(default=None, primary_key=True)
-    player_id: str = Field(index=True)
-    field: str  # real_name, birth_date or avatar
-    old_value: str | None = None
-    new_value: str | None = None
-    # The member who made the change: an editor writing directly, or the admin who accepted a suggestion
-    changed_by: uuid.UUID | None = Field(default=None, foreign_key="user.id")
-    # Set when the change came from an accepted suggestion
-    suggestion_id: int | None = Field(default=None, foreign_key="playersuggestion.id")
     created_at: datetime
 
 

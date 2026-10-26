@@ -25,7 +25,6 @@ from .routers import (
     players,
     preview,
     schedule,
-    suggestions,
     tournaments,
     users,
 )
@@ -98,7 +97,6 @@ app.include_router(discord.router, prefix=settings.api_prefix)
 app.include_router(admin.router, prefix=settings.api_prefix)
 app.include_router(matches.router, prefix=settings.api_prefix)
 app.include_router(players.router, prefix=settings.api_prefix)
-app.include_router(suggestions.router, prefix=settings.api_prefix)
 app.include_router(schedule.router, prefix=settings.api_prefix)
 app.include_router(news.router, prefix=settings.api_prefix)
 app.include_router(preview.router, prefix=settings.api_prefix)
@@ -111,6 +109,6 @@ app.include_router(abyss.router, prefix=settings.api_prefix)
 ABYSS_ASSETS.mkdir(parents=True, exist_ok=True)
 app.mount(f"{settings.api_prefix}/abyss-assets", StaticFiles(directory=ABYSS_ASSETS), name="abyss-assets")
 
-# Uploaded avatars. Only images checked by their bytes are ever written there (services/media.py).
+# Uploaded news pictures. Only images checked by their bytes are ever written there (services/media.py).
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 app.mount(f"{settings.api_prefix}/media", StaticFiles(directory=MEDIA_DIR), name="media")

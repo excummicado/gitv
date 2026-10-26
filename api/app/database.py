@@ -27,6 +27,40 @@ def sqlite_wal(dbapi_connection, _):
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
     add_missing_columns()
+    drop_removed_tables()
+    drop_removed_columns()
+
+
+# Tables of removed features, dropped from databases made before: members' suggestions of players' real names,
+# birthdays and avatars, and the profiles and change log made from them.
+REMOVED_TABLES = ["playerprofilechange", "playersuggestion", "suggestionban", "playerprofile"]
+
+
+def drop_removed_tables(bind=None):
+    with (bind or engine).begin() as conn:
+        for table in REMOVED_TABLES:
+            conn.execute(text(f'DROP TABLE IF EXISTS "{table}"'))
+
+
+# Columns the models no longer have, dropped (with their indexes) from databases made before.
+REMOVED_COLUMNS = {"user": ["email"]}  # members' emails aren't kept any more
+
+
+def drop_removed_columns(bind=None):
+    bind = bind or engine
+    existing = inspect(bind)
+    with bind.begin() as conn:
+        for table, columns in REMOVED_COLUMNS.items():
+            if not existing.has_table(table):
+                continue
+            have = {c["name"] for c in existing.get_columns(table)}
+            for column in columns:
+                if column not in have:
+                    continue
+                for index in existing.get_indexes(table):
+                    if column in index["column_names"]:
+                        conn.execute(text(f'DROP INDEX "{index["name"]}"'))
+                conn.execute(text(f'ALTER TABLE "{table}" DROP COLUMN "{column}"'))
 
 
 def add_missing_columns():

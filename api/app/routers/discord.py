@@ -72,7 +72,8 @@ async def discord_login(prompt: Literal["none", "consent"] = "none"):
     params = {
         "response_type": "code",
         "client_id": settings.discord_client_id,
-        "scope": "identify email",
+        # Only who they are: no email, so GITV keeps none.
+        "scope": "identify",
         "state": state,
         "redirect_uri": settings.discord_redirect_uri,
         # "none" skips Discord's approval screen for members who already authorized GITV.
@@ -121,19 +122,12 @@ async def discord_callback(
 
     user = session.exec(select(User).where(User.discord_id == profile["id"])).first()
     if user is None:
-        email = profile.get("email")
-        # Only Discord-verified emails create accounts.
-        if not email or not profile.get("verified"):
-            return back_to_frontend("error=unverified_email")
-        if session.exec(select(User).where(User.email == email)).first():
-            return back_to_frontend("error=email_taken")
         # No account yet: hand the frontend a short-lived signup token so the user can pick a nickname.
         signup_token = create_access_token(
             data={
                 "purpose": SIGNUP_PURPOSE,
                 "discord_id": profile["id"],
                 "discord_username": profile["username"],
-                "email": email,
             },
             expires_delta=timedelta(minutes=SIGNUP_MINUTES),
         )
@@ -170,13 +164,8 @@ def discord_register(data: DiscordSignup, session: SessionDep, response: Respons
     # Case-insensitive, so "Nelly" and "nelly" can't both exist.
     if session.exec(select(User).where(func.lower(User.nickname) == data.nickname.lower())).first():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This nickname is taken.")
-    if session.exec(select(User).where(User.email == payload["email"])).first():
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Another GITV account already uses this Discord email."
-        )
 
     user = User(
-        email=payload["email"],
         nickname=data.nickname,
         discord_id=payload["discord_id"],
         discord_username=payload.get("discord_username"),

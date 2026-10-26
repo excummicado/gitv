@@ -94,7 +94,7 @@ def test_a_document_becomes_clean_html():
 
 @pytest.fixture
 def writer(session):
-    user = User(email="w@example.com", nickname="writer1", discord_id="1", role=Role.writer)
+    user = User(nickname="writer1", discord_id="1", role=Role.writer)
     session.add(user)
     session.commit()
     app.dependency_overrides[get_session] = lambda: session

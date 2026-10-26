@@ -13,7 +13,7 @@ from app.security import SESSION_COOKIE
 
 @pytest.fixture
 def browser(session):
-    user = User(email="c@example.com", nickname="cookie", discord_id="42")
+    user = User(nickname="cookie", discord_id="42")
     session.add(user)
     session.commit()
     app.dependency_overrides[get_session] = lambda: session
