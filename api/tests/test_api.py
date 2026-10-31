@@ -97,6 +97,70 @@ class TestFeaturedTournament:
         d = client.get("/api/v1/tournaments/featured").json()
         assert d["id"] == "t1" and d["image"] == "https://static.example/t1.webp" and not d["live"] and d["imported"]
 
+    def test_its_links_on_the_site(self, client, session):
+        import json
+
+        from app.models import TournamentInfo
+        from app.services.tournament_info import links
+
+        stored = links(
+            [
+                {"url": "https://challonge.com/hoth_fast_16", "title": "Challonge"},  # shown as its bracket
+                {"url": "https://t.me/abysscup", "title": "T"},
+                {"url": "https://discord.gg/D42xckgXF", "title": "Discord"},
+                {"url": "https://docs.google.com/document/d/x/edit", "title": "Docs"},
+                {"url": "https://t.me/abysscup", "title": "T"},  # twice
+                {"url": "https://example.org/cup", "title": "Site"},
+                {"url": "javascript:alert(1)", "title": "x"},
+            ]
+        )
+        assert [link["kind"] for link in json.loads(stored)] == ["telegram", "discord", "rules", "site"]
+        assert links([{"url": "https://challonge.com/x"}]) is None
+        self.setup(session)
+        session.get(TournamentInfo, "t1").links = stored
+        session.commit()
+        got = client.get("/api/v1/tournaments/t1").json()["links"]
+        assert got[0] == {"kind": "telegram", "url": "https://t.me/abysscup"} and len(got) == 4
+
+    def test_a_tournament_without_links_takes_its_series(self, session):
+        """The tournaments of a series share their links; then the organizer's socials, then its stream channels."""
+        import json
+        from datetime import UTC, datetime
+
+        from app.models import Tournament, TournamentInfo
+        from app.routers.matches import organizers
+        from app.routers.tournaments import tournament_links
+        from app.services.tournament_info import series_key
+
+        assert series_key("HotH: Abyss Weekend 13") == series_key("Abyss Weekend 16") == "abyss weekend"
+        assert series_key("Summer Quals Group A & B") == "summer quals"
+        rules = {"kind": "rules", "url": "https://docs.google.com/document/d/soup"}
+        tg = {"kind": "telegram", "url": "https://t.me/abysscup"}
+        for tid, title, org, links in [
+            ("s23", "Abyss Fast Soup 23", "cup", [rules, tg]),
+            ("s5", "Abyss Fast Soup 5", "cup", None),
+            ("major", "Abyss Cup Major 1 Playoff", "cup", None),
+            ("w10", "HotH: Abyss Weekend 10", "hoth", None),
+            ("solo", "Novichok Cup", "solo", None),
+        ]:
+            session.add(Tournament(id=tid, title=title))
+            session.add(
+                TournamentInfo(
+                    tournament_id=tid,
+                    organizer_id=org,
+                    organizer_name={"cup": "Abyss Cup", "hoth": "House of the Hearth"}.get(org, "Solo"),
+                    finished_at=datetime(2026, 10, 1, tzinfo=UTC),
+                    links=json.dumps(links) if links else None,
+                )
+            )
+        session.commit()
+        org = organizers(session, ["s5", "major", "w10", "solo"])
+        kinds = lambda tid, title: [x.kind for x in tournament_links(session, tid, title, org[tid])]  # noqa: E731
+        assert kinds("s5", "Abyss Fast Soup 5") == ["rules", "telegram"]  # its series'
+        assert kinds("major", "Abyss Cup Major 1 Playoff") == ["telegram"]  # the organizer's socials, not the rules
+        assert kinds("w10", "HotH: Abyss Weekend 10") == ["telegram", "twitch"]  # House of the Hearth's stream
+        assert kinds("solo", "Novichok Cup") == []
+
     def test_organizer_banner_replaces_the_image(self, client, session, monkeypatch):
         from app.models import TournamentInfo
 

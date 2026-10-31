@@ -18,12 +18,15 @@ def client(session):
     app.dependency_overrides.clear()
 
 
-def site_match(match_id: str, status: str = "FINISHED", tournament: str = "live1") -> dict:
+def site_match(match_id: str, status: str = "FINISHED", tournament: str = "live1", created: str | None = None) -> dict:
+    """A match of the site, set up five minutes ago unless created says when."""
+    from datetime import UTC, datetime, timedelta
+
     return {
         "_id": match_id,
         "tournament": {"_id": tournament, "title": "Abyss Fast Soup 24"},
         "system": {},
-        "createdAt": "2026-10-22T16:00:00Z",
+        "createdAt": created or (datetime.now(UTC) - timedelta(minutes=5)).isoformat().replace("+00:00", "Z"),
         "users": [],
         "drafts": [{"_id": f"{match_id}-d1", "status": status, "players": [{"fullName": "a"}, {"fullName": "b"}]}],
     }
@@ -133,6 +136,20 @@ class TestLiveMatches:
         sync_service.poll_live(session)
         live = client.get("/api/v1/matches/live-matches", params={"tournament": "live1"}).json()
         assert [m["id"] for m in live] == ["m3", "m2"]  # it moved on: back
+
+    def test_a_match_missed_by_one_fetch_doesnt_come_back_as_new(self, session, site, client):
+        """A match set up days ago and left half-played, dropped when one fetch missed it, stays hidden when it
+        comes back: its time is when it was set up, not now. One set up a minute ago shows."""
+        stuck = site_match("m3", status="TEAMS", created="2026-10-29T22:34:01Z")
+        site["live1"] = [stuck, site_match("m4", status="TEAMS")]
+        sync_service.poll_live(session)
+        site["live1"] = []  # the site's answer missed them: dropped
+        sync_service.poll_live(session)
+        assert session.exec(select(LiveMatch)).all() == []
+        site["live1"] = [stuck, site_match("m4", status="TEAMS")]
+        sync_service.poll_live(session)
+        live = client.get("/api/v1/matches/live-matches", params={"tournament": "live1"}).json()
+        assert [m["id"] for m in live] == ["m4"]
 
     def test_links_are_asked_for_once(self, session, site):
         site["live1"] = [site_match("m2", status="NOT_STARTED")]

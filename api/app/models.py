@@ -271,6 +271,8 @@ class TournamentInfo(SQLModel, table=True):
     challonge_url: str | None = None
     # The tournament's banner on the site
     image: str | None = None
+    # Its other links on the site (socials, regulations): JSON [{"kind": "telegram", "url": ...}]
+    links: str | None = None
 
 
 class OrganizerAlias(SQLModel, table=True):
@@ -509,6 +511,19 @@ class StreamMatch(SQLModel, table=True):
     stream_url: str | None = None
     casters: str | None = None
     post_url: str  # the post that announced it
+
+
+class StreamTeam(SQLModel, table=True):
+    """A team of a team event (2x2) and its players, as a stream's day post lists them under "Состав команд"
+    ("Болвансеры — Northwar & Vell1ar"; services/stream.py): the home page shows the players with the team's
+    matches. The latest post's roster for the name."""
+
+    id: str = Field(primary_key=True)  # "<channel>-<team key>" (see stream.team_key)
+    channel: str
+    name: str
+    members: str  # JSON list of nicknames, as the post writes them
+    post_url: str
+    seen_at: datetime  # the post
 
 
 class StreamStatus(SQLModel, table=True):

@@ -3,6 +3,7 @@ days ahead if they like; the home page shows each day's. Anyone may read; editor
 their own entries, an admin any.
 """
 
+import json
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
@@ -12,12 +13,12 @@ from sqlmodel import select
 
 from ..database import SessionDep
 from ..dependencies import get_current_player_editor
-from ..models import ScheduledMatch, StreamMatch, StreamStatus, User
+from ..models import ScheduledMatch, StreamMatch, StreamStatus, StreamTeam, User
 from ..rate_limit import rate_limit
 from ..services.challonge import normalize
 from ..services.player_names import display_names, known_players
 from ..services.stats import elo_ratings, snapshot
-from ..services.stream import streams
+from ..services.stream import streams, team_key
 from ..services.sync import live_tournaments
 
 router = APIRouter(prefix="/schedule", tags=["schedule"])
@@ -46,6 +47,8 @@ class PlayerOut(BaseModel):
     elo_active: bool = False  # played in the last six months
     elo_rank: int | None = None  # among active players
     elo_tier: str | None = None  # colour tier (see stats.elo.TIERS)
+    # A team's players, for a team event's team the stream's post lists them for (models.StreamTeam)
+    members: list["PlayerOut"] = []
 
 
 def elo_of(session: SessionDep):
@@ -182,9 +185,17 @@ def stream_matches(
     names = display_names(session)
     elo = elo_of(session)
 
-    def player(name: str) -> PlayerOut:
+    teams = {
+        (t.channel, team_key(t.name)): json.loads(t.members)
+        for t in session.exec(select(StreamTeam).where(StreamTeam.channel.in_({r.channel for r in rows})))
+    }
+
+    def player(name: str, channel: str | None = None) -> PlayerOut:
         pid = known.get(normalize(name))
-        return PlayerOut(id=pid, name=names.get(pid, name) if pid else name, **elo(pid))
+        members = [] if pid or channel is None else teams.get((channel, team_key(name)), [])
+        return PlayerOut(
+            id=pid, name=names.get(pid, name) if pid else name, members=[player(m) for m in members], **elo(pid)
+        )
 
     out = []
     for source in streams():
@@ -210,8 +221,8 @@ def stream_matches(
             matches.append(
                 StreamMatchOut(
                     tournament_title=r.tournament_title,
-                    player1=player(r.player1_name),
-                    player2=player(r.player2_name),
+                    player1=player(r.player1_name, r.channel),
+                    player2=player(r.player2_name, r.channel),
                     announced_at=aware(r.announced_at),
                     starts_at=aware(r.starts_at),
                     live_at=aware(r.live_at),
@@ -238,6 +249,35 @@ def stream_matches(
                 matches=matches,
             )
         )
+    return out
+
+
+class LiveStreamOut(BaseModel):
+    name: str  # whose stream: Abyss Cup, House of the Hearth, Abyss New Gen (their tournaments' organizer)
+    channel: str  # the Twitch channel, for its player
+    title: str | None
+    viewers: int | None
+    started_at: datetime | None
+
+
+@router.get("/live-streams", response_model=list[LiveStreamOut])
+def live_streams(session: SessionDep):
+    """The streams on air now, by Twitch (needs its keys; a status the poll hasn't refreshed lately doesn't count),
+    for the players on the home page and a running tournament's page (by its organizer's name)."""
+    now = datetime.now(UTC)
+    out = []
+    for source in streams():
+        twitch = session.get(StreamStatus, source.twitch)
+        if twitch and twitch.live and now - aware(twitch.checked_at) <= STATUS_FRESH:
+            out.append(
+                LiveStreamOut(
+                    name=source.name,
+                    channel=source.twitch,
+                    title=twitch.title,
+                    viewers=twitch.viewers,
+                    started_at=aware(twitch.started_at),
+                )
+            )
     return out
 
 

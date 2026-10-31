@@ -1,5 +1,6 @@
 """Imported tournaments, public: the tournaments list and a tournament's page."""
 
+import json
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, status
@@ -21,7 +22,9 @@ from ..services.stats import (
     tournament_stats,
     tournament_table,
 )
+from ..services.stream import streams
 from ..services.sync import live_tournaments
+from ..services.tournament_info import series_key
 from .abyss import TournamentAbyss, tournament_abyss
 from .matches import Character, Organizer, organizers
 
@@ -58,6 +61,7 @@ class TournamentRow(BaseModel):
     last_match: datetime | None
     matches: int
     players: int  # in the Challonge bracket when there is one, else who played the tournament's games
+    teams: int | None = None  # a team event's (2x2) teams in its Challonge bracket
     winner: PlayerRef | None
     # "challonge" or "matches": where the places come from
     places_source: str | None
@@ -166,7 +170,51 @@ class StageRef(BaseModel):
     last_match: datetime | None
 
 
+class TournamentLink(BaseModel):
+    kind: str  # telegram, discord, twitch, youtube, vk, boosty, rules (Google Docs) or site
+    url: str
+
+
+# Kinds of links that are the organizer's own (not one tournament's regulations or site), shared across its series
+SOCIAL_KINDS = {"telegram", "discord", "twitch", "youtube", "vk", "boosty"}
+
+
+def tournament_links(session: SessionDep, tid: str, title: str, organizer: Organizer | None) -> list[TournamentLink]:
+    """The tournament's links on the site; one without any takes those of its series' latest that has some (the
+    tournaments of a series share them), else the socials of its organizer's latest, else its organizer's stream
+    channels (Abyss Cup, House of the Hearth, Abyss New Gen)."""
+    infos = session.exec(select(TournamentInfo, Tournament.title).join(Tournament)).all()
+    own = next((i for i, _ in infos if i.tournament_id == tid), None)
+    if own and own.links:
+        return [TournamentLink(**link) for link in json.loads(own.links)]
+    if organizer is None:
+        return []
+    orgs = organizers(session, [i.tournament_id for i, _ in infos if i.links])
+    theirs = sorted(
+        ((i, t) for i, t in infos if i.links and (o := orgs.get(i.tournament_id)) and o.id == organizer.id),
+        key=lambda it: it[0].finished_at.replace(tzinfo=UTC) if it[0].finished_at else datetime.max.replace(tzinfo=UTC),
+        reverse=True,
+    )
+    key = series_key(title)
+    series = next((i for i, t in theirs if series_key(t) == key), None)
+    if series:
+        return [TournamentLink(**link) for link in json.loads(series.links)]
+    if theirs:
+        socials = [link for link in json.loads(theirs[0][0].links) if link["kind"] in SOCIAL_KINDS]
+        if socials:
+            return [TournamentLink(**link) for link in socials]
+    stream = next((s for s in streams() if s.name == organizer.name), None)
+    if stream is None:
+        return []
+    return [
+        TournamentLink(kind="telegram", url=f"https://t.me/{stream.telegram}"),
+        TournamentLink(kind="twitch", url=f"https://www.twitch.tv/{stream.twitch}"),
+    ]
+
+
 class TournamentDetail(TournamentRow):
+    # Its links on the site (socials, regulations), its Challonge bracket aside (challonge_url)
+    links: list[TournamentLink] = []
     # Every stage of the tournament's event, in order (this one included); empty when it isn't a stage
     stages: list[StageRef] = []
     # The Spiral Abyss phases (floor 12) its matches were played on, in order
@@ -225,6 +273,7 @@ def rows(session: SessionDep, ids: list[str] | None = None) -> list[TournamentRo
         bracket = (ch := snap.challonge.get(tid)) and ch.bracket
         if bracket and bracket.players and kind != "team":
             players = len(bracket.players)
+        teams = len(bracket.players) if kind == "team" and bracket and bracket.players else None
         out.append(
             TournamentRow(
                 id=tid,
@@ -243,6 +292,7 @@ def rows(session: SessionDep, ids: list[str] | None = None) -> list[TournamentRo
                 last_match=last,
                 matches=matches,
                 players=players,
+                teams=teams,
                 winner=PlayerRef(**winner) if winner else None,
                 places_source=s and s["source"],
                 challonge_only=tid in only and tid not in played,
@@ -355,6 +405,7 @@ class FeaturedTournament(BaseModel):
     date: datetime | None  # started (running) or last match (finished)
     matches: int
     players: int
+    teams: int | None  # a team event's (2x2), from its bracket: shown instead of its players
     winner: PlayerRef | None
     organizer: Organizer | None
 
@@ -382,6 +433,7 @@ def featured(session: SessionDep) -> list[FeaturedTournament]:
                     date=t.get("createdAt"),
                     matches=row.matches if row else 0,
                     players=row.players if row else 0,
+                    teams=row.teams if row else None,
                     winner=None,
                     organizer=row.organizer if row else None,
                 )
@@ -402,6 +454,7 @@ def featured(session: SessionDep) -> list[FeaturedTournament]:
             date=latest.last_match,
             matches=latest.matches,
             players=latest.players,
+            teams=latest.teams,
             winner=latest.winner,
             organizer=latest.organizer,
         )
@@ -466,6 +519,7 @@ def read_tournament(tournament_id: str, session: SessionDep):
             row["group"] = group_label(titles.get(row["group_id"], "")) if row["group_id"] else None
     return TournamentDetail(
         **found[0].model_dump(),
+        links=tournament_links(session, tournament_id, found[0].title, found[0].organizer),
         stages=stages,
         abyss=tournament_abyss(session, tournament_id),
         table=table,

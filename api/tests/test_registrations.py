@@ -51,6 +51,9 @@ def test_the_news_names_the_tournament_dates_deadline_and_form():
         post("Открываем регистрацию на очередной фасткап\nКарета превратится в тыкву 08.10 в 22:00 МСК"), HOTH, "u"
     )
     assert "Регистрация до 08.10 в 22:00 МСК" in joke
+    until = "Подать заявку можно до 3 ноября 19:00 МСК"
+    named = news_text(post(f"Открываем регистрацию на New Gen All-Star.\n⏱ {until}"), HOTH, "u")
+    assert named.split("\n")[:2] == ["Открыта регистрация на New Gen All-Star", until]
 
 
 def test_a_post_makes_one_item_while_registration_is_open(session):
@@ -84,6 +87,8 @@ def test_the_item_leaves_when_the_tournament_starts(session):
     assert ends_at(dated) == datetime(2026, 10, 29, 21, tzinfo=UTC)  # 30.10, midnight in Moscow
     assert ends_at(Post(2, at, "Регистрация открыта до 29.10", [])) == datetime(2026, 10, 29, 21, tzinfo=UTC)
     assert ends_at(Post(3, at, "Открываем регистрацию", [])) is None
+    named = Post(4, at, "Регистрация на New Gen All-Star\nПодать заявку можно до 3 ноября 19:00 МСК", [])
+    assert deadline(named) == datetime(2026, 11, 3).date()
 
     soon, later = (datetime.now(UTC) + timedelta(days=d) for d in (1, 3))
     posts = [

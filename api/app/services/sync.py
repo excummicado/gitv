@@ -40,7 +40,7 @@ from .draft_systems import fetch_draft_systems
 from .match_checks import tidy_title
 from .match_import import ImportResult, import_from_urls, import_matches, is_finished, parse_date
 from .rosters import build_rosters
-from .tournament_info import fetch_tournament_info
+from .tournament_info import fetch_tournament_info, links
 
 log = logging.getLogger("gitv.sync")
 
@@ -212,20 +212,24 @@ def update_live_matches(
             sides.append((user if user in known else None, players[i]["fullName"] if i < len(players) else "?"))
         drafts = [{"id": d["_id"], "status": d.get("status"), "key": keys.get(d["_id"])} for d in m["drafts"]]
         same = old and [d["status"] for d in json.loads(old.drafts)] == [d["status"] for d in drafts]
+        created = parse_date(m["createdAt"])
+        # Not seen before (or dropped by a fetch that missed it): its time is when it was set up, not now, so a
+        # match left half-played days ago doesn't come back as just moved on
+        changed = (old.changed_at or now) if same else now if old else min(created, now)
         tournament = m.get("tournament") or {}
         session.merge(
             LiveMatch(
                 id=mid,
                 tournament_id=tournament["_id"],
                 tournament_title=tidy_title(titles.get(tournament["_id"]) or tournament.get("title", "")),
-                created_at=parse_date(m["createdAt"]),
+                created_at=created,
                 player1_id=sides[0][0],
                 player1_name=sides[0][1],
                 player2_id=sides[1][0],
                 player2_name=sides[1][1],
                 drafts=json.dumps(drafts),
                 updated_at=now,
-                changed_at=(old.changed_at or now) if same else now,
+                changed_at=changed,
             )
         )
         update_live_rosters(session, m, keys, now)
@@ -300,6 +304,7 @@ def add_running_info(session: Session, running: list[dict]) -> list[str]:
                 is_finished=False,
                 challonge_url=challonge_link(t.get("links")),
                 image=t.get("image"),
+                links=links(t.get("links")),
             )
         )
     session.commit()

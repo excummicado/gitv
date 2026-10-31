@@ -149,6 +149,11 @@ class TestChallongeOnly:
         assert team not in snap.players["A"].tournaments
         assert swiss in snap.players["A"].tournaments
         assert all(s["tournament"]["id"] != swiss for s in tournament_standings(snap))  # Swiss rounds: no places
+        from app.routers.tournaments import rows
+
+        found = {r.id: r for r in rows(world.s)}
+        assert found[team].kind == "team" and found[team].teams == 2  # its bracket's teams
+        assert found[swiss].teams is None
 
     def test_group_stage_matches_count(self, world):
         site_players(world, "A", "B", "C", "D")

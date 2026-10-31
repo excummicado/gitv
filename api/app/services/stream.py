@@ -1,6 +1,7 @@
 """The streams: which matches are played on them and whether they're on, for the home page's matches of the day.
 
-Two streams (STREAMS): Abyss Cup's and House of the Hearth's, each a Telegram channel and a Twitch channel.
+Three streams (streams()): Abyss Cup's, House of the Hearth's and Abyss New Gen's, each a Telegram channel and a
+Twitch channel.
 Abyss Cup's Telegram channel (settings.stream_telegram_channel) announces them, read from its public page
 t.me/s/<channel> (the latest twenty or so posts; no Telegram keys needed):
 - the day's post: "🎥 <tournament> … Матчи на сегодня: • A vs B • C vs D … Стрим ведут X & Y", with the Twitch link;
@@ -17,7 +18,15 @@ House of the Hearth's (settings.hoth_telegram_channel) posts differently:
   yet is "TBD VS TBD", filled in by its results post;
 - a match moved: "Игра A VS B переносится на 17:30 МСК";
 - its results post: "Результат (финального) матча A VS B" with both teams, not who won.
+A team event's day post also lists its teams' players under "Состав команд" ("Болвансеры — Northwar & Vell1ar"),
+kept as StreamTeam so the home page can show who plays for a team.
 Its matches are on air from their time until their results post (the first of them, while the stream is live).
+
+Abyss New Gen's (settings.newgen_telegram_channel) names its matches in prose (Stream.prose):
+- the day's post, in the morning: a line per match, "rooz1ee VS liarlialin, под комментарии qwebob & bestingo"
+  (or "а услышим X & Y", "комментировать … будут X и Y"), no times;
+- "Матчи уже стартуют!" with the Twitch link when the stream starts: its first match is on air from then;
+- its results post: "Результаты матча A vs B … Поздравляем A с победой"; the next match is on air from then.
 
 Twitch (settings.twitch_channel) says whether the stream is live, with its title and viewers, when the app's keys
 are set (settings.twitch_client_id / twitch_client_secret, from dev.twitch.tv); read with an app token through the
@@ -26,6 +35,7 @@ on), or once with app.cli poll-stream.
 """
 
 import html
+import json
 import logging
 import re
 import time
@@ -37,7 +47,7 @@ import httpx
 from sqlmodel import Session, select
 
 from ..config import settings
-from ..models import StreamMatch, StreamStatus
+from ..models import StreamMatch, StreamStatus, StreamTeam
 from .challonge import normalize
 
 log = logging.getLogger(__name__)
@@ -61,6 +71,16 @@ PAIR = re.compile(rf"(.+?)\s+{VS}\s+(.+)", re.I)
 SLOT = re.compile(
     rf"(?P<a>.+?)\s+{VS}\s+(?P<b>.+?)\s*[—–-]+\s*(?P<h>\d{{1,2}})[:.](?P<m>\d{{2}})\s*(?:мск|msk)\b.*", re.I
 )
+# A team event's rosters: a "Состав команд" line, then a line per team, "Болвансеры — Northwar & Vell1ar"
+ROSTERS = re.compile(r"(?i)состав\w*\s+команд")
+ROSTER = re.compile(r"(?P<team>.+?)\s+[—–-]+\s+(?P<members>.+)")
+MEMBERS = re.compile(r"\s*(?:&|\+|,|\s и\s)\s*")
+# Abyss New Gen's day post: a match in a sentence, single-word nicknames, its casters the pair at the end of it
+PROSE_PAIR = re.compile(r"(?<![\w.-])(?P<a>[\w.-]{2,})\s+vs\.?\s+(?P<b>[\w.-]{2,})(?P<rest>.*)", re.I)
+PROSE_CASTERS = re.compile(r"([\w.-]+)\s+(?:&|и)\s+([\w.-]+)")
+STARTED = re.compile(r"(?i)матчи\s+(?:уже\s+)?(?:стартуют|начались|начинаются)")
+NEW_GEN = re.compile(r"(?:Abyss\s+)?New\s+Gen(?:\s+All-Star|\s+[IVX]+\b)?")
+CONGRATS = re.compile(r"(?i)поздравляем\s+(.+?)\s+с\s")
 CASTERS = re.compile(r"(?i)(?:комментатор\w*|стрим\s+вед\w*)\s*:?\s*(.+)")
 MOVED = re.compile(r"(?i)(?:игра|матч)\s+(.+?)\s+перенос\w*\s+на\s+(\d{1,2})[:.](\d{2})")
 RESULT = re.compile(r"(?i)результат\w*\s+(?:\w+\s+)?матча\s+(.+)")
@@ -74,12 +94,14 @@ class Stream:
     telegram: str  # the channel that announces its matches
     twitch: str
     name: str  # the tournament, when its posts don't name it
+    prose: bool = False  # names its matches in prose, without times (Abyss New Gen's; see the module)
 
 
 def streams() -> list[Stream]:
     return [
         Stream(settings.stream_telegram_channel.lstrip("@"), settings.twitch_channel, "Abyss Cup"),
         Stream(settings.hoth_telegram_channel.lstrip("@"), settings.hoth_twitch_channel, "House of the Hearth"),
+        Stream(settings.newgen_telegram_channel.lstrip("@"), settings.newgen_twitch_channel, "Abyss New Gen", True),
     ]
 
 
@@ -102,6 +124,39 @@ def nick(text: str) -> str:
 
 def pair_key(a: str, b: str) -> str:
     return "-".join(sorted((normalize(nick(a)), normalize(nick(b)))))
+
+
+def team_key(name: str) -> str:
+    """A team's name compared without case, punctuation or ё ("Лёха" in the bracket, "Леха" in the post)."""
+    return normalize(nick(name)).replace("ё", "е")
+
+
+def store_teams(session: Session, source: Stream, post: Post, text: list[str]) -> int:
+    """The teams' players a day post lists after its "Состав команд" line; returns how many teams it lists."""
+    at = next((i for i, line in enumerate(text) if ROSTERS.search(line)), None)
+    if at is None:
+        return 0
+    stored = 0
+    for line in text[at + 1 :]:
+        m = ROSTER.fullmatch(nick(line))
+        members = [nick(x) for x in MEMBERS.split(m["members"]) if nick(x)] if m else []
+        if len(members) < 2:
+            break  # the list is over
+        name = nick(m["team"])
+        tid = f"{source.telegram}-{team_key(name)}"
+        row = session.get(StreamTeam, tid)
+        if row is not None and aware(row.seen_at) > post.at:
+            continue  # a later post's roster stays
+        row = row or StreamTeam(id=tid, channel=source.telegram, name=name, members="[]", post_url="", seen_at=post.at)
+        row.name, row.members, row.seen_at = name, json.dumps(members, ensure_ascii=False), post.at
+        row.post_url = f"https://t.me/{source.telegram}/{post.id}"
+        session.add(row)
+        stored += 1
+    return stored
+
+
+def aware(value: datetime) -> datetime:
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value
 
 
 def parse_page(page: str) -> list[Post]:
@@ -189,6 +244,47 @@ def tbd_row(session: Session, channel: str, at: datetime) -> StreamMatch | None:
     return rows[0] if rows else None
 
 
+def store_prose(session: Session, source: Stream, post: Post, text: list[str]) -> int:
+    """Abyss New Gen's day post: a match per sentence with its casters; kept in the post's order (a second apart)."""
+    tournament = (m[0] if (m := NEW_GEN.search(post.text)) else None) or source.name
+    changed = 0
+    for line in text:
+        m = PROSE_PAIR.search(line)
+        if not m:
+            continue
+        a, b = nick(m["a"]), nick(m["b"])
+        casters = PROSE_CASTERS.findall(m["rest"])
+        mid = f"{source.telegram}-{post.id}-{pair_key(a, b)}"
+        row = session.get(StreamMatch, mid) or StreamMatch(
+            id=mid,
+            channel=source.telegram,
+            tournament_title=tournament,
+            player1_name=a,
+            player2_name=b,
+            announced_at=post.at + timedelta(seconds=changed),
+            post_url=f"https://t.me/{source.telegram}/{post.id}",
+        )
+        row.casters = " & ".join(casters[-1]) if casters else row.casters
+        session.add(row)
+        changed += 1
+    return changed
+
+
+def next_up(session: Session, channel: str, at: datetime) -> StreamMatch | None:
+    """The day's first match not on air yet nor over (Abyss New Gen's, in the day post's order)."""
+    return session.exec(
+        select(StreamMatch)
+        .where(
+            StreamMatch.channel == channel,
+            StreamMatch.announced_at <= at,
+            StreamMatch.announced_at >= at - SAME_DAY,
+            StreamMatch.live_at.is_(None),
+            StreamMatch.finished_at.is_(None),
+        )
+        .order_by(StreamMatch.announced_at)
+    ).first()
+
+
 def store_posts(session: Session, channel: str, posts: list[Post]) -> int:
     """Stores what the posts announce (see the module); returns how many matches were added or changed."""
     changed = 0
@@ -198,6 +294,7 @@ def store_posts(session: Session, channel: str, posts: list[Post]) -> int:
         text = lines(post.text)
         if not text:
             continue
+        store_teams(session, source, post, text)
         if any(SLOT.fullmatch(line) for line in text):
             changed += store_slots(session, source, post, text)
             continue
@@ -242,6 +339,23 @@ def store_posts(session: Session, channel: str, posts: list[Post]) -> int:
                 changed += 1
             continue
         result = RESULT.search(text[0])
+        if source.prose and not result:
+            if STARTED.search(post.text) and twitch_link(post.links, source.twitch):
+                row = next_up(session, channel, post.at)
+                on_air = session.exec(
+                    select(StreamMatch).where(
+                        StreamMatch.channel == channel,
+                        StreamMatch.announced_at >= post.at - SAME_DAY,
+                        StreamMatch.live_at.is_not(None),
+                    )
+                ).first()
+                if row is not None and on_air is None:
+                    row.live_at = post.at  # the stream's first match (not again when it's said twice)
+                    session.add(row)
+                    changed += 1
+            elif any(PROSE_PAIR.search(line) for line in text):
+                changed += store_prose(session, source, post, text)
+            continue
         on_air = None if result else re.fullmatch(r"(.+?):\s*(.+)", nick(text[0]))
         m = PAIR.fullmatch((result[1] if result else on_air[2] if on_air else "").strip())
         if not m or (on_air and not twitch_link(post.links, source.twitch)):
@@ -266,8 +380,18 @@ def store_posts(session: Session, channel: str, posts: list[Post]) -> int:
             )
         if result:
             won = WINNER.search(" ".join(text[1:3]))
+            congrats = None if won else CONGRATS.search(" ".join(text[1:4]))
+            if congrats and normalize(nick(congrats[1])) in {normalize(a), normalize(b)}:
+                won = congrats  # "Поздравляем A с победой", when A is one of them
+            newly = row.finished_at is None
             row.finished_at = row.finished_at or post.at
             row.winner_name = nick(won[1]) if won else row.winner_name
+            if source.prose and newly:
+                session.add(row)
+                session.flush()
+                if (up := next_up(session, channel, post.at)) is not None:
+                    up.live_at = post.at  # the next match goes on air
+                    session.add(up)
         elif row.live_at is None:
             row.live_at = post.at
         session.add(row)

@@ -1,7 +1,7 @@
-"""Tournament registrations, posted to the home page's news column by themselves: when Abyss Cup's or House of the
-Hearth's Telegram channel announces that registration is open (read with the stream's posts, services/stream.py),
-a short news item says so: the post's opening line, the dates and the deadline, the sign-up form when the post links
-one, and the post itself.
+"""Tournament registrations, posted to the home page's news column by themselves: when Abyss Cup's, House of the
+Hearth's or Abyss New Gen's Telegram channel announces that registration is open (read with the stream's posts,
+services/stream.py), a short news item says so: the post's opening line, the dates and the deadline, the sign-up
+form when the post links one, and the post itself.
 
 Told apart from other posts by their wording (is_registration): a sentence about registration or applications that
 opens it ("Открываем регистрацию", "Регистрация открыта до", "Ссылка на подачу регистрации") and isn't about it
@@ -46,18 +46,24 @@ OTHER_GAMES = re.compile(
 # Lines worth repeating in the news: when it's played and until when one can sign up
 DETAIL = re.compile(
     r"(?i)игры\s+пройдут|дат[аы]|продлится|будет\s+проходить|пройд[её]т|регистрац\w*\s+(открыта\s+до|законч\w*)"
-    r"|до\s+\d+[.:]\d+|превратится\s+в\s+тыкву"
+    r"|до\s+\d+[.:]\d+|до\s+\d{1,2}\s+(?:январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)"
+    r"|превратится\s+в\s+тыкву"
 )
 DEADLINE_JOKE = re.compile(r"(?i)карета\s+превратится\s+в\s+тыкву\s+(.*)")
-# The registration deadline: "открыта до 22.10", "закончится 29.10", "превратится в тыкву 08.10"
-DEADLINE = re.compile(r"(?i)(?:регистрац|заявк|тыкву)[^\n]*?(?:до|законч\w*|тыкву)\s+(\d{1,2})\.(\d{1,2})")
+# Months as the posts write them ("до 3 ноября"), in order
+MONTHS = ("январ", "феврал", "март", "апрел", "ма", "июн", "июл", "август", "сентябр", "октябр", "ноябр", "декабр")
+# The registration deadline: "открыта до 22.10", "закончится 29.10", "превратится в тыкву 08.10", "до 3 ноября"
+DEADLINE = re.compile(
+    r"(?i)(?:регистрац|заявк|тыкву)[^\n]*?(?:до|законч\w*|тыкву)\s+(\d{1,2})"
+    rf"(?:\.(\d{{1,2}})|\s+({'|'.join(MONTHS)})[а-я]*\b)"
+)
 # The tournament's first day: "Даты турнира - 30.10-01.11", "Игры пройдут 02.11 и 03.11"
 STARTS = re.compile(
     r"(?i)(?:дат[аы]\s+(?:турнира|проведения)|игры\s+пройдут|турнир\s+пройд[её]т|будет\s+проходить|стартует"
     r"|старт\s+турнира|начало\s+турнира)[^\n\d]*?(\d{1,2})\.(\d{1,2})"
 )
 # A tournament's name: the series' word and what follows it on the line, up to punctuation
-NAME = re.compile(r"(?:Hо?o?tH|HoTH|AFC|Abyss|Sovereign|Ancient\s+Moon|Admission)\b[^\n!?,;()«»\"]*", re.U)
+NAME = re.compile(r"(?:Hо?o?tH|HoTH|AFC|Abyss|New\s+Gen|Sovereign|Ancient\s+Moon|Admission)\b[^\n!?,;()«»\"|]*", re.U)
 OPENING_WORDS = re.compile(r"(?i)открываем|рады\s+(?:анонсировать|объявить)|начал\w*\s+регистрац")
 LINK_TALK = re.compile(r"(?i)по\s+(этой\s+)?ссылке|\bссылк[аеиу]\b")
 FORM = re.compile(r"(?i)forms\.gle|docs\.google\.com/forms|forms\.yandex|form")
@@ -72,11 +78,13 @@ def is_registration(text: str, abyss_only: bool) -> bool:
 
 
 def day_in(post: Post, pattern: re.Pattern) -> date | None:
-    """The day ("29.10") the pattern finds in the post (the year is the post's, or the next one's in January)."""
+    """The day ("29.10", "3 ноября") the pattern finds in the post (the year is the post's, or the next one's in
+    January)."""
     m = pattern.search(post.text)
     if not m:
         return None
-    day, month = int(m[1]), int(m[2])
+    named = m.re.groups > 2 and m[3]
+    day, month = int(m[1]), MONTHS.index(named.lower()) + 1 if named else int(m[2])
     year = post.at.year + (1 if month < post.at.month - 6 else 0)
     try:
         return date(year, month, day)
