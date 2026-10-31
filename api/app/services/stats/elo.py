@@ -44,6 +44,13 @@ class EloStep:
     result: float  # 1 won, 0 lost, 0.5 drawn
     elo: float
     change: float
+    # Why it moved that much: both ratings before it, the expected score, K and the tournament's weight
+    before: float
+    opponent_before: float
+    expected: float
+    k: int  # K_NEW or K_SETTLED, before the weight
+    weight: float
+    kind: str  # the tournament's class (see tournament_kind)
 
 
 @dataclass
@@ -61,17 +68,25 @@ class Rating:
     history: list[EloStep]  # after each of their matches, in order
 
 
+WEIGHTS = {"media": 0.0, "major": 1.0, "series": 0.85, "fast": 0.7, "other": 0.5}
+
+
+def tournament_kind(title: str, organizer: str, major: bool) -> str:
+    """A tournament's class for its weight (WEIGHTS): media, major, series (Ascend, New Gen), fast or other."""
+    if MEDIA.search(title):
+        return "media"
+    if major:
+        return "major"
+    if organizer in LESSER_SERIES:
+        return "series"
+    if FAST.search(title):
+        return "fast"
+    return "other"
+
+
 def weight(title: str, organizer: str, major: bool) -> float:
     """How much a tournament's matches move ratings."""
-    if MEDIA.search(title):
-        return 0.0
-    if major:
-        return 1.0
-    if organizer in LESSER_SERIES:
-        return 0.85
-    if FAST.search(title):
-        return 0.7
-    return 0.5
+    return WEIGHTS[tournament_kind(title, organizer, major)]
 
 
 def elo_ratings(session: Session, snap: Snapshot, now: datetime | None = None) -> dict[str, Rating]:
@@ -86,7 +101,7 @@ def elo_ratings(session: Session, snap: Snapshot, now: datetime | None = None) -
         for i in session.exec(select(TournamentInfo))
         if (o := resolve(i.organizer_id, i.organizer_name))
     }
-    weights: dict[str, float] = {}
+    kinds: dict[str, str] = {}
 
     def key(side: str) -> str:
         return side if side in snap.players else "?" + normalize(side[1:])
@@ -102,9 +117,9 @@ def elo_ratings(session: Session, snap: Snapshot, now: datetime | None = None) -
     )
     for mid in matches:
         tid = snap.match_tournament[mid]
-        if tid not in weights:
-            weights[tid] = weight(snap.match_info[mid][1], organizer.get(tid, ""), tid in majors)
-        w = weights[tid]
+        if tid not in kinds:
+            kinds[tid] = tournament_kind(snap.match_info[mid][1], organizer.get(tid, ""), tid in majors)
+        w = WEIGHTS[kinds[tid]]
         if not w:
             continue
         a_side, b_side = list(snap.match_sides[mid])
@@ -114,13 +129,14 @@ def elo_ratings(session: Session, snap: Snapshot, now: datetime | None = None) -
         winner = snap.outcomes[mid].winner
         sa = 0.5 if winner is None else 1.0 if winner == a_side else 0.0
         ea = 1 / (1 + 10 ** ((rating[b] - rating[a]) / 400))
-        ka = (K_NEW if played[a] < NEW_MATCHES else K_SETTLED) * w
-        kb = (K_NEW if played[b] < NEW_MATCHES else K_SETTLED) * w
-        da, db = ka * (sa - ea), kb * (ea - sa)
-        rating[a], rating[b] = rating[a] + da, rating[b] + db
-        when = snap.match_info[mid][0]
-        history[a].append(EloStep(when, mid, tid, b_side, sa, rating[a], da))
-        history[b].append(EloStep(when, mid, tid, a_side, 1 - sa, rating[b], db))
+        ka = K_NEW if played[a] < NEW_MATCHES else K_SETTLED
+        kb = K_NEW if played[b] < NEW_MATCHES else K_SETTLED
+        da, db = ka * w * (sa - ea), kb * w * (ea - sa)
+        ra, rb = rating[a], rating[b]
+        rating[a], rating[b] = ra + da, rb + db
+        when, kind = snap.match_info[mid][0], kinds[tid]
+        history[a].append(EloStep(when, mid, tid, b_side, sa, rating[a], da, ra, rb, ea, ka, w, kind))
+        history[b].append(EloStep(when, mid, tid, a_side, 1 - sa, rating[b], db, rb, ra, 1 - ea, kb, w, kind))
         for k in (a, b):
             played[k] += 1
             last[k] = when

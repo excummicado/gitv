@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router";
-import { ApiError, completeDiscordSignup, loginWithToken, NICKNAME_HINT, NICKNAME_HINT_RU, NICKNAME_PATTERN } from "./client";
+import { ApiError, completeDiscordSignup, finishSignIn, NICKNAME_HINT, NICKNAME_HINT_RU, NICKNAME_PATTERN } from "./client";
 import { useLang } from "../i18n";
 import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
@@ -10,8 +10,6 @@ const messages: Record<string, [string, string]> = {
   cancelled: ["Discord sign-in was cancelled.", "Вход через Discord отменён."],
   expired: ["This sign-in link expired or was replaced by a newer one. Start again from the sign-in page.", "Ссылка для входа устарела или заменена новой. Начните заново со страницы входа."],
   discord: ["Discord didn't accept the sign-in. Try again.", "Discord не принял вход. Попробуйте ещё раз."],
-  unverified_email: ["Verify your email in Discord, then try again.", "Подтвердите почту в Discord и попробуйте ещё раз."],
-  email_taken: ["Another GITV account already uses this Discord email.", "Эта почта Discord уже используется другим аккаунтом GITV."],
   banned: ["This account is banned.", "Этот аккаунт забанен."],
 };
 
@@ -28,7 +26,7 @@ export function DiscordCallback() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.hash.slice(1));
-    // Drop the tokens from the address bar and history.
+    // Drop the sign-up token from the address bar and history.
     window.history.replaceState(null, "", window.location.pathname);
 
     const signup = params.get("signup_token");
@@ -37,12 +35,11 @@ export function DiscordCallback() {
       setNickname(params.get("nickname") ?? "");
       return;
     }
-    const token = params.get("access_token");
-    if (!token) {
+    if (!params.get("signed_in")) {
       setError(t(...(messages[params.get("error") ?? ""] ?? messages.discord)));
       return;
     }
-    loginWithToken(token)
+    finishSignIn()
       .then(() => navigate("/", { replace: true }))
       .catch(() => setError(t(...messages.discord)));
   }, [navigate]);

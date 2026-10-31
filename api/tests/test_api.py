@@ -128,6 +128,21 @@ class TestFeaturedTournament:
         )
         assert client.get("/api/v1/tournaments/featured").json()["image"] == "/banners/fast-soup.svg"
 
+    def test_running_tournaments_with_a_banner_come_first(self, client, session, monkeypatch):
+        self.setup(session)
+        live = [
+            {"_id": "new", "title": "Novichok Cup", "image": None, "createdAt": "2026-06-03T10:00Z"},
+            {"_id": "soup", "title": "Abyss Fast Soup 25", "image": None, "createdAt": "2026-06-01T10:00Z"},
+            {"_id": "own", "title": "Some Cup", "image": "own.webp", "createdAt": "2026-06-02T10:00Z"},
+        ]
+        monkeypatch.setattr("app.routers.tournaments.live_tournaments", lambda: live)
+        items = client.get("/api/v1/tournaments/featured/all").json()
+        assert [i["id"] for i in items] == ["own", "soup", "new"]  # banners first, the newest first among each
+        assert all(i["live"] for i in items)
+        assert client.get("/api/v1/tournaments/featured").json()["id"] == "own"
+        monkeypatch.setattr("app.routers.tournaments.live_tournaments", lambda: [])
+        assert [i["id"] for i in client.get("/api/v1/tournaments/featured/all").json()] == ["t1"]
+
     def make_live(self, session, final_winner: str | None = None):
         """t1 still running on the site, optionally with a Challonge final A vs B that has a winner."""
         import json

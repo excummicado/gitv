@@ -114,13 +114,10 @@ function PlayerPicker({ players, exclude, onPick, autoFocus }: { players: Player
 }
 
 function PlayerHead({ side, fallback, id, align }: { side: CompareSide | null; fallback: string; id: string; align: "left" | "right" }) {
-  const { t } = useLang();
-  const age = side?.profile?.age;
   return (
     <div className={`cmp-head ${align}`}>
       <div className="cmp-head-text">
         <Link className="player-match-link cmp-name" to={`/player/${id}`}>{side?.name ?? fallback}</Link>
-        <span className="player-label">{[side?.profile?.real_name, age ? t(`${age} y.o.`, `${age} лет`) : null].filter(Boolean).join(" · ") || " "}</span>
       </div>
     </div>
   );

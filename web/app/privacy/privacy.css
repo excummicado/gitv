@@ -1,0 +1,4 @@
+/* The privacy page: plain text in one box. */
+.privacy { max-width: 820px; margin: 0 auto; }
+.privacy section + section { margin-top: 18px; }
+.privacy p { margin: 6px 0 0; color: var(--gitv-text-soft); line-height: 1.6; font-size: 14px; }

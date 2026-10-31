@@ -1,6 +1,7 @@
 from app.models import MatchPlayer
 from app.services.match_checks import (
     NO_RESULT,
+    TEAM_EVENT,
     TECH_ROOM_TIME,
     SideGame,
     TechnicalGame,
@@ -181,3 +182,10 @@ def test_tidy_title():
     assert tidy_title("ABYSS FAST SOUP 5") == "Abyss Fast Soup 5"
     assert tidy_title("Abyss Ascend Casual League [ROUND 1]") == "Abyss Ascend Casual League [Round 1]"
     assert tidy_title("HotH: 2x2") == "HotH: 2x2"
+
+
+def test_team_events_are_told_by_their_title():
+    for title in ("HotH: 2x2", "HotH 2vs2", "Abyss Weekend 2х2", "Duo 2v2", "Турнир 2 на 2", "2 × 2 Cup"):
+        assert TEAM_EVENT.search(title), title
+    for title in ("322 Cup", "Abyss Fast Soup 22", "Abyss Weekend 12", "HotH 2"):
+        assert not TEAM_EVENT.search(title), title

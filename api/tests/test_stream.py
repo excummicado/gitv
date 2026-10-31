@@ -142,3 +142,25 @@ def test_house_of_the_hearth_posts(session, client):
     assert data["name"] == "House of the Hearth" and data["url"] == "https://www.twitch.tv/abyss_hoth"
     assert data["live"] and [m["live"] for m in data["matches"]] == [False, True]
     assert data["casters"] == "ShogunVenti & qwebob"
+
+
+def test_team_events_put_an_emoji_for_vs(session):
+    """House of the Hearth's 2x2 posts: "Болвансеры ♿️ Леха — 17:00 МСК", results "overlol ↔️ Smertnik13"."""
+    morning = (datetime.now(UTC) - timedelta(hours=10)).replace(microsecond=0)
+    at = lambda hours: (morning + timedelta(hours=hours)).astimezone(stream.MOSCOW).strftime("%H:%M")  # noqa: E731
+    hoth = "".join(
+        [
+            post(
+                20,
+                morning,
+                f"Доброго дня 👻\n\n♾️ Болвансеры ♿️ Леха — {at(1)} МСК\n\n🧑‍🧑‍🧒 Gat2z1ki ♿️ Nod-Cryo — {at(3)} МСК"
+                "\n\n⬇️ Состав команд:\nБолвансеры — Northwar &amp; Vell1ar",
+                channel="hoth_abyss",
+            ),
+            post(21, morning + timedelta(hours=2), "♾️ Результат матча Леха ↔️ Болвансеры ♾️", channel="hoth_abyss"),
+        ]
+    )
+    stream.store_posts(session, "hoth_abyss", stream.parse_page(hoth))
+    rows = session.exec(select(StreamMatch).order_by(StreamMatch.starts_at)).all()
+    assert [(r.player1_name, r.player2_name) for r in rows] == [("Болвансеры", "Леха"), ("Gat2z1ki", "Nod-Cryo")]
+    assert rows[0].finished_at is not None and rows[1].finished_at is None

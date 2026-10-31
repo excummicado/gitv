@@ -2,7 +2,6 @@
 
 import { getJson, type Message } from "../api";
 import type { Character } from "../match/api";
-import type { PlayerInfo, ProfileChange } from "../suggestions/api";
 
 export type PlayerSummary = {
   id: string; name: string; other_names: string[]; tournaments: number; matches: number; match_wins: number; match_winrate: number | null;
@@ -17,6 +16,12 @@ export type Split = { wins: number; losses: number; winrate: number | null };
 export type PlayerMatch = {
   match_id: string; date: string; tournament: string; opponent: { id: string; name: string } | null;
   games_won: number; games_lost: number; result: "W" | "L" | "D" | "—"; technical: boolean; avg_time: number | null;
+  // What the match did to the player's Elo and why (api/app/services/stats/elo.py); null when it isn't rated
+  elo: EloChange | null;
+};
+export type EloChange = {
+  change: number; before: number; after: number; opponent_before: number;
+  score: number; expected: number; k: number; weight: number; kind: "major" | "series" | "fast" | "other";
 };
 export type LastGame = { result: "W" | "L" | "D"; match_id: string; game_no: number; date: string };
 export type Finish = { tournament: { id: string; title: string }; date: string; place: number };
@@ -43,8 +48,6 @@ export type PlayerDetail = PlayerSummary & {
   times: { average: number | null; average_win: number | null; average_loss: number | null; average_first_pick: number | null; average_second_pick: number | null; best: number | null; best_match_id: string | null; counted_games: number };
   tournament_list: PlayedTournament[];
   tournament: string | null;
-  profile: PlayerInfo | null;
-  profile_history: ProfileChange[];
   finishes: Finish[];
   // Major tournaments won, newest first, whatever the shown scope
   major_titles: { tournament_id: string; title: string; date: string }[];
@@ -105,7 +108,6 @@ export type CompareSide = PlayerSummary & {
   most_picked: CharacterCount | null; most_banned_against: CharacterCount | null; highest_winrate_character: CharacterRate | null;
   highest_winstreak: number; current_winstreak: number; first_pick: Split; second_pick: Split; tech_loss_rate: number | null;
   times: PlayerDetail["times"]; last_games: LastGame[]; tournament_wins: number; finals: number; top_four: number;
-  profile: PlayerInfo | null;
 };
 export type MeetingSide = {
   match_wins: number; match_winrate: number | null; game_wins: number; game_winrate: number | null;
@@ -131,17 +133,6 @@ export function fetchComparison(a: string, b: string, scope: Scope, signal?: Abo
   return getJson<Comparison>(`/api/v1/players/${encodeURIComponent(a)}/compare/${encodeURIComponent(b)}?scope=${scope}`, {
     signal, notFound: ["One of the players hasn't played an imported match.", "Один из игроков не играл импортированных матчей."],
   });
-}
-
-// The home page rivalry: among the pairs who met most, the one closest to 50-50.
-export type ElClasico = {
-  players: [{ id: string; name: string }, { id: string; name: string }];
-  meetings: number; match_wins: [number, number]; game_wins: [number, number]; draws: number; tournaments: number;
-  last_met: string | null; recent: Meeting[]; streak: { player: string; matches: number } | null; candidates: number;
-};
-
-export function fetchElClasico(signal?: AbortSignal) {
-  return getJson<ElClasico | null>("/api/v1/players/el-clasico", { signal });
 }
 
 // Every character ever in the player's roster (or one tournament's roster), with stats and constellation changes.

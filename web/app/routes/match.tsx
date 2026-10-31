@@ -1,13 +1,18 @@
 import type { Route } from "./+types/match";
 import { MatchPage } from "../match/MatchPage";
 import { metaLang } from "../i18n";
+import { noPreview, previewMeta } from "../preview";
+import { previewFor } from "../preview.server";
 
-export function meta({ matches }: Route.MetaArgs) {
+export async function loader({ params, request }: Route.LoaderArgs) {
+  return previewFor("match", params.matchId, request);
+}
+
+export const clientLoader = noPreview;
+
+export function meta({ matches, loaderData }: Route.MetaArgs) {
   const t = (en: string, ru: string) => (metaLang(matches) === "ru" ? ru : en);
-  return [
-    { title: t("Match · GITV", "Матч · GITV") },
-    { name: "description", content: t("Match results, teams and draft.", "Результаты матча, составы и драфт.") },
-  ];
+  return previewMeta(loaderData, t("Match · GITV", "Матч · GITV"), t("Match results, teams and draft.", "Результаты матча, составы и драфт."));
 }
 
 export default function Match({ params }: Route.ComponentProps) {

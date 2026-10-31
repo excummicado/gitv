@@ -4,7 +4,34 @@ import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
 import { useLang } from "../i18n";
 import { fetchPhase, fetchPhases, type PhaseDetail, type PhaseSummary } from "./api";
-import { Credit, hpShort, MonsterIcon, PhaseBody } from "./AbyssView";
+import { Credit, hpShort, MonsterIcon, PhaseBody, useText } from "./AbyssView";
+import { abyssCard } from "./shareImage";
+
+// Saves the phase as a 1920×1080 picture (shareImage.ts).
+function DownloadImage({ phase }: { phase: PhaseDetail }) {
+  const { t, lang, date } = useLang();
+  const tx = useText();
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    setBusy(true);
+    try {
+      const blob = await abyssCard(phase, { ru: lang === "ru", tx, date });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `abyss-${phase.version}.png`;
+      a.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <button type="button" className="player-control abyss-download" onClick={save} disabled={busy}>
+      {busy ? t("Drawing…", "Рисую…") : t("Download image", "Скачать картинку")}
+    </button>
+  );
+}
 
 function Frame({ children }: { children: React.ReactNode }) {
   return (
@@ -42,9 +69,15 @@ function PhaseHeader({ phase }: { phase: PhaseDetail }) {
       <div className="player-label tourney-kicker">
         <Link className="player-match-link" to="/abyss">{t("Spiral Abyss", "Витая Бездна")}</Link> · {t("Floor 12", "12 этаж")}
         {phase.current && <span className="match-tag abyss-now">{t("Now", "Сейчас")}</span>}
+        {phase.upcoming && <span className="match-tag abyss-next">{t("Next", "Следующая")}</span>}
       </div>
-      <h1 className="player-nickname">{t("Version", "Версия")} {phase.version}</h1>
+      <div className="abyss-title-row">
+        <h1 className="player-nickname">{t("Version", "Версия")} {phase.version}</h1>
+        <DownloadImage phase={phase} />
+      </div>
       <p className="player-fullname">{date(phase.starts_on)} – {date(phase.ends_on)}</p>
+      {phase.upcoming && <p className="player-note">{t("Not out yet: from the beta, it may still change before it starts.",
+        "Ещё не вышла: данные из беты, до старта могут измениться.")}</p>}
       <div className="player-records">
         <div className="player-record"><span className="player-label">{t("Tournament matches", "Матчей турниров")}</span><span className="player-value">{phase.matches}</span></div>
         <div className="player-record"><span className="player-label">{t("Tournaments", "Турниров")}</span><span className="player-value">{phase.tournaments}</span></div>
@@ -82,13 +115,13 @@ function Archive({ current }: { current: number | null }) {
   }, []);
   if (!rows) return null;
   // Phases with tournament matches first in mind: the rest (before 2023) on request.
-  const shown = all ? rows : rows.filter((r) => r.matches > 0 || r.current);
+  const shown = all ? rows : rows.filter((r) => r.matches > 0 || r.current || r.upcoming);
   return (
     <section className="player-box">
       <h2 className="player-box-title">{t("All phases", "Все сезоны")}</h2>
       {shown.map((r) => (
         <Link className={`abyss-archive-row${r.id === current ? " is-current" : ""}`} to={`/abyss/${r.id}`} key={r.id}>
-          <span className="abyss-archive-ver">{r.version}</span>
+          <span className="abyss-archive-ver">{r.version}{r.upcoming && <span className="match-tag abyss-next">{t("Next", "Следующая")}</span>}</span>
           <span className="gitv-date">{date(r.starts_on)} – {date(r.ends_on)}</span>
           <span className="abyss-archive-bosses" aria-hidden>{r.bosses.map((b, i) => <MonsterIcon monster={b} size={26} key={i} />)}</span>
           <span className="abyss-archive-moon player-ellipsis">{r.blessings.join(" · ")}</span>

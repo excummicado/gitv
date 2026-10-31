@@ -1,40 +1,40 @@
-// News (api/app/routers/news.py): read by anyone, imported from a .docx file or a Google document by writers,
+// Articles (api/app/routers/articles.py): read by anyone, imported from a .docx file or a Google document by writers,
 // event organizers and admins.
 
 import { getJson } from "../api";
 import { authRequest, type Role } from "../auth/client";
 
 // author: as given when importing, else who imported it (imported_by)
-export type NewsPost = {
+export type Article = {
   id: number; title: string; body_html: string; source: string; author: string; imported_by: string; created_at: string;
   // A translation into the other language, uploaded by hand: the post's language and the translated title and body
   lang: "ru" | "en" | null; title_tr: string | null; body_html_tr: string | null;
 };
 
 // The post in the reader's language when it's been translated into it, else as written.
-export function inLang(post: NewsPost, lang: string) {
+export function inLang(post: Article, lang: string) {
   const translated = post.body_html_tr != null && post.lang !== lang;
   return { title: translated ? post.title_tr ?? post.title : post.title, body: translated ? post.body_html_tr! : post.body_html, translated };
 }
 
 export const NEWS_WRITER_ROLES: Role[] = ["writer", "event_organizer", "admin", "super_admin"];
 
-export function listNews(limit = 10, signal?: AbortSignal) {
-  return getJson<NewsPost[]>(`/api/v1/news?limit=${limit}`, { signal, failed: ["Couldn't load the news.", "Не удалось загрузить новости."] });
+export function listArticles(limit = 10, signal?: AbortSignal) {
+  return getJson<Article[]>(`/api/v1/articles?limit=${limit}`, { signal, failed: ["Couldn't load the articles.", "Не удалось загрузить статьи."] });
 }
 
-export function readNews(id: string, signal?: AbortSignal) {
-  return getJson<NewsPost>(`/api/v1/news/${encodeURIComponent(id)}`, { signal, notFound: ["No such news.", "Такой новости нет."] });
+export function readArticle(id: string, signal?: AbortSignal) {
+  return getJson<Article>(`/api/v1/articles/${encodeURIComponent(id)}`, { signal, notFound: ["No such article.", "Такой статьи нет."] });
 }
 
 // One of the two: a .docx file or a Google Docs link shared with "anyone with the link".
-export function importNews(input: { file?: File; googleUrl?: string; title?: string; author?: string }) {
+export function importArticle(input: { file?: File; googleUrl?: string; title?: string; author?: string }) {
   const form = new FormData();
   if (input.file) form.append("file", input.file);
   if (input.googleUrl) form.append("google_url", input.googleUrl);
   if (input.title) form.append("title", input.title);
   if (input.author) form.append("author", input.author);
-  return authRequest<NewsPost>("POST", "/news", form);
+  return authRequest<Article>("POST", "/articles", form);
 }
 
 // The post's translation into the other language, from a .docx file or a Google Docs link (replaces one there is).
@@ -43,15 +43,15 @@ export function setTranslation(id: number, input: { file?: File; googleUrl?: str
   if (input.file) form.append("file", input.file);
   if (input.googleUrl) form.append("google_url", input.googleUrl);
   if (input.title) form.append("title", input.title);
-  return authRequest<NewsPost>("PUT", `/news/${id}/translation`, form);
+  return authRequest<Article>("PUT", `/articles/${id}/translation`, form);
 }
 
 export function deleteTranslation(id: number) {
-  return authRequest<null>("DELETE", `/news/${id}/translation`);
+  return authRequest<null>("DELETE", `/articles/${id}/translation`);
 }
 
-export function deleteNews(id: number) {
-  return authRequest<null>("DELETE", `/news/${id}`);
+export function deleteArticle(id: number) {
+  return authRequest<null>("DELETE", `/articles/${id}`);
 }
 
 // The first words of a post, for lists.

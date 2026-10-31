@@ -9,7 +9,7 @@ import {
   useLocation,
   useRouteLoaderData,
 } from "react-router";
-import { useEffect, useRef } from "react";
+import { useContext, useEffect, useRef } from "react";
 
 import type { Route } from "./+types/root";
 import "./app.css";
@@ -20,6 +20,7 @@ import "./styles/matches.css";
 import "./styles/forms.css";
 import { LangProvider, langFromCookie, type Lang } from "./i18n";
 import { NotFoundPage } from "./not-found/NotFoundPage";
+import { NonceContext } from "./nonce";
 
 // Page views for the site's own analytics (api/app/services/analytics.py): only the path and, on the first page,
 // the referring site; no cookies; nothing at all for browsers asking not to be tracked. Kept here rather than in a
@@ -56,6 +57,7 @@ export const links: Route.LinksFunction = () => [
 
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  const nonce = useContext(NonceContext);
   return (
     <html lang={useRouteLoaderData<{ lang: Lang }>("root")?.lang ?? "en"}>
       <head>
@@ -66,8 +68,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         {children}
-        <ScrollRestoration />
-        <Scripts />
+        <ScrollRestoration nonce={nonce} />
+        <Scripts nonce={nonce} />
       </body>
     </html>
   );

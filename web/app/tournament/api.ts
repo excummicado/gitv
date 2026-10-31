@@ -59,12 +59,13 @@ export function fetchTournament(id: string, signal?: AbortSignal) {
   });
 }
 
-// The home page banner: the newest running tournament, else the latest finished one.
+// The home page banner: a running tournament, else the latest finished one.
 export type FeaturedTournament = {
   id: string; title: string; image: string | null; live: boolean; imported: boolean; date: string | null;
   matches: number; players: number; winner: PlayerRef | null; organizer: Organizer | null;
 };
 
-export function fetchFeaturedTournament(signal?: AbortSignal) {
-  return getJson<FeaturedTournament | null>("/api/v1/tournaments/featured", { signal });
+// Every tournament the banner can show: the running ones, those with a banner first; else the latest finished one.
+export function fetchFeaturedTournaments(signal?: AbortSignal) {
+  return getJson<FeaturedTournament[]>("/api/v1/tournaments/featured/all", { signal });
 }

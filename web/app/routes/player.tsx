@@ -1,13 +1,18 @@
 import type { Route } from "./+types/player";
 import { PlayerPage } from "../player/PlayerPage";
 import { metaLang } from "../i18n";
+import { noPreview, previewMeta } from "../preview";
+import { previewFor } from "../preview.server";
 
-export function meta({ matches }: Route.MetaArgs) {
+export async function loader({ params, request }: Route.LoaderArgs) {
+  return previewFor("player", params.playerId, request);
+}
+
+export const clientLoader = noPreview;
+
+export function meta({ matches, loaderData }: Route.MetaArgs) {
   const t = (en: string, ru: string) => (metaLang(matches) === "ru" ? ru : en);
-  return [
-    { title: t("Player Statistics · GITV", "Статистика игрока · GITV") },
-    { name: "description", content: t("Player statistics and match history.", "Статистика игрока и история матчей.") },
-  ];
+  return previewMeta(loaderData, t("Player Statistics · GITV", "Статистика игрока · GITV"), t("Player statistics and match history.", "Статистика игрока и история матчей."));
 }
 
 export default function Player({ params }: Route.ComponentProps) {

@@ -4,19 +4,20 @@ import "./home.css";
 import { Link } from "react-router";
 import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
-import { fetchChampions, fetchElClasico, type Champion, type ElClasico } from "../player/api";
+import { fetchChampions, type Champion } from "../player/api";
 import { fetchLiveMatches, fetchLiveTournaments, fetchPopularCharacters, fetchTopPick, type LiveMatch, type LiveTournament, type PopularCharacters, type TopPick } from "../match/api";
 import { LiveMatchRow } from "../match/LiveMatches";
 import { EloBadge } from "../components/EloBadge";
-import { excerpt, inLang, listNews, NEWS_WRITER_ROLES, type NewsPost } from "../news/api";
+import { excerpt, inLang, listArticles, NEWS_WRITER_ROLES, type Article } from "../articles/api";
+import { NewsColumn } from "../news/NewsColumn";
 import { listScheduled, localDay, streamMatches, type ScheduledMatch, type StreamDay } from "../schedule/api";
-import { fetchFeaturedTournament, type FeaturedTournament } from "../tournament/api";
+import { fetchFeaturedTournaments, type FeaturedTournament } from "../tournament/api";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import { PLAYER_EDITOR_ROLES } from "../auth/client";
 import { useLang } from "../i18n";
 
 const CHAMPIONS = 5;
-const NEWS = 5;
+const ARTICLES = 5;
 
 function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <section className={`gitv-card ${className}`}>{children}</section>;
@@ -58,7 +59,7 @@ function TopPickPromo() {
   );
 }
 
-// Banner of the newest tournament: the one running now, else the latest finished, with its art from the site.
+// Banner of a tournament: one running now, else the latest finished, with its art from the site.
 function EventBanner({ item }: { item: FeaturedTournament | null | undefined }) {
   const { t, date, count } = useLang();
   if (!item) return <div className="gitv-image gitv-banner">{item === undefined ? "" : t("No tournaments yet", "Турниров пока нет")}</div>;
@@ -91,18 +92,43 @@ const EVENT_LINKS: { label: [string, string]; tab: string }[] = [
   { label: ["Stats", "Статистика"], tab: "stats" },
 ];
 
+// The reader's pick among the running tournaments, kept in this browser (it may be unavailable).
+const PICKED_EVENT = "gitv-home-event";
+
+function readPicked() {
+  try { return localStorage.getItem(PICKED_EVENT); } catch { return null; }
+}
+
 function EventSection() {
-  const [item, setItem] = useState<FeaturedTournament | null | undefined>(undefined);
+  // Running tournaments with a banner first (GET /api/v1/tournaments/featured/all); several can be picked from
+  const [items, setItems] = useState<FeaturedTournament[] | null | undefined>(undefined);
+  const [picked, setPicked] = useState<string | null>(null);
   const { t } = useLang();
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchFeaturedTournament(controller.signal).then(setItem).catch(() => { if (!controller.signal.aborted) setItem(null); });
+    setPicked(readPicked());
+    fetchFeaturedTournaments(controller.signal).then(setItems).catch(() => { if (!controller.signal.aborted) setItems(null); });
     return () => controller.abort();
   }, []);
 
+  const pick = (id: string) => {
+    setPicked(id);
+    try { localStorage.setItem(PICKED_EVENT, id); } catch { /* not kept */ }
+  };
+  const item = items === undefined ? undefined : items?.find((i) => i.id === picked) ?? items?.[0] ?? null;
+
   return (
     <>
+      {items && items.length > 1 && (
+        <div className="gitv-event-picker" role="group" aria-label={t("Running tournaments", "Идущие турниры")}>
+          {items.map((i) => (
+            <button type="button" key={i.id} aria-pressed={i.id === item?.id} onClick={() => pick(i.id)} title={i.title}>
+              {i.title}
+            </button>
+          ))}
+        </div>
+      )}
       <EventBanner item={item} />
       <nav className="gitv-tabs" aria-label={t("Tournament sections", "Разделы турнира")}>
         {EVENT_LINKS.map(({ label, tab }) => item?.imported
@@ -161,26 +187,26 @@ function PopularCharactersCard() {
   );
 }
 
-// News: written by writers, event organizers and admins (imported from a document on /news); nothing is added
-// automatically. The latest few, each opening its page.
-function News() {
-  const [items, setItems] = useState<NewsPost[] | null>(null);
+// Articles: written by writers, event organizers and admins (imported from a document on /articles); nothing is
+// added automatically. The latest few, each opening its page.
+function Articles() {
+  const [items, setItems] = useState<Article[] | null>(null);
   const { t, date, lang } = useLang();
   const user = useCurrentUser();
   const writer = user ? NEWS_WRITER_ROLES.includes(user.role) : false;
 
   useEffect(() => {
     const controller = new AbortController();
-    listNews(NEWS, controller.signal).then(setItems).catch(() => { if (!controller.signal.aborted) setItems([]); });
+    listArticles(ARTICLES, controller.signal).then(setItems).catch(() => { if (!controller.signal.aborted) setItems([]); });
     return () => controller.abort();
   }, []);
 
   return (
     <Card>
       {!items ? <div className="gitv-row"><small>…</small></div>
-        : !items.length ? <div className="gitv-row"><small>{t("No news yet.", "Новостей пока нет.")}</small></div>
+        : !items.length ? <div className="gitv-row"><small>{t("No articles yet.", "Статей пока нет.")}</small></div>
         : items.map((item) => (
-            <Link to={`/news/${item.id}`} className="gitv-row gitv-row-link gitv-headline" key={item.id}>
+            <Link to={`/articles/${item.id}`} className="gitv-row gitv-row-link gitv-headline" key={item.id}>
               <span className="gitv-champion-text">
                 <span>{inLang(item, lang).title}</span>
                 <small className="gitv-champion-tournament">{excerpt(inLang(item, lang).body, 120)}</small>
@@ -190,7 +216,7 @@ function News() {
           ))}
       {(writer || (items && items.length > 0)) && (
         <div className="gitv-foot">
-          <Link to="/news" className="gitv-row-link">{writer ? t("All news · add", "Все новости · добавить") : t("All news", "Все новости")}</Link>
+          <Link to="/articles" className="gitv-row-link">{writer ? t("All articles · add", "Все статьи · добавить") : t("All articles", "Все статьи")}</Link>
         </div>
       )}
     </Card>
@@ -281,52 +307,6 @@ function TodaysMatches() {
   );
 }
 
-// El Clásico: the rivalry of the scene. Of the pairs who met most, the one with the most even record.
-function ElClasicoCard() {
-  const [data, setData] = useState<ElClasico | null | undefined>(undefined);
-  const { t, date, count, locale } = useLang();
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchElClasico(controller.signal).then(setData).catch(() => { if (!controller.signal.aborted) setData(null); });
-    return () => controller.abort();
-  }, []);
-
-  if (!data) {
-    return <Card><div className="gitv-card-title">El Clásico</div><div className="gitv-row"><small>{data === undefined ? "…" : t("No rivalries yet.", "Противостояний пока нет.")}</small></div></Card>;
-  }
-  const [a, b] = data.players;
-  const [wa, wb] = data.match_wins;
-  const share = wa + wb ? (wa / (wa + wb)) * 100 : 50;
-  const streak = data.streak ? (data.streak.player === a.id ? a.name : b.name) : null;
-  return (
-    <Card className="gitv-clasico">
-      <div className="gitv-card-title tinted">El Clásico</div>
-      <div className="gitv-clasico-score">
-        <Link to={`/player/${a.id}`} className="gitv-row-link gitv-clasico-name">{a.name}</Link>
-        <b>{wa}<small>–</small>{wb}</b>
-        <Link to={`/player/${b.id}`} className="gitv-row-link gitv-clasico-name right">{b.name}</Link>
-      </div>
-      <div className="gitv-clasico-bar" aria-hidden><span style={{ width: `${share}%` }} /></div>
-      <div className="gitv-clasico-meta">
-        <small>{count(data.meetings, ["meeting", "meetings"], ["встреча", "встречи", "встреч"])} · {t("games", "игры")} {data.game_wins[0]}–{data.game_wins[1]}</small>
-        <small>{count(data.tournaments, ["tournament", "tournaments"], ["турнир", "турнира", "турниров"])}{streak && data.streak ? ` · ${t("streak", "серия")}: ${streak} ×${data.streak.matches}` : ""}</small>
-      </div>
-      <div className="gitv-clasico-recent">
-        {data.recent.map((m) => (
-          <Link key={m.match_id} to={`/match/${m.match_id}`} className="gitv-clasico-meeting" title={`${m.tournament.title} · ${date(m.date)}`}>
-            <span className={m.result === "W" ? "is-win" : m.result === "L" ? "is-loss" : ""}>{m.games_won}–{m.games_lost}</span>
-            <small>{new Date(m.date).toLocaleDateString(locale, { day: "2-digit", month: "2-digit" })}</small>
-          </Link>
-        ))}
-      </div>
-      <div className="gitv-foot"><Link to={`/player/${a.id}/compare/${b.id}`} className="gitv-row-link">{t("Full head to head", "Все личные встречи")}</Link></div>
-    </Card>
-  );
-}
-
-// Tournaments running now on the site (their finished matches come in with the live poll), with the drafts being
-// played now.
 function LiveTournaments() {
   const [items, setItems] = useState<LiveTournament[] | null>(null);
   // Their matches being played now, each game linking to its draft on the tournament site
@@ -362,7 +342,7 @@ function LiveTournaments() {
                 </span>
                 <b className="gitv-badge push">{t("Live", "Идёт")}</b>
               </div>
-              {matches.filter((m) => m.started && m.tournament_id === item.id).map((m) => <LiveMatchRow match={m} onlyLive key={m.id} />)}
+              {matches.filter((m) => m.started && m.tournament_id === item.id).map((m) => <LiveMatchRow match={m} onlyLive showTournament key={m.id} />)}
             </div>
           ))}
     </Card>
@@ -418,12 +398,12 @@ function HomeLayout() {
           <main>
             <EventSection />
             <PopularCharactersCard />
-            <div className="gitv-section-label">{t("News", "Новости")}</div>
-            <News />
+            <div className="gitv-section-label">{t("Articles", "Статьи")}</div>
+            <Articles />
           </main>
           <aside>
             <TodaysMatches />
-            <ElClasicoCard />
+            <NewsColumn />
           </aside>
         </div>
       </div>

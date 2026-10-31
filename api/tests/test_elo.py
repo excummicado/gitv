@@ -31,6 +31,9 @@ def test_winner_gains_what_loser_drops(session):
     # The history behind the chart: after each match, with what it moved
     (step,) = r["a"].history
     assert (step.opponent, step.result, round(step.elo), round(step.change)) == ("b", 1.0, START + 14, 14)
+    # And why: both at 1500, half a win expected, K 40 at a fast cup's weight
+    assert (step.before, step.opponent_before, step.expected) == (START, START, 0.5)
+    assert (step.k, step.weight, step.kind) == (40, 0.7, "fast")
 
 
 def test_inactive_players_keep_their_rating_but_have_no_rank(session):

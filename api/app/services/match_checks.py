@@ -75,8 +75,8 @@ def adjusted_time(clear_time: int, restarts: int, free: int | None, paid: list[i
 # MatchPick.agent_mindscape of a character whose constellation isn't known (a team read off a post's emoji)
 UNKNOWN_CONSTELLATION = -1
 
-# Team events (2x2) are left out of personal statistics.
-TEAM_EVENT = re.compile(r"2\s*[xх]\s*2", re.IGNORECASE)
+# Team events (2x2, 2vs2, 2v2, 2на2) are left out of personal statistics.
+TEAM_EVENT = re.compile(r"\b2\s*(?:[xх×]|vs?|на)\s*2\b", re.IGNORECASE)
 # Major tournaments: an Abyss Cup tournament (by the site's tournament system) that is one of its qualifiers
 # or playoffs. Fast cups and other series don't count.
 MAJOR_SYSTEM = "Abyss Cup"

@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
 import "./login.css";
@@ -27,7 +28,8 @@ export function Login() {
               <a href="/api/v1/auth/discord/login" className="login-btn">{t("Continue with Discord", "Войти через Discord")}</a>
 
               <div className="login-footer">
-                {t("You'll be asked to share your Discord username and email.", "Discord попросит разрешить доступ к имени пользователя и почте.")}
+                {t("Discord will only share your username with GITV, not your email.", "Discord передаст GITV только имя пользователя, без почты.")}{" "}
+                <Link to="/privacy" className="player-match-link">{t("What GITV keeps", "Что хранит GITV")}</Link>
               </div>
             </div>
           </div>

@@ -1,5 +1,7 @@
 """Short news for the home page's news column: anyone reads them; writers, event organizers and admins write one
-there (plain text, up to MAX_TEXT characters); its author or an admin removes it. Articles are routers/articles.py."""
+there (plain text, up to MAX_TEXT characters); its author or an admin removes it. Tournament registrations announced
+in Abyss Cup's and House of the Hearth's channels come in by themselves (services/registrations.py). Articles are
+routers/articles.py."""
 
 from datetime import UTC, datetime
 from typing import Annotated
@@ -25,19 +27,22 @@ class NewsIn(BaseModel):
 class NewsItemOut(BaseModel):
     id: int
     text: str
-    author: str  # the writer's nickname
-    author_id: str
+    author: str  # the writer's nickname, or the channel's name for one added by itself
+    author_id: str | None  # None for one added by itself
+    source_url: str | None  # the channel's post it came from
     created_at: datetime
 
 
 def out(session: SessionDep, rows: list[NewsItem]) -> list[NewsItemOut]:
-    authors = {u.id: u for u in session.exec(select(User).where(User.id.in_({r.created_by for r in rows})))}
+    ids = {r.created_by for r in rows if r.created_by}
+    authors = {u.id: u for u in session.exec(select(User).where(User.id.in_(ids)))} if ids else {}
     return [
         NewsItemOut(
             id=r.id,
             text=r.text,
-            author=authors[r.created_by].nickname if r.created_by in authors else "",
-            author_id=str(r.created_by),
+            author=authors[r.created_by].nickname if r.created_by in authors else (r.source or ""),
+            author_id=str(r.created_by) if r.created_by else None,
+            source_url=r.source_url,
             created_at=r.created_at.replace(tzinfo=UTC) if r.created_at.tzinfo is None else r.created_at,
         )
         for r in rows
@@ -50,10 +55,21 @@ def list_news(
     limit: Annotated[int, Query(ge=1, le=50)] = 5,
     before: Annotated[int | None, Query(description="Only items older than this one (the next page)")] = None,
 ):
-    """The latest news, newest first."""
-    query = select(NewsItem).order_by(NewsItem.created_at.desc(), NewsItem.id.desc()).limit(limit)
+    """The latest news, newest first, without registrations for tournaments that have started."""
+    query = (
+        select(NewsItem)
+        .where(NewsItem.hidden == False)  # noqa: E712
+        .where((NewsItem.ends_at == None) | (NewsItem.ends_at > datetime.now(UTC)))  # noqa: E711
+        .order_by(NewsItem.created_at.desc(), NewsItem.id.desc())
+    )
     if before is not None:
-        query = query.where(NewsItem.id < before)
+        last = session.get(NewsItem, before)
+        if last is not None:
+            query = query.where(
+                (NewsItem.created_at < last.created_at)
+                | ((NewsItem.created_at == last.created_at) & (NewsItem.id < before))
+            )
+    query = query.limit(limit)
     return out(session, list(session.exec(query)))
 
 
@@ -78,9 +94,13 @@ def add_news(data: NewsIn, session: SessionDep, user: Annotated[User, Depends(ge
 def delete_news(item_id: int, session: SessionDep, user: Annotated[User, Depends(get_current_news_writer)]):
     """Its author or an admin removes it."""
     row = session.get(NewsItem, item_id)
-    if row is None:
+    if row is None or row.hidden:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such news.")
     if row.created_by != user.id and not user.role.is_staff:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only its author or an admin can remove it.")
-    session.delete(row)
+    if row.source_url:
+        row.hidden = True  # kept, so the channel's post doesn't bring it back
+        session.add(row)
+    else:
+        session.delete(row)
     session.commit()

@@ -207,15 +207,6 @@ def test_marked_challonge_only_tournaments_are_major(world):
     assert numbered in major_tournament_ids(world.s) and weekend not in major_tournament_ids(world.s)
 
 
-def test_rivalries_leave_out_people_not_on_the_site(world):
-    from app.services.stats import rivalries
-
-    site_players(world, "A", "B")
-    challonge_only(world, "afc_1", "AFC 1", [m(1, "A", "Stranger", "A", (1, 0)), m(2, "A", "B", "A", (1, 0))])
-    pairs = {p["players"] for p in rivalries(world.snap())}
-    assert pairs == {("A", "B")}
-
-
 def test_manual_bracket_counts_like_a_challonge_one(world):
     from app.services.challonge_import import add_manual_tournament
 

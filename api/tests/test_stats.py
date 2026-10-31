@@ -299,32 +299,6 @@ def test_popular_characters_count_bans(world):
     assert top["pyro"]["avg_constellation"] == 1.5 and top["hydro"]["avg_constellation"] is None
 
 
-def test_el_clasico_prefers_the_even_rivalry(world):
-    from app.services.stats import el_clasico
-
-    tid = world.tournament("Abyss Fast Soup 80")
-    for _ in range(22):  # A–B: 22 meetings, all won by A
-        world.win(tid, "A", "B")
-    for i in range(20):  # C–D: 20 meetings, 10–10
-        world.win(tid, "C", "D") if i % 2 else world.win(tid, "D", "C")
-    for i in range(9):  # E–F: 9 meetings, even but too few next to the 20s
-        world.win(tid, "E", "F") if i % 2 else world.win(tid, "F", "E")
-    found = el_clasico(world.snap())
-    assert set(found["players"]) == {"C", "D"} and found["candidates"] == 2
-
-
-def test_el_clasico_widens_to_80_percent(world):
-    from app.services.stats import el_clasico
-
-    tid = world.tournament("Abyss Fast Soup 81")
-    for _ in range(21):  # the only pair in the 20s, one-sided
-        world.win(tid, "A", "B")
-    for i in range(18):  # 18 >= 80% of 21, and even
-        world.win(tid, "C", "D") if i % 2 else world.win(tid, "D", "C")
-    found = el_clasico(world.snap())
-    assert set(found["players"]) == {"C", "D"}
-
-
 def test_restricted_snapshot_matches_a_full_build(world):
     """A scope cut from the full snapshot in memory gives the same statistics as building it from the database."""
     from app.services.stats import detail

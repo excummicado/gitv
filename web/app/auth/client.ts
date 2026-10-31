@@ -1,15 +1,18 @@
-// Keeps the Discord sign-in session in browser storage and talks to the API's /users/me.
+// The Discord sign-in: the API keeps the token in an httpOnly cookie (scripts never see it); the browser keeps
+// only the signed-in user, to show them before /users/me answers. Requests that change something carry
+// AUTH_HEADER, which the API asks of cookie sign-ins against cross-site requests.
 
 import { ApiError, errorFrom, tr, UNREACHABLE, type Message } from "../api";
 
-export type User = { id: string; email: string; nickname: string; discord_username: string | null; role: Role };
+export type User = { id: string; nickname: string; discord_username: string | null; role: Role };
 export type Role = "user" | "writer" | "event_organizer" | "admin" | "super_admin";
 export const ROLE_LABELS: Record<Role, string> = { user: "Member", writer: "Writer", event_organizer: "Event organizer", admin: "Admin", super_admin: "Super admin" };
 export const ROLE_LABELS_RU: Record<Role, string> = { user: "Участник", writer: "Автор", event_organizer: "Организатор", admin: "Админ", super_admin: "Супер-админ" };
 export const STAFF_ROLES: Role[] = ["admin", "super_admin"];
-// May write a tournament player's real name and birthday directly; everyone else suggests.
+// May schedule the matches of the day.
 export const PLAYER_EDITOR_ROLES: Role[] = ["event_organizer", "admin", "super_admin"];
-type Session = { access_token: string; user: User };
+type Session = { user: User };
+const AUTH_HEADER = { "X-GITV": "1" };
 
 export { ApiError } from "../api";
 
@@ -26,7 +29,13 @@ function readStored(): Session | null {
   try {
     // localStorage keeps members signed in across browser restarts; the API decides how long the token lasts.
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Session) : null;
+    const stored = raw ? (JSON.parse(raw) as Session & { access_token?: string }) : null;
+    // A session saved before the cookie (with its token in storage) is dropped: sign in again.
+    if (stored?.access_token) {
+      localStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+    return stored;
   } catch {
     return null;
   }
@@ -36,13 +45,28 @@ function notify() {
   listeners.forEach((listener) => listener());
 }
 
-export function clearSession() {
+function forget() {
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch {
     // Storage can be unavailable (private mode); nothing to clear then.
   }
   notify();
+}
+
+function remember(user: User) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ user }));
+  } catch {
+    // Storage unavailable (private mode): the cookie still signs requests in.
+  }
+  notify();
+}
+
+// Signing out: the API drops the cookie, the browser forgets the user.
+export function clearSession() {
+  fetch(`${API}/auth/discord/logout`, { method: "POST", headers: AUTH_HEADER }).catch(() => {});
+  forget();
 }
 
 export function getCurrentUser(): User | null {
@@ -54,10 +78,10 @@ export function onAuthChange(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
-async function fetchMe(accessToken: string): Promise<User> {
+async function fetchMe(): Promise<User> {
   let response: Response;
   try {
-    response = await fetch(`${API}/users/me`, { headers: { Authorization: `Bearer ${accessToken}` } });
+    response = await fetch(`${API}/users/me`);
   } catch {
     throw new ApiError(tr(UNREACHABLE));
   }
@@ -65,15 +89,10 @@ async function fetchMe(accessToken: string): Promise<User> {
   return response.json();
 }
 
-// Discord sign-in: the API hands back a GITV token after the OAuth2 redirect.
-export async function loginWithToken(accessToken: string) {
-  const user = await fetchMe(accessToken);
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ access_token: accessToken, user }));
-  } catch {
-    // Storage unavailable (private mode): the sign-in can't be kept.
-  }
-  notify();
+// Discord sign-in: after the OAuth2 redirect the API has set the cookie; this fetches who signed in.
+export async function finishSignIn() {
+  const user = await fetchMe();
+  remember(user);
   return user;
 }
 
@@ -81,20 +100,19 @@ const NOT_SIGNED_IN: Message = ["Not signed in.", "Вы не вошли."];
 
 // Staff tools, by nickname: roles (super admins) and bans (admins and super admins).
 async function adminRequest(method: "POST" | "PUT" | "DELETE", path: string, body?: unknown): Promise<User> {
-  const session = readStored();
-  if (!session) throw new ApiError(tr(NOT_SIGNED_IN), 401);
+  if (!readStored()) throw new ApiError(tr(NOT_SIGNED_IN), 401);
   let response: Response;
   try {
     response = await fetch(`${API}/admin${path}`, {
       method,
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      headers: { "Content-Type": "application/json", ...AUTH_HEADER },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
     throw new ApiError(tr(UNREACHABLE));
   }
   if (!response.ok) {
-    if (response.status === 401) clearSession();
+    if (response.status === 401) forget();
     throw await errorFrom(response, ["Couldn't save the change. Try again.", "Не удалось сохранить изменение. Попробуйте ещё раз."]);
   }
   const data = await response.json().catch(() => null);
@@ -102,11 +120,10 @@ async function adminRequest(method: "POST" | "PUT" | "DELETE", path: string, bod
 }
 
 // A request as the signed-in member: JSON or FormData body, the API's error message on failure,
-// and a local sign-out when the token is no longer accepted. Returns null for an empty (204) response.
+// and a local sign-out when the sign-in is no longer accepted. Returns null for an empty (204) response.
 export async function authRequest<T>(method: "GET" | "POST" | "PUT" | "DELETE", path: string, body?: unknown): Promise<T> {
-  const session = readStored();
-  if (!session) throw new ApiError(tr(["Sign in first.", "Сначала войдите."]), 401);
-  const headers: Record<string, string> = { Authorization: `Bearer ${session.access_token}` };
+  if (!readStored()) throw new ApiError(tr(["Sign in first.", "Сначала войдите."]), 401);
+  const headers: Record<string, string> = { ...AUTH_HEADER };
   if (body !== undefined && !(body instanceof FormData)) headers["Content-Type"] = "application/json";
   let response: Response;
   try {
@@ -119,7 +136,7 @@ export async function authRequest<T>(method: "GET" | "POST" | "PUT" | "DELETE", 
     throw new ApiError(tr(UNREACHABLE));
   }
   if (!response.ok) {
-    if (response.status === 401) clearSession();
+    if (response.status === 401) forget();
     throw await errorFrom(response, ["Something went wrong. Try again.", "Что-то пошло не так. Попробуйте ещё раз."]);
   }
   const data = response.status === 204 ? null : await response.json().catch(() => null);
@@ -143,13 +160,12 @@ export function unbanUser(nickname: string) {
 
 // Changes the signed-in user's displayed nickname; the navbar updates through the auth listeners.
 export async function updateNickname(nickname: string) {
-  const session = readStored();
-  if (!session) throw new ApiError("Not signed in.", 401);
+  if (!readStored()) throw new ApiError("Not signed in.", 401);
   let response: Response;
   try {
     response = await fetch(`${API}/users/me`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      headers: { "Content-Type": "application/json", ...AUTH_HEADER },
       body: JSON.stringify({ nickname }),
     });
   } catch {
@@ -157,16 +173,11 @@ export async function updateNickname(nickname: string) {
   }
   const data = await response.json().catch(() => null);
   if (!response.ok) {
-    if (response.status === 401) clearSession();
+    if (response.status === 401) forget();
     const detail = typeof data?.detail === "string" ? data.detail : NICKNAME_HINT;
     throw new ApiError(detail, response.status);
   }
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...session, user: data }));
-  } catch {
-    // Storage unavailable: the new nickname still shows after the next sign-in.
-  }
-  notify();
+  remember(data as User);
   return data as User;
 }
 
@@ -187,25 +198,19 @@ export async function completeDiscordSignup(signupToken: string, nickname: strin
     const detail = typeof data?.detail === "string" ? data.detail : "Choose a different nickname.";
     throw new ApiError(detail, response.status);
   }
-  return loginWithToken(data.access_token);
+  remember(data as User);
+  return data as User;
 }
 
-// Confirms the stored token is still accepted and refreshes the saved user from the API
-// (nickname, Discord username, role); signs out locally once the token has expired.
+// Confirms the sign-in is still accepted and refreshes the saved user from the API
+// (nickname, Discord username, role); signs out locally once it has expired.
 export async function verifySession() {
   const session = readStored();
   if (!session) return;
   try {
-    const user = await fetchMe(session.access_token);
-    if (JSON.stringify(user) !== JSON.stringify(session.user)) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...session, user }));
-      } catch {
-        // Storage unavailable: the fresh details show after the next sign-in.
-      }
-      notify();
-    }
+    const user = await fetchMe();
+    if (JSON.stringify(user) !== JSON.stringify(session.user)) remember(user);
   } catch (err) {
-    if (err instanceof ApiError && (err.status === 401 || err.status === 403)) clearSession();
+    if (err instanceof ApiError && (err.status === 401 || err.status === 403)) forget();
   }
 }

@@ -1,5 +1,9 @@
 /* Spiral Abyss: chambers as boxes of two halves, monsters as icon + name + HP + resistances. */
 .abyss-now { color: var(--gitv-win); border-color: rgba(74, 222, 128, .45); }
+.abyss-next { color: #93c5fd; border-color: rgba(147, 197, 253, .45); }
+.abyss-archive-ver .abyss-next { margin-left: 6px; }
+.abyss-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.abyss-download { flex: none; }
 .abyss-rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 12px; }
 .abyss-rule { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; background: var(--gitv-surface); border: 1px solid var(--gitv-border); min-width: 0; }
 .abyss-rule p { margin: 0; color: var(--gitv-text-soft); font-size: 13px; line-height: 1.5; }

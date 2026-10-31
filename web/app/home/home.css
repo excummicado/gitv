@@ -92,6 +92,51 @@
   border: 1px solid var(--gitv-border);
 }
 
+/* Above the banner when several tournaments are running: which one it shows */
+.gitv-event-picker {
+  display: flex;
+  overflow-x: auto;
+  background: var(--gitv-surface-hover);
+  border: 1px solid var(--gitv-border);
+  border-bottom: 0;
+  scrollbar-width: none;
+}
+
+.gitv-event-picker button {
+  flex: 1 1 0;
+  min-width: 96px;
+  max-width: 220px;
+  overflow: hidden;
+  padding: 7px 10px;
+  border: 0;
+  background: none;
+  color: var(--gitv-text-soft);
+  font: inherit;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.gitv-event-picker button + button {
+  border-left: 1px solid var(--gitv-surface-2);
+}
+
+.gitv-event-picker button:hover {
+  background: var(--gitv-surface-2);
+  color: var(--gitv-text);
+}
+
+.gitv-event-picker button[aria-pressed="true"] {
+  color: var(--gitv-text);
+  box-shadow: inset 0 -2px 0 var(--gitv-accent);
+}
+
+.gitv-event-picker button:focus-visible {
+  outline: 1px solid var(--gitv-accent);
+  outline-offset: -1px;
+}
+
 .gitv-tabs {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -191,14 +236,6 @@
 
   .gitv-columns>aside:last-child {
     grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-    align-items: start;
-  }
-
-  .gitv-columns>aside:last-child>* {
-    min-width: 0;
   }
 }
 
@@ -271,23 +308,6 @@
   .gitv-popular-name { font-size: 10px; }
 }
 
-/* El Clásico: the most even of the most frequent rivalries. */
-.gitv-clasico-score { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 6px; padding: 10px 10px 6px; }
-.gitv-clasico-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-.gitv-clasico-name.right { text-align: right; }
-.gitv-clasico-score b { font: 700 20px/1 var(--gitv-font); color: var(--gitv-text); white-space: nowrap; }
-.gitv-clasico-score b small { margin: 0 4px; color: var(--gitv-faint); font-size: 14px; }
-.gitv-clasico-bar { height: 4px; margin: 0 10px; background: var(--gitv-loss); }
-.gitv-clasico-bar span { display: block; height: 100%; background: var(--gitv-accent); }
-.gitv-clasico-meta { display: flex; flex-direction: column; gap: 2px; padding: 6px 10px; text-align: center; }
-.gitv-clasico-meta small { color: var(--gitv-muted); font-size: 11px; }
-.gitv-clasico-recent { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; padding: 4px 10px 8px; }
-.gitv-clasico-meeting { display: flex; flex-direction: column; align-items: center; padding: 4px 0; background: var(--gitv-surface-hover); border: 1px solid var(--gitv-border); text-decoration: none; }
-.gitv-clasico-meeting:hover { border-color: var(--gitv-accent); }
-.gitv-clasico-meeting span { font-size: 12px; font-weight: 700; color: var(--gitv-muted); }
-.gitv-clasico-meeting span.is-win { color: var(--gitv-accent); }
-.gitv-clasico-meeting span.is-loss { color: var(--gitv-loss); }
-.gitv-clasico-meeting small { font-size: 9px; color: var(--gitv-faint); }
 .gitv-popular-cons { position: absolute; right: 4px; bottom: 4px; padding: 1px 4px; background: rgba(11, 18, 32, .82); color: var(--gitv-gold); font-size: 10px; }
 
 /* Today's matches: the stream */

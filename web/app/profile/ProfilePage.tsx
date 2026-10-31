@@ -6,7 +6,6 @@ import { useAuth } from "../auth/useCurrentUser";
 import { Navbar } from "../components/Navbar";
 import { SignOutIcon } from "../components/SignOutIcon";
 import { Brand } from "../components/Brand";
-import { SuggestionBansForm, SuggestionsQueue } from "../suggestions/ReviewPanels";
 import "./profile.css";
 
 function PenIcon() {
@@ -219,8 +218,6 @@ export function ProfilePage() {
               <div className="profile-panels">
                 <RolesForm actorRole={user.role} />
                 <BansForm />
-                <SuggestionBansForm />
-                <SuggestionsQueue />
               </div>
             )}
             {!ready || user ? null : (

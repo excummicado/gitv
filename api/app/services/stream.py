@@ -12,8 +12,9 @@ A match on air without a day's post is added from its own post; a results post o
 matches by the two nicknames (any order, case and punctuation aside), within a day.
 
 House of the Hearth's (settings.hoth_telegram_channel) posts differently:
-- the day's post, in the morning: a line per match, "💰 A VS B — 17:00 МСК", each with "Комментаторы: X & Y" under
-  it; a match whose players aren't known yet is "TBD VS TBD", filled in by its results post;
+- the day's post, in the morning: a line per match, "💰 A VS B — 17:00 МСК" (team events put an emoji for "VS":
+  "Болвансеры ♿️ Леха — 17:00 МСК"), each with "Комментаторы: X & Y" under it; a match whose players aren't known
+  yet is "TBD VS TBD", filled in by its results post;
 - a match moved: "Игра A VS B переносится на 17:30 МСК";
 - its results post: "Результат (финального) матча A VS B" with both teams, not who won.
 Its matches are on air from their time until their results post (the first of them, while the stream is live).
@@ -53,9 +54,13 @@ POST = re.compile(r'data-post="(?P<channel>[^"/]+)/(?P<id>\d+)"(?P<body>.*?)(?=d
 TEXT = re.compile(r'<div class="tgme_widget_message_text[^"]*"[^>]*>(.*?)</div>', re.S)
 WHEN = re.compile(r'<time datetime="([^"]+)"')
 HREF = re.compile(r'href="([^"]+)"')
-PAIR = re.compile(r"(.+?)\s+vs\.?\s+(.+)", re.I)
+# Between the two sides: "vs", or an emoji in its place ("overlol ♿️ Smertnik13", "A ↔️ B", "A 🆚 B")
+VS = r"(?:vs\.?|🆚|[♿↔⚔✖❌]\ufe0f?)"
+PAIR = re.compile(rf"(.+?)\s+{VS}\s+(.+)", re.I)
 # House of the Hearth's day post: a match with its time (Moscow), and its casters on the line under it
-SLOT = re.compile(r"(?P<a>.+?)\s+vs\.?\s+(?P<b>.+?)\s*[—–-]+\s*(?P<h>\d{1,2})[:.](?P<m>\d{2})\s*(?:мск|msk)\b.*", re.I)
+SLOT = re.compile(
+    rf"(?P<a>.+?)\s+{VS}\s+(?P<b>.+?)\s*[—–-]+\s*(?P<h>\d{{1,2}})[:.](?P<m>\d{{2}})\s*(?:мск|msk)\b.*", re.I
+)
 CASTERS = re.compile(r"(?i)(?:комментатор\w*|стрим\s+вед\w*)\s*:?\s*(.+)")
 MOVED = re.compile(r"(?i)(?:игра|матч)\s+(.+?)\s+перенос\w*\s+на\s+(\d{1,2})[:.](\d{2})")
 RESULT = re.compile(r"(?i)результат\w*\s+(?:\w+\s+)?матча\s+(.+)")
@@ -272,11 +277,17 @@ def store_posts(session: Session, channel: str, posts: list[Post]) -> int:
 
 
 def fetch_channel(session: Session, channel: str | None = None) -> int:
-    """Reads a channel's latest posts and stores its stream's matches; returns how many were stored."""
+    """Reads a channel's latest posts and stores its stream's matches, and its registration posts as news
+    (services/registrations.py); returns how many matches were stored."""
+    from .registrations import store_registrations
+
     channel = (channel or settings.stream_telegram_channel).lstrip("@")
     page = httpx.get(TELEGRAM_PAGE.format(channel=channel), headers={"User-Agent": "Mozilla/5.0 (GITV)"}, timeout=30)
     page.raise_for_status()
-    return store_posts(session, channel, parse_page(page.text))
+    posts = parse_page(page.text)
+    stored = store_posts(session, channel, posts)
+    store_registrations(session, stream_of(channel), posts)
+    return stored
 
 
 _token: tuple[str, float] | None = None  # (app token, when it expires)

@@ -3,11 +3,10 @@ import { Link, useSearchParams } from "react-router";
 import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
 import { MajorToggle } from "./MajorToggle";
-import { SuggestBox } from "../suggestions/SuggestBox";
 import { useLang } from "../i18n";
 import { EloBadge } from "../components/EloBadge";
 import { EloChart } from "./EloChart";
-import { distinctNames, fetchPlayer, fetchRosters, type CharacterCount, type CharacterRate, type Finish, type PlayedTournament, type PlayerDetail, type PlayerMatch, type RosterVersion, type Split } from "./api";
+import { distinctNames, fetchPlayer, fetchRosters, type CharacterCount, type CharacterRate, type EloChange, type Finish, type PlayedTournament, type PlayerDetail, type PlayerMatch, type RosterVersion, type Split } from "./api";
 import "./player-page.css";
 import "./compare.css";
 import { CharactersTab } from "./CharactersTab";
@@ -211,6 +210,7 @@ function MatchList({ player, options, onChange }: { player: PlayerDetail; option
       <div className="player-match player-match-head">
         <span>{t("Date", "Дата")}</span><span>{t("Opponent", "Соперник")}</span><span>{t("Tournament", "Турнир")}</span>
         <span>{t("Score", "Счёт")}</span><span>{t("Avg time", "Ср. время")}</span><span>{t("Result", "Итог")}</span>
+        <span>{t("Elo", "Эло")}</span>
       </div>
       {matches.map((m) => (
         <div className="player-match" key={m.match_id}>
@@ -220,10 +220,55 @@ function MatchList({ player, options, onChange }: { player: PlayerDetail; option
           <span>{m.games_won} – {m.games_lost}</span>
           <span>{seconds(l, m.avg_time)}</span>
           <GameChip result={m.result} />
+          {m.elo ? <EloDelta elo={m.elo} /> : <span className="player-label" title={t("Not rated", "Не идёт в рейтинг")}>—</span>}
         </div>
       ))}
       {!matches.length && <div className="player-box-body player-label">{t("No matches match these filters.", "Под эти фильтры матчей нет.")}</div>}
     </StatBox>
+  );
+}
+
+const KIND_LABELS: Record<EloChange["kind"], [string, string]> = {
+  major: ["major tournament", "мейджор"],
+  series: ["Abyss Ascend / New Gen", "Abyss Ascend / New Gen"],
+  fast: ["fast cup", "быстрый кубок"],
+  other: ["smaller organizer", "небольшой организатор"],
+};
+
+// A match's Elo change, with the sum behind it on hover or focus: K × weight × (result − expected).
+function EloDelta({ elo }: { elo: EloChange }) {
+  const { t } = useLang();
+  const num = (n: number, digits = 1) => String(Number(n.toFixed(digits)));
+  const signed = (n: number) => (n > 0 ? "+" : n < 0 ? "−" : "±") + num(Math.abs(n));
+  const outcome = elo.score === 1 ? t("win", "победа") : elo.score === 0 ? t("loss", "поражение") : t("draw", "ничья");
+  const tone = elo.change > 0 ? " is-up" : elo.change < 0 ? " is-down" : "";
+  return (
+    <span className={`player-elo-delta${tone}`} tabIndex={0} aria-label={`${t("Elo", "Эло")} ${signed(elo.change)}`}>
+      {signed(elo.change)}
+      <span className="player-elo-tip" role="tooltip">
+        <span className="player-elo-tip-row"><b>{elo.before} → {elo.after}</b><b className={tone}>{signed(elo.change)}</b></span>
+        <span className="player-elo-tip-row"><span>{t("Opponent's Elo", "Эло соперника")}</span><span>{elo.opponent_before}</span></span>
+        <span className="player-elo-tip-row"><span>{t("Expected score", "Ожидание (шанс)")}</span><span>{Math.round(elo.expected * 100)}%</span></span>
+        <span className="player-elo-tip-row"><span>{t("Result", "Результат")}</span><span>{outcome} ({num(elo.score)})</span></span>
+        <span className="player-elo-tip-row"><span>K</span><span>{elo.k}</span></span>
+        <span className="player-elo-tip-row"><span>{t("Weight", "Вес")}</span><span>×{num(elo.weight, 2)}</span></span>
+        <span className="player-elo-tip-formula">
+          {elo.k} × {num(elo.weight, 2)} × ({num(elo.score)} − {num(elo.expected, 2)}) = {signed(elo.change)}
+        </span>
+        <span className="player-elo-tip-note">
+          {elo.k > 20
+            ? t("K 40: one of the player's first 10 rated matches (20 after).", "K 40: один из первых 10 рейтинговых матчей игрока (потом 20).")
+            : t("K 20: the player has 10+ rated matches.", "K 20: у игрока уже 10+ рейтинговых матчей.")}
+          {" "}
+          {t(`Weight ${num(elo.weight, 2)}: ${KIND_LABELS[elo.kind][0]}`, `Вес ${num(elo.weight, 2)}: ${KIND_LABELS[elo.kind][1]}`)}
+          {t(" (majors 1, Ascend/New Gen 0.85, fast cups 0.7, others 0.5).", " (мейджоры 1, Ascend/New Gen 0.85, быстрые кубки 0.7, прочие 0.5).")}
+          {" "}
+          {elo.expected >= 0.5
+            ? t("The player was the favourite: a win gives less, a loss costs more.", "Игрок был фаворитом: победа даёт меньше, поражение стоит больше.")
+            : t("The player was the underdog: a win gives more, a loss costs less.", "Игрок был андердогом: победа даёт больше, поражение стоит меньше.")}
+        </span>
+      </span>
+    </span>
   );
 }
 
@@ -569,19 +614,17 @@ export function PlayerPage({ playerId }: { playerId: string }) {
   // The picker's list comes with the player; kept so it stays filled while another tournament loads.
   const [tournaments, setTournaments] = useState<PlayedTournament[]>([]);
   const [player, setPlayer] = useState<PlayerDetail | null>(null);
-  // Bumped after a profile edit to load the player again.
-  const [version, setVersion] = useState(0);
   const [error, setError] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
-    if (!version) setPlayer(null);
+    setPlayer(null);
     setError("");
     fetchPlayer(playerId, controller.signal, major ? "major" : "all", tournament || undefined, since || undefined)
       .then((data) => { setPlayer(data); setTournaments(data.tournament_list); })
       .catch((err) => { if (!controller.signal.aborted) setError(err instanceof Error ? err.message : t("Couldn't load the player.", "Не удалось загрузить игрока.")); });
     return () => controller.abort();
-  }, [playerId, major, tournament, since, version]);
+  }, [playerId, major, tournament, since]);
 
   return (
     <main className="gitv-page">
@@ -607,11 +650,6 @@ export function PlayerPage({ playerId }: { playerId: string }) {
                           <div className="player-nickname">{player.name}</div>
                           <MajorChampion titles={player.major_titles} />
                         </div>
-                        {(player.profile?.real_name || player.profile?.age != null) && (
-                          <div className="player-realname">
-                            {[player.profile.real_name, player.profile.age != null ? l.count(player.profile.age, ["y.o.", "y.o."], ["год", "года", "лет"]) : null].filter(Boolean).join(" · ")}
-                          </div>
-                        )}
                       </div>
                       {player.elo && (
                         <div className="player-elo">
@@ -636,8 +674,6 @@ export function PlayerPage({ playerId }: { playerId: string }) {
                     : tab === "tournaments" ? <TournamentList player={player} playerId={playerId} />
                     : tab === "characters" ? <CharactersTab playerId={playerId} />
                     : <Stats player={player} />}
-                  <SuggestBox playerId={playerId} playerName={player.name} profile={player.profile} history={player.profile_history}
-                    onEdited={() => setVersion((v) => v + 1)} />
                 </>}
           </div>
         </div>

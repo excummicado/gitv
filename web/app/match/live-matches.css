@@ -5,6 +5,7 @@
 .live-match-players { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; min-width: 0; font-weight: 600; }
 .live-match-vs { color: var(--gitv-muted); font-size: 11px; font-weight: 400; }
 .live-match-games { display: flex; flex-wrap: wrap; gap: 6px; }
+.live-match-tournament { flex-basis: 100%; overflow: hidden; color: var(--gitv-muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .live-game { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border: 1px solid var(--gitv-border); color: var(--gitv-text-soft); font-size: 12px; text-decoration: none; white-space: nowrap; }
 a.live-game:hover, a.live-game:focus-visible { border-color: var(--gitv-accent); color: var(--gitv-text); }
 .live-game.is-live { border-color: var(--gitv-win); color: var(--gitv-text); }

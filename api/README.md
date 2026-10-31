@@ -184,6 +184,14 @@ links in it shown as links. Writers, event organizers and admins write one right
 removes it. `GET /api/v1/news?limit=&before=` lists them newest first (`before`: the next page), `POST` adds one,
 `DELETE /api/v1/news/{id}` removes it.
 
+Tournament registrations come in by themselves (`services/registrations.py`): the stream poll reads Abyss Cup's and
+House of the Hearth's channels every minute anyway, and a post that opens registration («Открываем регистрацию на …»,
+«Регистрация открыта до …», «Ссылка на подачу регистрации») becomes an item: «Открыта регистрация на <tournament>»,
+the dates and deadline, the Google form when the post links one, and the post. Closed registrations, reminders,
+announcements of a later opening and other games' tournaments are left out; in Abyss Cup's channel the post must be
+about the Abyss. Only posts from the last 7 days whose deadline hasn't passed count, each once (`newsitem.source_url`);
+such an item shows its channel as the author, and only an admin removes it, which hides it for good.
+
 ### Articles
 
 Articles (`newspost`, `routers/articles.py`) are written by people, never added automatically: a writer, event

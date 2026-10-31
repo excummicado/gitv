@@ -10,7 +10,7 @@ elo: every player's Elo rating
 
 from .characters import character_constellations, character_players, character_stats
 from .elo import Rating, elo_ratings
-from .head_to_head import el_clasico, head_to_head, rivalries
+from .head_to_head import head_to_head
 from .highlights import latest_top_pick, popular_characters
 from .player import detail, in_tournament, player_tournaments, summary
 from .qualifiers import qualification_results

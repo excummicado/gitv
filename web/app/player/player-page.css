@@ -1,4 +1,4 @@
-.player-match { display: grid; grid-template-columns: 96px minmax(0, 1fr) minmax(0, 1.4fr) 56px 48px 52px; gap: 12px; align-items: center; padding: 8px 14px; border-bottom: 1px dotted var(--gitv-border-muted); }
+.player-match { display: grid; grid-template-columns: 96px minmax(0, 1fr) minmax(0, 1.4fr) 56px 48px 52px 56px; gap: 12px; align-items: center; padding: 8px 14px; border-bottom: 1px dotted var(--gitv-border-muted); }
 .player-match:last-child { border-bottom: 0; }
 .player-match-head { color: var(--gitv-faint); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
 .player-columns { display: grid; grid-template-columns: 220px minmax(0, 1fr) 180px; gap: 16px; align-items: start; }
@@ -14,7 +14,7 @@
   .player-column:first-child { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 10px; }
 }
 @media (max-width: 600px) {
-  .player-match { grid-template-columns: 80px minmax(0, 1fr) 48px 52px; }
+  .player-match { grid-template-columns: 80px minmax(0, 1fr) 48px 52px 52px; }
   .player-match > :nth-child(3), .player-match > :nth-child(5) { display: none; }
 }
 @media (max-width: 480px) {
@@ -51,7 +51,7 @@
 .player-top4-row:hover { background: var(--gitv-surface-hover); }
 /* Adjust for major tournaments toggle. */
 .player-scope { display: flex; justify-content: flex-end; margin-bottom: 8px; }
-/* Nickname and real name (accepted suggestions). */
+/* Nickname, with the Elo badge on the right. */
 .player-identity { display: flex; align-items: center; gap: 14px; }
 .player-identity-text { min-width: 0; }
 .player-elo { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex: none; align-self: flex-start; }
@@ -66,7 +66,6 @@
 .player-major-champion:hover .player-major-tip, .player-major-champion:focus-within .player-major-tip { display: block; }
 .player-major-tip-row { display: flex; justify-content: space-between; gap: 12px; padding: 6px 12px; color: var(--gitv-text); font: 500 13px/1.4 var(--gitv-font); text-decoration: none; }
 .player-major-tip-row:hover { background: var(--gitv-surface-hover); color: var(--gitv-gold); }
-.player-realname { margin-top: 2px; color: var(--gitv-text-soft); font: 500 15px/1.4 var(--gitv-font); }
 /* Tournament picker next to the majors switch. */
 .player-scope { gap: 8px; flex-wrap: wrap; }
 .player-tournament-pick { max-width: 100%; min-width: 0; font-weight: 500; color-scheme: dark; }
@@ -179,3 +178,16 @@
 .player-opponent-meeting-main small, .player-opponent-meeting-side small { color: var(--gitv-faint); font-size: 10px; }
 .player-opponent-meeting-side { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .player-opponent-meeting-side .match-tag { padding: 0 4px; font-size: 9px; }
+
+/* A match's Elo change; its sum shows on hover or focus. */
+.player-elo-delta { position: relative; justify-self: end; font: 600 12px/1.4 var(--gitv-font); font-variant-numeric: tabular-nums; color: var(--gitv-muted); cursor: help; outline: none; border-bottom: 1px dotted currentColor; }
+.player-elo-delta.is-up, .player-elo-tip .is-up { color: var(--gitv-win); }
+.player-elo-delta.is-down, .player-elo-tip .is-down { color: var(--gitv-loss); }
+.player-elo-delta:focus-visible { box-shadow: 0 0 0 2px var(--gitv-accent); }
+.player-elo-tip { display: none; position: absolute; z-index: 20; right: 0; top: calc(100% + 6px); width: 280px; padding: 10px 12px; border: 1px solid var(--gitv-border); background: var(--gitv-surface); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); color: var(--gitv-text-soft); font: 400 12px/1.45 var(--gitv-font); text-align: left; cursor: default; }
+.player-elo-delta:hover .player-elo-tip, .player-elo-delta:focus .player-elo-tip { display: flex; flex-direction: column; gap: 3px; }
+.player-elo-tip-row { display: flex; justify-content: space-between; gap: 12px; }
+.player-elo-tip-row b { color: var(--gitv-text); }
+.player-elo-tip-row > :last-child { font-variant-numeric: tabular-nums; }
+.player-elo-tip-formula { margin-top: 5px; padding: 5px 8px; background: var(--gitv-surface-2); color: var(--gitv-text); font-variant-numeric: tabular-nums; text-align: center; }
+.player-elo-tip-note { margin-top: 4px; color: var(--gitv-muted); font-size: 11px; }

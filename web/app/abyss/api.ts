@@ -14,7 +14,7 @@ export type Wave = { label: string; monsters: AbyssMonster[] };
 export type Chamber = { index: number; half: number; level: number | null; hp: number; waves: Wave[] };
 export type Guide = { monster: string; icon: string | null; mechanics: { title: Text; lines: Text[] }[] };
 export type PhaseSummary = {
-  id: number; version: string; starts_on: string; ends_on: string; current: boolean; hp_ratio: number | null;
+  id: number; version: string; starts_on: string; ends_on: string; current: boolean; upcoming: boolean; hp_ratio: number | null;
   total_hp: number | null; blessings: string[]; bosses: AbyssMonster[]; matches: number; tournaments: number;
 };
 export type PhaseDetail = PhaseSummary & {

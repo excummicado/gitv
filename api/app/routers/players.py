@@ -17,7 +17,6 @@ from ..services.roster_stats import character_roster
 from ..services.stats import (
     Rating,
     detail,
-    el_clasico,
     elo_ratings,
     head_to_head,
     in_tournament,
@@ -101,6 +100,20 @@ class Opponent(BaseModel):
     name: str
 
 
+class EloChange(BaseModel):
+    """What a match did to the player's Elo, and why (see stats.elo)."""
+
+    change: float
+    before: int
+    after: int
+    opponent_before: int
+    score: float  # 1 won, 0 lost, 0.5 drawn
+    expected: float  # the player's expected score, 0..1
+    k: int  # 40 in a player's first matches, then 20
+    weight: float  # the tournament's weight
+    kind: str  # its class: major, series, fast, other
+
+
 class PlayerMatch(BaseModel):
     match_id: str
     date: datetime
@@ -111,6 +124,7 @@ class PlayerMatch(BaseModel):
     result: str  # W, L, D or —
     technical: bool
     avg_time: float | None
+    elo: EloChange | None = None  # None when the match isn't rated (undecided, a media cup)
 
 
 class LastGame(BaseModel):
@@ -278,44 +292,6 @@ def list_champions(session: SessionDep, limit: Annotated[int, Query(ge=1, le=20)
     return [{**c, "elo": elo_info(elo.get(c["player"]["id"]))} for c in recent_champions(snap, limit)]
 
 
-class ElClasico(BaseModel):
-    players: list[Opponent]  # the one ahead first
-    meetings: int
-    match_wins: list[int]
-    game_wins: list[int]
-    draws: int
-    tournaments: int
-    last_met: datetime | None
-    # Newest first, from the first player's side
-    recent: list["Meeting"]
-    streak: "Streak | None"
-    candidates: int  # pairs it was chosen from
-
-
-@router.get("/el-clasico", response_model=ElClasico | None)
-def read_el_clasico(session: SessionDep):
-    """The home page rivalry: among the pairs who met most, the one closest to 50-50."""
-    snap = snapshot(session)
-    found = el_clasico(snap)
-    if found is None:
-        return None
-    a, b = found["players"]
-    h = found["head_to_head"]
-    sa, sb = h["sides"]
-    return {
-        "players": [{"id": p, "name": snap.players[p].name} for p in (a, b)],
-        "meetings": len(h["matches"]),
-        "match_wins": [sa["match_wins"], sb["match_wins"]],
-        "game_wins": [sa["game_wins"], sb["game_wins"]],
-        "draws": h["draws"],
-        "tournaments": h["tournaments"],
-        "last_met": h["matches"][0]["date"] if h["matches"] else None,
-        "recent": h["matches"][:5],
-        "streak": h["streak"],
-        "candidates": found["candidates"],
-    }
-
-
 @router.get("/{player_id}", response_model=PlayerDetail)
 def read_player(
     player_id: str, session: SessionDep, scope: Scope = "all", tournament: str | None = None, since: date | None = None
@@ -355,9 +331,24 @@ def read_player(
         {**t, "rosters": roster_counts.get(t["id"], 0)}
         for t in player_tournaments(everything, everything.players[player_id])
     ]
+    rating = elo_ratings(session, everything).get(player_id)
+    steps = {s.match_id: s for s in rating.history} if rating else {}
+    for m in data["match_list"]:
+        if s := steps.get(m["match_id"]):
+            m["elo"] = {
+                "change": round(s.change, 1),
+                "before": round(s.before),
+                "after": round(s.elo),
+                "opponent_before": round(s.opponent_before),
+                "score": s.result,
+                "expected": round(s.expected, 3),
+                "k": s.k,
+                "weight": s.weight,
+                "kind": s.kind,
+            }
     return {
         **data,
-        "elo": elo_info(elo_ratings(session, everything).get(player_id)),
+        "elo": elo_info(rating),
         "tournament_list": tournament_list,
         "tournament": tournament,
         "major_titles": major_titles(session, everything, player_id),
@@ -727,6 +718,3 @@ def compare_players(player_id: str, other_id: str, session: SessionDep, scope: S
             for key in ("most_picked", "most_banned_by_opponent"):
                 s[key] = [{"character": character(c["character"]), "games": c["games"]} for c in s[key]]
     return {"players": [side(player_id), side(other_id)], "head_to_head": h2h}
-
-
-ElClasico.model_rebuild()

@@ -1,47 +1,47 @@
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 250 100" width="1000" height="400">
   <defs>
     <radialGradient id="bg" cx="125" cy="45" r="150" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#e4e4e4"/>
-      <stop offset="0.55" stop-color="#d3d3d3"/>
-      <stop offset="1" stop-color="#a9a9a9"/>
+      <stop offset="0" stop-color="#a68b6d"/>
+      <stop offset="0.55" stop-color="#8f7559"/>
+      <stop offset="1" stop-color="#6f573f"/>
     </radialGradient>
     <!-- Letter fill, in glyph units (cap height 100) -->
     <linearGradient id="ink" x1="0" y1="0" x2="0" y2="100" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ea2c4a"/>
-      <stop offset="0.55" stop-color="#f0566e"/>
-      <stop offset="1" stop-color="#f79aa9"/>
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.55" stop-color="#fbf1e6"/>
+      <stop offset="1" stop-color="#f1dcc4"/>
     </linearGradient>
     <linearGradient id="pinkInk" x1="0" y1="0" x2="0" y2="100" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#f8a7b4"/>
-      <stop offset="1" stop-color="#f06a80"/>
+      <stop offset="0" stop-color="#f3e6cf"/>
+      <stop offset="1" stop-color="#dcc6a2"/>
     </linearGradient>
     <linearGradient id="splash" x1="200" y1="0" x2="250" y2="100" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#e4343f"/>
-      <stop offset="0.5" stop-color="#c91d2b"/>
-      <stop offset="1" stop-color="#a3121f"/>
+      <stop offset="0" stop-color="#efe3cd"/>
+      <stop offset="0.5" stop-color="#e3d2b3"/>
+      <stop offset="1" stop-color="#cdb791"/>
     </linearGradient>
     <linearGradient id="broth" x1="0" y1="25" x2="0" y2="70" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#7e0f1d"/>
-      <stop offset="1" stop-color="#b8202e"/>
+      <stop offset="0" stop-color="#cbb48f"/>
+      <stop offset="1" stop-color="#e8d8bb"/>
     </linearGradient>
     <linearGradient id="cup" x1="0" y1="40" x2="90" y2="100" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="0.7" stop-color="#f1f1f3"/>
-      <stop offset="1" stop-color="#d9d9dd"/>
+      <stop offset="0.7" stop-color="#f6f2ec"/>
+      <stop offset="1" stop-color="#e2dbd0"/>
     </linearGradient>
     <linearGradient id="rimShade" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#e6e6ea"/>
+      <stop offset="1" stop-color="#ece5da"/>
     </linearGradient>
 
     <!-- White outline and a soft drop shadow around whatever is drawn -->
     <filter id="sticker" x="-10%" y="-30%" width="120%" height="170%" color-interpolation-filters="sRGB">
       <feMorphology in="SourceAlpha" operator="dilate" radius="0.9" result="grown"/>
-      <feFlood flood-color="#ffffff"/>
+      <feFlood flood-color="#e8c9a6"/>
       <feComposite in2="grown" operator="in" result="edge"/>
       <feGaussianBlur in="grown" stdDeviation="1.1" result="blur"/>
       <feOffset in="blur" dx="0.8" dy="1.6" result="drop"/>
-      <feFlood flood-color="#6e0f1c" flood-opacity="0.35"/>
+      <feFlood flood-color="#3f2c1b" flood-opacity="0.45"/>
       <feComposite in2="drop" operator="in" result="shadow"/>
       <feMerge>
         <feMergeNode in="shadow"/>
@@ -71,7 +71,7 @@
 
   <!-- Background with a faint ornament -->
   <rect width="250" height="100" fill="url(#bg)"/>
-  <g fill="none" stroke="#c2c2c2" stroke-width="0.6" opacity="0.5">
+  <g fill="none" stroke="#b39a7c" stroke-width="0.6" opacity="0.45">
     <path d="M150 -6L196 40L150 86L104 40Z"/>
     <path d="M150 6L184 40L150 74L116 40Z"/>
     <path d="M150 18C162 26 166 34 150 52C134 34 138 26 150 18Z"/>
@@ -84,28 +84,28 @@
   <g>
     <path fill="url(#splash)" d="M233 62C227 46 218 30 218 15C218 7 224 2 229 5C233 8 231 14 226 15C228 28 236 42 242 54Z"/>
     <path fill="url(#splash)" d="M250 10C243 17 239 29 239 43C238 56 232 66 222 72C212 77 202 76 197 80C194 84 197 88 202 86C210 83 218 82 226 84C232 86 234 92 230 100H250Z"/>
-    <circle cx="198" cy="92" r="2.4" fill="#c91d2b"/>
-    <circle cx="213" cy="96.5" r="1.6" fill="#b8172a"/>
-    <circle cx="236" cy="4" r="1.8" fill="#df2e3b"/>
-    <path d="M221 12C221 22 226 32 231 42M244 24C242 34 242 46 240 56M218 76C212 78 206 79 201 82" fill="none" stroke="#ff8a90" stroke-width="1" stroke-linecap="round" opacity="0.7"/>
+    <circle cx="198" cy="92" r="2.4" fill="#e3d2b3"/>
+    <circle cx="213" cy="96.5" r="1.6" fill="#d8c5a3"/>
+    <circle cx="236" cy="4" r="1.8" fill="#efe3cd"/>
+    <path d="M221 12C221 22 226 32 231 42M244 24C242 34 242 46 240 56M218 76C212 78 206 79 201 82" fill="none" stroke="#fff7ea" stroke-width="1" stroke-linecap="round" opacity="0.7"/>
   </g>
 
   <!-- Cup of soup on the left -->
   <path fill="url(#cup)" d="M-5 37L94 75L86 106H-5Z"/>
-  <g fill="none" stroke="#e05566" stroke-width="0.8" opacity="0.85">
+  <g fill="none" stroke="#dccbb0" stroke-width="0.8" opacity="0.85">
     <path d="M18 70L42 92L18 114L-6 92Z"/>
     <path d="M18 77L35 92L18 107L1 92Z"/>
     <path d="M18 82C23 86 23 90 18 96C13 90 13 86 18 82Z"/>
     <path d="M8 92H28M18 70V77"/>
   </g>
   <path fill="url(#broth)" d="M-5 10C30 12 70 30 98 62L96 70C66 54 30 40 -5 31Z"/>
-  <path fill="#c11e2d" d="M84 62C82 56 87 52 86 46C90 50 88 55 91 58C92 53 95 51 95 47C98 53 96 60 96 66Z"/>
+  <path fill="#e6d5b6" d="M84 62C82 56 87 52 86 46C90 50 88 55 91 58C92 53 95 51 95 47C98 53 96 60 96 66Z"/>
   <path fill="url(#rimShade)" d="M-5 29C34 40 70 54 96 67C100 69 100 74 95 77C70 64 32 50 -5 40Z"/>
 
   <!-- ABYSS floating in the cup -->
   <g filter="url(#sticker)">
     <g transform="translate(9 13) rotate(22) scale(0.17)" fill="url(#pinkInk)" stroke="url(#pinkInk)">
-      <g transform="translate(6 8)" fill="#c2364d" stroke="#c2364d">
+      <g transform="translate(6 8)" fill="#b89a74" stroke="#b89a74">
         <use xlink:href="#gA" transform="rotate(-6 43 50)"/>
         <use xlink:href="#gB" x="104" transform="rotate(4 141 50)"/>
         <use xlink:href="#gY" x="196" transform="rotate(-4 238 50)"/>

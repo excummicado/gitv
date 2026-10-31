@@ -475,13 +475,20 @@ class NewsPost(SQLModel, table=True):
 
 
 class NewsItem(SQLModel, table=True):
-    """A short news item in the home page's news column, written there by a writer, event organizer or admin
-    (routers/news.py). Plain text; links in it are shown as links."""
+    """A short news item in the home page's news column (routers/news.py): written there by a writer, event organizer
+    or admin, or added by itself from a tournament channel's registration post (services/registrations.py). Plain
+    text; links in it are shown as links."""
 
     id: int | None = Field(default=None, primary_key=True)
     text: str
-    created_by: uuid.UUID = Field(foreign_key="user.id")
+    created_by: uuid.UUID | None = Field(default=None, foreign_key="user.id")  # None: from a channel
+    source: str | None = None  # the channel's name ("Abyss Cup"), for one added by itself
+    source_url: str | None = Field(default=None, index=True)  # its post, so it's added once
+    # Removed by an admin. A channel's item stays as a marker, so reading its post again doesn't bring it back.
+    hidden: bool = False
     created_at: datetime = Field(index=True)
+    # A registration's item leaves the news when its tournament starts (or registration closes); None: it stays
+    ends_at: datetime | None = None
 
 
 class StreamMatch(SQLModel, table=True):

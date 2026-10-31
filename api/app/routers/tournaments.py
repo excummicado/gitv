@@ -359,48 +359,66 @@ class FeaturedTournament(BaseModel):
     organizer: Organizer | None
 
 
-@router.get("/featured", response_model=FeaturedTournament | None)
-def featured_tournament(session: SessionDep):
-    """The home page banner: the newest running tournament, else the latest finished one (its banner from
-    fetch-tournaments). The running list is the hourly-cached one, so this asks the site for nothing new; a
-    running tournament whose final has a winner on Challonge counts as finished."""
+def featured(session: SessionDep) -> list[FeaturedTournament]:
+    """The home page banners: the running tournaments, those with a banner first, then the newest; else the latest
+    finished one alone (its banner from fetch-tournaments). The running list is the hourly-cached one, so this asks
+    the site for nothing new; a running tournament whose final has a winner on Challonge counts as finished."""
     ignored = set(session.exec(select(IgnoredTournament.tournament_id))) | snapshot(session).decided
     live = sorted(
         (t for t in live_tournaments() if t["_id"] not in ignored), key=lambda t: t.get("createdAt") or "", reverse=True
     )
     if live:
-        t = live[0]
-        found = rows(session, [t["_id"]])
-        row = found[0] if found else None
-        return FeaturedTournament(
-            id=t["_id"],
-            title=t.get("title", ""),
-            image=banner_for(t.get("createdBy"), t.get("title"), t.get("image")),
-            live=True,
-            imported=row is not None,
-            date=t.get("createdAt"),
-            matches=row.matches if row else 0,
-            players=row.players if row else 0,
-            winner=None,
-            organizer=row.organizer if row else None,
-        )
+        found = {r.id: r for r in rows(session, [t["_id"] for t in live])}
+        items = []
+        for t in live:
+            row = found.get(t["_id"])
+            items.append(
+                FeaturedTournament(
+                    id=t["_id"],
+                    title=t.get("title", ""),
+                    image=banner_for(t.get("createdBy"), t.get("title"), t.get("image")),
+                    live=True,
+                    imported=row is not None,
+                    date=t.get("createdAt"),
+                    matches=row.matches if row else 0,
+                    players=row.players if row else 0,
+                    winner=None,
+                    organizer=row.organizer if row else None,
+                )
+            )
+        return sorted(items, key=lambda i: not i.image)  # stable: the newest first among each
     still_live = snapshot(session).live
     latest = next((r for r in rows(session) if r.id not in still_live), None)
     if latest is None:
-        return None
+        return []
     info = session.get(TournamentInfo, latest.id)
-    return FeaturedTournament(
-        id=latest.id,
-        title=latest.title,
-        image=banner_for(info and info.organizer_id, latest.title, info and info.image),
-        live=False,
-        imported=True,
-        date=latest.last_match,
-        matches=latest.matches,
-        players=latest.players,
-        winner=latest.winner,
-        organizer=latest.organizer,
-    )
+    return [
+        FeaturedTournament(
+            id=latest.id,
+            title=latest.title,
+            image=banner_for(info and info.organizer_id, latest.title, info and info.image),
+            live=False,
+            imported=True,
+            date=latest.last_match,
+            matches=latest.matches,
+            players=latest.players,
+            winner=latest.winner,
+            organizer=latest.organizer,
+        )
+    ]
+
+
+@router.get("/featured", response_model=FeaturedTournament | None)
+def featured_tournament(session: SessionDep):
+    """The home page banner: the first of featured (a running tournament with a banner, else the newest)."""
+    items = featured(session)
+    return items[0] if items else None
+
+
+@router.get("/featured/all", response_model=list[FeaturedTournament])
+def featured_tournaments(session: SessionDep):
+    """Every tournament the home page banner can show, the one it shows first first: the reader picks among them."""
+    return featured(session)
 
 
 @router.get("/{tournament_id}", response_model=TournamentDetail)

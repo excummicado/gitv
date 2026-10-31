@@ -10,7 +10,7 @@ ORGANIZER_BANNERS = {
 }
 
 SERIES_BANNERS = {
-    "abyss fast soup": "/banners/fast-soup.svg",  # Xeity's weekly cup (the red edition), vectorized
+    "abyss fast soup": "/banners/fast-soup.svg",  # Xeity's weekly cup (the beige edition), vectorized
 }
 
 

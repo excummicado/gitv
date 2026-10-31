@@ -10,7 +10,8 @@ function gameState(g: LiveGame) {
   return g.status === "FINISHED" ? "done" : g.status === "NOT_STARTED" ? "waiting" : "live";
 }
 
-export function LiveMatchRow({ match, onlyLive = false }: { match: LiveMatch; onlyLive?: boolean }) {
+// showTournament: the tournament's name under the match, bottom left, where rows of several tournaments are listed
+export function LiveMatchRow({ match, onlyLive = false, showTournament = false }: { match: LiveMatch; onlyLive?: boolean; showTournament?: boolean }) {
   const { t } = useLang();
   const titles = { done: t("Finished: open the draft", "Завершена: открыть драфт"), waiting: t("Not started yet: open the draft", "Ещё не началась: открыть драфт"), live: t("Being played now: watch the draft", "Идёт сейчас: смотреть драфт") };
   const games = onlyLive ? match.games.filter((g) => gameState(g) === "live") : match.games;
@@ -33,6 +34,7 @@ export function LiveMatchRow({ match, onlyLive = false }: { match: LiveMatch; on
             : <span key={g.game_no} className={`live-game is-${state}`}>{label}</span>;
         })}
       </span>
+      {showTournament && <small className="live-match-tournament">{match.tournament}</small>}
     </div>
   );
 }

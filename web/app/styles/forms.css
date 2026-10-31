@@ -1,4 +1,4 @@
-/* Buttons and form messages shared by the suggestion and schedule forms. */
+/* Buttons and form messages of the schedule form. */
 .suggest-ok { color: var(--gitv-win); }
 .suggest-button { padding: 7px 14px; border: 0; background: var(--gitv-accent-deep); color: var(--gitv-text); font: 600 12px/1.4 var(--gitv-font); cursor: pointer; }
 .suggest-button:hover { background: var(--gitv-accent-strong); }

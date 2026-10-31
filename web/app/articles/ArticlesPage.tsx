@@ -5,8 +5,8 @@ import { Brand } from "../components/Brand";
 import { useAuth } from "../auth/useCurrentUser";
 import { STAFF_ROLES } from "../auth/client";
 import { useLang } from "../i18n";
-import { deleteNews, deleteTranslation, excerpt, importNews, inLang, listNews, NEWS_WRITER_ROLES, readNews, setTranslation, type NewsPost } from "./api";
-import "./news.css";
+import { deleteArticle, deleteTranslation, excerpt, importArticle, inLang, listArticles, NEWS_WRITER_ROLES, readArticle, setTranslation, type Article } from "./api";
+import "./articles.css";
 
 function Frame({ children }: { children: React.ReactNode }) {
   return (
@@ -49,7 +49,7 @@ function Contents({ chapters, active, onPick }: { chapters: Chapter[]; active: s
 }
 
 // Attaching the post's translation into the other language: a translated .docx or Google document.
-function TranslationForm({ post, onDone }: { post: NewsPost; onDone: (post: NewsPost) => void }) {
+function TranslationForm({ post, onDone }: { post: Article; onDone: (post: Article) => void }) {
   const { t } = useLang();
   const [file, setFile] = useState<File | null>(null);
   const [googleUrl, setGoogleUrl] = useState("");
@@ -108,13 +108,13 @@ function TranslationForm({ post, onDone }: { post: NewsPost; onDone: (post: News
   );
 }
 
-// One news post. Its body is HTML the API cleaned (only text formatting, links and pictures); a long one, with
+// One article. Its body is HTML the API cleaned (only text formatting, links and pictures); a long one, with
 // chapters, gets a chapter list beside it (above it on a phone).
-export function NewsPostPage() {
-  const { newsId = "" } = useParams();
+export function ArticlePage() {
+  const { articleId = "" } = useParams();
   const { user } = useAuth();
   const { t, date, lang } = useLang();
-  const [post, setPost] = useState<NewsPost | null | undefined>(undefined);
+  const [post, setPost] = useState<Article | null | undefined>(undefined);
   // Read in the site's language when there's a translation into it; the reader can switch to the original
   const [original, setOriginal] = useState(false);
   // Whoever imported it, or an admin, may attach its translation
@@ -150,15 +150,15 @@ export function NewsPostPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    readNews(newsId, controller.signal).then(setPost).catch((err) => { if (!controller.signal.aborted) { setPost(null); setError(err instanceof Error ? err.message : ""); } });
+    readArticle(articleId, controller.signal).then(setPost).catch((err) => { if (!controller.signal.aborted) { setPost(null); setError(err instanceof Error ? err.message : ""); } });
     return () => controller.abort();
-  }, [newsId]);
+  }, [articleId]);
 
 
   return (
     <Frame>
       {post === undefined ? <p className="player-box match-empty">…</p>
-        : !post ? <p className="player-box match-empty">{error || t("No such news.", "Такой новости нет.")}</p>
+        : !post ? <p className="player-box match-empty">{error || t("No such article.", "Такой статьи нет.")}</p>
         : (
           <div className={chapters.length >= 3 ? "news-layout" : undefined}>
             {chapters.length >= 3 && (
@@ -180,7 +180,7 @@ export function NewsPostPage() {
                 </p>
               )}
               <div className="news-body" ref={body} dangerouslySetInnerHTML={{ __html: shown!.body }} />
-              <p className="news-foot"><Link to="/news" className="gitv-row-link">{t("All news", "Все новости")}</Link></p>
+              <p className="news-foot"><Link to="/articles" className="gitv-row-link">{t("All articles", "Все статьи")}</Link></p>
               {canEdit && <TranslationForm post={post} onDone={(p) => { setPost(p); setOriginal(false); }} />}
             </article>
           </div>
@@ -189,13 +189,13 @@ export function NewsPostPage() {
   );
 }
 
-// All news, and for writers, event organizers and admins the import form: a .docx file or a Google Docs link.
-export function NewsListPage() {
+// All articles, and for writers, event organizers and admins the import form: a .docx file or a Google Docs link.
+export function ArticlesListPage() {
   const { user } = useAuth();
   const { t, date, lang } = useLang();
   const writer = user ? NEWS_WRITER_ROLES.includes(user.role) : false;
   const staff = user ? STAFF_ROLES.includes(user.role) : false;
-  const [posts, setPosts] = useState<NewsPost[] | null>(null);
+  const [posts, setPosts] = useState<Article[] | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [googleUrl, setGoogleUrl] = useState("");
   const [title, setTitle] = useState("");
@@ -204,7 +204,7 @@ export function NewsListPage() {
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const [formKey, setFormKey] = useState(0);
 
-  const load = () => listNews(50).then(setPosts).catch(() => setPosts([]));
+  const load = () => listArticles(50).then(setPosts).catch(() => setPosts([]));
   useEffect(() => { load(); }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -213,7 +213,7 @@ export function NewsListPage() {
     if (file && googleUrl.trim()) return setMessage({ text: t("One of the two: a file or a link.", "Что-то одно: файл или ссылка."), ok: false });
     setSaving(true);
     try {
-      await importNews({ file: file ?? undefined, googleUrl: googleUrl.trim() || undefined, title: title.trim() || undefined, author: author.trim() || undefined });
+      await importArticle({ file: file ?? undefined, googleUrl: googleUrl.trim() || undefined, title: title.trim() || undefined, author: author.trim() || undefined });
       setMessage({ text: t("Published.", "Опубликовано."), ok: true });
       setFile(null);
       setGoogleUrl("");
@@ -228,10 +228,10 @@ export function NewsListPage() {
     }
   }
 
-  async function remove(post: NewsPost) {
+  async function remove(post: Article) {
     if (!window.confirm(t(`Remove "${post.title}"?`, `Удалить «${post.title}»?`))) return;
     try {
-      await deleteNews(post.id);
+      await deleteArticle(post.id);
       setPosts((list) => list?.filter((p) => p.id !== post.id) ?? null);
     } catch (err) {
       setMessage({ text: err instanceof Error ? err.message : t("Couldn't remove it.", "Не удалось удалить."), ok: false });
@@ -242,7 +242,7 @@ export function NewsListPage() {
     <Frame>
       {writer && (
         <section className="player-box">
-          <h2 className="player-box-title">{t("Add news", "Добавить новость")}</h2>
+          <h2 className="player-box-title">{t("Add an article", "Добавить статью")}</h2>
           <form className="news-form" onSubmit={submit} key={formKey} noValidate>
             <label className="news-field">
               <span className="player-label">{t("Word document (.docx, up to 100 MB)", "Документ Word (.docx, до 100 МБ)")}</span>
@@ -273,12 +273,12 @@ export function NewsListPage() {
         </section>
       )}
       <section className="player-box">
-        <h2 className="player-box-title">{t("News", "Новости")}</h2>
+        <h2 className="player-box-title">{t("Articles", "Статьи")}</h2>
         {!posts ? <p className="match-empty">…</p>
-          : !posts.length ? <p className="match-empty">{t("No news yet.", "Новостей пока нет.")}</p>
+          : !posts.length ? <p className="match-empty">{t("No articles yet.", "Статей пока нет.")}</p>
           : posts.map((p) => (
             <div className="news-row" key={p.id}>
-              <Link to={`/news/${p.id}`} className="gitv-row-link news-row-title">{inLang(p, lang).title}</Link>
+              <Link to={`/articles/${p.id}`} className="gitv-row-link news-row-title">{inLang(p, lang).title}</Link>
               <p className="news-row-excerpt">{excerpt(inLang(p, lang).body)}</p>
               <span className="player-label">
                 {date(p.created_at)} · {p.author}
