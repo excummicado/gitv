@@ -5,7 +5,7 @@ import { Link } from "react-router";
 import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
 import { fetchChampions, type Champion } from "../player/api";
-import { fetchLiveMatches, fetchLiveTournaments, fetchPopularCharacters, fetchTopPick, type LiveMatch, type LiveTournament, type PopularCharacters, type TopPick } from "../match/api";
+import { fetchLiveMatches, fetchLiveTournaments, fetchMatches, fetchPopularCharacters, fetchTopPick, type LiveMatch, type LiveTournament, type MatchSummary, type PopularCharacters, type TopPick } from "../match/api";
 import { LiveMatchRow } from "../match/LiveMatches";
 import { EloBadge } from "../components/EloBadge";
 import { excerpt, inLang, listArticles, NEWS_WRITER_ROLES, type Article } from "../articles/api";
@@ -19,6 +19,7 @@ import { useLang } from "../i18n";
 
 const CHAMPIONS = 5;
 const ARTICLES = 5;
+const RECENT_MATCHES = 5;
 
 function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <section className={`gitv-card ${className}`}>{children}</section>;
@@ -350,6 +351,43 @@ function TodaysMatches() {
   );
 }
 
+// The latest stored matches: who played, the score, the tournament and the day, each opening its page.
+function RecentMatches() {
+  const [items, setItems] = useState<MatchSummary[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const { t, date } = useLang();
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchMatches({ limit: RECENT_MATCHES, offset: 0 }, controller.signal)
+      .then((page) => setItems(page.items))
+      .catch(() => { if (!controller.signal.aborted) setFailed(true); });
+    return () => controller.abort();
+  }, []);
+
+  return (
+    <Card><div className="gitv-card-title">{t("Recent Matches", "Последние матчи")}</div>
+      {failed ? <div className="gitv-row"><small>{t("Couldn't load the matches.", "Не удалось загрузить матчи.")}</small></div>
+        : !items ? <div className="gitv-row"><small>…</small></div>
+        : !items.length ? <div className="gitv-row"><small>{t("No matches yet.", "Матчей пока нет.")}</small></div>
+        : items.map((m) => (
+            <Link to={`/match/${m.id}`} className="gitv-row gitv-row-link gitv-recent-match" key={m.id}>
+              <span className="gitv-recent-players">
+                <span className={m.winner === 0 ? "gitv-winner" : undefined}>{m.sides[0]?.name}</span>
+                <b>{m.sides[0]?.games_won}–{m.sides[1]?.games_won}</b>
+                <span className={m.winner === 1 ? "gitv-winner" : undefined}>{m.sides[1]?.name}</span>
+              </span>
+              <span className="gitv-recent-meta">
+                <small className="gitv-recent-tournament">{m.tournament}</small>
+                <small className="gitv-date">{date(m.created_at)}</small>
+              </span>
+            </Link>
+          ))}
+      <div className="gitv-foot"><Link to="/matches" className="gitv-row-link">{t("All matches", "Все матчи")}</Link></div>
+    </Card>
+  );
+}
+
 function LiveTournaments() {
   const [items, setItems] = useState<LiveTournament[] | null>(null);
   // Their matches being played now, each game linking to its draft on the tournament site
@@ -446,6 +484,7 @@ function HomeLayout() {
           </main>
           <aside>
             <TodaysMatches />
+            <RecentMatches />
             <NewsColumn />
           </aside>
         </div>

@@ -20,6 +20,7 @@ import "./styles/matches.css";
 import "./styles/forms.css";
 import { LangProvider, langFromCookie, type Lang } from "./i18n";
 import { NotFoundPage } from "./not-found/NotFoundPage";
+import { useTooltipPlacement } from "./components/useTooltipPlacement";
 import { NonceContext } from "./nonce";
 
 // Page views for the site's own analytics (api/app/services/analytics.py): only the path and, on the first page,
@@ -84,6 +85,7 @@ export default function App() {
     countPageView(pathname, first.current ? document.referrer || null : null);
     first.current = false;
   }, [pathname]);
+  useTooltipPlacement();
   return <LangProvider initial={lang}><Outlet /></LangProvider>;
 }
 

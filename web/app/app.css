@@ -43,6 +43,11 @@ body {
   }
 }
 
+/* A hover popup that wouldn't fit below its trigger opens above it (components/useTooltipPlacement.ts), and the
+   invisible bridge that keeps it open while the pointer crosses the gap moves with it. */
+[role="tooltip"][data-above] { top: auto; bottom: calc(100% + 6px); }
+[role="tooltip"][data-above]::before { top: auto; bottom: -8px; height: 8px; }
+
 /* Dates are secondary everywhere: a size smaller and greyer than the text around them. */
 .gitv-date {
   color: var(--gitv-date);

@@ -323,3 +323,12 @@
 
 /* The stream on air, under the matches of the day */
 .gitv-twitch { border-top: 1px solid var(--gitv-border-muted); }
+
+/* Latest matches (right column): the players and score over the tournament and date. */
+.gitv-recent-match { display: flex; flex-direction: column; align-items: stretch; gap: 2px; }
+.gitv-recent-players { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: baseline; gap: 6px; }
+.gitv-recent-players span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gitv-recent-players span:last-child { text-align: right; }
+.gitv-recent-players b { color: var(--gitv-accent); font-weight: 400; }
+.gitv-recent-meta { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.gitv-recent-tournament { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
