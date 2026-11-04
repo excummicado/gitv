@@ -3,7 +3,7 @@
 import json
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -44,8 +44,16 @@ from ..services.match_checks import (
 )
 from ..services.organizers import organizer_resolver
 from ..services.player_names import display_names, merges, player_key, shown_name
-from ..services.stats import Snapshot, latest_top_pick, popular_characters, snapshot, tournament_standings
+from ..services.stats import (
+    Snapshot,
+    latest_top_pick,
+    popular_characters,
+    settled_phase,
+    snapshot,
+    tournament_standings,
+)
 from ..services.sync import live_tournaments
+from .abyss import current_id, phases
 
 router = APIRouter(prefix="/matches", tags=["matches"])
 
@@ -439,8 +447,16 @@ class PopularCharacter(BaseModel):
     avg_constellation: float | None  # average constellation when picked, one decimal
 
 
+class PopularAbyss(BaseModel):
+    id: int
+    version: str
+    starts_on: date
+    current: bool  # False: the phase before, until a tournament has been played on the current one
+
+
 class PopularCharacters(BaseModel):
     tournament: TopPickTournament | None  # None: over all tournaments
+    abyss: PopularAbyss | None = None  # the Abyss phase counted, when asked for one
     tournaments: int
     date: datetime  # the latest game counted
     games: int
@@ -448,13 +464,23 @@ class PopularCharacters(BaseModel):
 
 
 @router.get("/popular-characters", response_model=PopularCharacters | None)
-def list_popular_characters(session: SessionDep, limit: int = Query(5, ge=1, le=20), tournament: str | None = None):
-    """The most popular characters of all time (or of one tournament), for the home page: picks and bans
-    both count."""
+def list_popular_characters(
+    session: SessionDep, limit: int = Query(5, ge=1, le=20), tournament: str | None = None, abyss: bool = False
+):
+    """The most popular characters of all time, of one tournament, or (abyss, for the home page) of the current Abyss
+    phase once a tournament has been played on it, else of the one before; of all time while no phase has seen one.
+    Picks and bans both count."""
     snap = snapshot(session)
-    data = popular_characters(snap, tournament, count=limit)
+    ordered = phases(session) if abyss else []
+    phase = settled_phase(snap, ordered, date.today())
+    days = (phase.starts_on, phase.ends_on) if phase else None
+    data = popular_characters(snap, tournament, count=limit, days=days)
     if data is None:
         return None
+    if phase:
+        data["abyss"] = PopularAbyss(
+            id=phase.id, version=phase.version, starts_on=phase.starts_on, current=phase.id == current_id(ordered)
+        )
     for c in data["characters"]:
         a = snap.agents.get(c["character"])
         c["character"] = CharacterArt(

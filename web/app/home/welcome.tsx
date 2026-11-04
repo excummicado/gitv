@@ -163,8 +163,8 @@ function EventSection() {
   );
 }
 
-// The five most popular characters of all time. Bans count as much as picks: a character
-// banned all the time is as much on players' minds as one picked all the time.
+// The five most popular characters of this Abyss, or of the last one until a tournament has been played on this one.
+// Bans count as much as picks: a character banned all the time is as much on players' minds as one picked all the time.
 function PopularCharactersCard() {
   const [data, setData] = useState<PopularCharacters | null | undefined>(undefined);
   const { t, name, count } = useLang();
@@ -176,18 +176,24 @@ function PopularCharactersCard() {
   }, []);
 
   if (!data) return <Card><div className="gitv-image gitv-feature">{data === undefined ? "" : t("No draft data yet", "Данных драфтов пока нет")}</div></Card>;
+  const abyss = data.abyss;
   return (
     <Card>
       <div className="gitv-card-title gitv-popular-title">
         <span>{t("Most popular characters", "Самые популярные персонажи")}</span>
-        <Link to="/tournaments" className="gitv-row-link">{t("All time", "За всё время")} · {count(data.tournaments, ["tournament", "tournaments"], ["турнир", "турнира", "турниров"])}</Link>
+        <Link to={abyss ? `/abyss/${abyss.id}` : "/tournaments"} className="gitv-row-link">
+          {!abyss ? t("All time", "За всё время")
+            : abyss.current ? t(`Abyss ${abyss.version}`, `Бездна ${abyss.version}`)
+            : t(`Previous Abyss ${abyss.version}`, `Прошлая бездна ${abyss.version}`)}
+          {" · "}{count(data.tournaments, ["tournament", "tournaments"], ["турнир", "турнира", "турниров"])}
+        </Link>
       </div>
       <div className="gitv-popular">
         {data.characters.map((c, i) => {
           const art = c.character.icon;
           return (
-            // Opens the Characters page with this character's breakdown already open.
-            <Link to={`/characters?open=${encodeURIComponent(c.character.id)}`} className={`gitv-popular-item rarity-${c.character.rarity ?? 4}`} key={c.character.id}
+            // Opens the Characters page with this character's breakdown already open, from this Abyss on.
+            <Link to={`/characters?open=${encodeURIComponent(c.character.id)}${abyss ? `&since=${abyss.starts_on}` : ""}`} className={`gitv-popular-item rarity-${c.character.rarity ?? 4}`} key={c.character.id}
               title={t(`${c.picks} picks, ${c.bans} bans; in ${c.presence ?? 0}% of games; ${c.pick_winrate ?? "—"}% winrate when picked; average C${c.avg_constellation ?? "—"}`,
                        `${c.picks} пиков, ${c.bans} банов; в ${c.presence ?? 0}% игр; винрейт в пиках ${c.pick_winrate ?? "—"}%; средняя конста C${c.avg_constellation ?? "—"}`)}>
               <div className="gitv-popular-art">

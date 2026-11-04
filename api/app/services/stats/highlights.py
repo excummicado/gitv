@@ -1,7 +1,9 @@
 """Highlights for the home page."""
 
 from collections import Counter
+from datetime import date
 
+from ...models import AbyssPhase
 from .player import pct
 from .snapshot import Snapshot
 
@@ -56,12 +58,32 @@ def latest_tournament(snap: Snapshot) -> str | None:
     return snap.match_tournament[max(played, key=lambda m: snap.match_info[m][0])] if played else None
 
 
-def popular_characters(snap: Snapshot, tid: str | None = None, count: int = POPULAR) -> dict | None:
-    """The most popular characters over every game (team events aside), or of one tournament. Popularity counts
-    bans as well as picks: a character banned a lot is one players care about. score = picks + bans;
-    presence = share of the games where it was picked or banned by anyone."""
+def settled_phase(snap: Snapshot, ordered: list[AbyssPhase], today: date) -> AbyssPhase | None:
+    """The latest Abyss phase that has seen a whole tournament: one finished with all its games on the phase. Before
+    that a new phase's few games say little about it, so the one before stands in. None if no phase has one yet."""
+    days: dict[str, list[date]] = {}
+    for pd in snap.players.values():
+        for g in pd.games:
+            days.setdefault(snap.match_tournament[g.match_id], []).append(g.created_at.date())
+    finished = [(min(d), max(d)) for tid, d in days.items() if tid not in snap.live]
+    for p in sorted(ordered, key=lambda p: p.starts_on, reverse=True):
+        if p.starts_on <= today and any(p.starts_on <= first and last < p.ends_on for first, last in finished):
+            return p
+    return None
+
+
+def popular_characters(
+    snap: Snapshot, tid: str | None = None, count: int = POPULAR, days: tuple[date, date] | None = None
+) -> dict | None:
+    """The most popular characters over every game (team events aside), or of one tournament, or of the days from
+    days[0] up to days[1] (an Abyss phase). Popularity counts bans as well as picks: a character banned a lot is one
+    players care about. score = picks + bans; presence = share of the games where it was picked or banned by anyone."""
     games = [
-        g for pd in snap.players.values() for g in pd.games if tid is None or snap.match_tournament[g.match_id] == tid
+        g
+        for pd in snap.players.values()
+        for g in pd.games
+        if (tid is None or snap.match_tournament[g.match_id] == tid)
+        and (days is None or days[0] <= g.created_at.date() < days[1])
     ]
     drafts = {g.draft_id for g in games}
     if not drafts:

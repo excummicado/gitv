@@ -589,3 +589,49 @@ def test_match_list_rows_agree_with_match_pages(world):
             page.result_source,
             len(page.games),
         )
+
+
+def test_popular_characters_of_an_abyss_phase(world):
+    from datetime import date
+    from types import SimpleNamespace
+
+    from app.models import TournamentInfo
+    from app.services.stats import popular_characters, settled_phase
+
+    old = SimpleNamespace(id=1, starts_on=date(2026, 4, 16), ends_on=date(2026, 5, 2))
+    new = SimpleNamespace(id=2, starts_on=date(2026, 5, 2), ends_on=date(2026, 5, 16))
+    ahead = SimpleNamespace(id=3, starts_on=date(2026, 5, 16), ends_on=date(2026, 6, 16))
+    phases = [ahead, new, old]
+    today = date(2026, 5, 10)
+
+    # The clock starts on the 1st of May: this tournament is the old phase's
+    assert settled_phase(world.snap(), phases, today) is None
+    world.win(world.tournament("Abyss Fast Soup 1"), "A", "B")
+    assert settled_phase(world.snap(), phases, today) is old
+
+    # On the new phase, but still running: the old one stands in, and its games are all that count
+    world.clock = datetime(2026, 5, 3, tzinfo=UTC)
+    running = world.tournament("Abyss Fast Soup 2")
+    world.win(running, "C", "D")
+    world.s.add(TournamentInfo(tournament_id=running, is_finished=False))
+    snap = world.snap()
+    assert settled_phase(snap, phases, today) is old
+    assert popular_characters(snap, days=(old.starts_on, old.ends_on))["tournaments"] == 1
+
+    # Begun on the old phase and finished on the new one: it isn't the new phase's own
+    world.clock = datetime(2026, 5, 1, 20, tzinfo=UTC)
+    across = world.tournament("Abyss Fast Soup 3")
+    world.win(across, "E", "F")
+    world.clock = datetime(2026, 5, 4, tzinfo=UTC)
+    world.win(across, "E", "G")
+    assert settled_phase(world.snap(), phases, today) is old
+
+    # Finished, all on the new phase: from now on it's the new one, the running tournament's games included
+    world.clock = datetime(2026, 5, 5, tzinfo=UTC)
+    world.win(world.tournament("Abyss Fast Soup 4"), "H", "I")
+    snap = world.snap()
+    assert settled_phase(snap, phases, today) is new
+    assert popular_characters(snap, days=(new.starts_on, new.ends_on))["tournaments"] == 3
+
+    # A phase that hasn't begun doesn't count, whatever's dated in it
+    assert settled_phase(snap, [ahead], today) is None

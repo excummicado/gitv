@@ -69,13 +69,16 @@ export type TopPick = {
 export type PopularCharacters = {
   // null: over all tournaments
   tournament: { id: string; title: string } | null; tournaments: number; date: string; games: number;
+  // The Abyss phase counted; current false: the one before, until a tournament has been played on the current one
+  abyss: { id: number; version: string; starts_on: string; current: boolean } | null;
   // score = picks + bans; presence = % of games where it was picked or banned
   characters: { character: Character & { splash: string | null; card: string | null }; picks: number; bans: number; score: number; presence: number | null; pick_winrate: number | null; avg_constellation: number | null }[];
 };
 
-// The most popular characters of all time (picks and bans both count); null without data.
+// The most popular characters of the current Abyss (picks and bans both count; see the API for when it's the one
+// before); null without data.
 export function fetchPopularCharacters(limit = 5, signal?: AbortSignal) {
-  return getJson<PopularCharacters | null>(`/api/v1/matches/popular-characters?limit=${limit}`, { signal });
+  return getJson<PopularCharacters | null>(`/api/v1/matches/popular-characters?limit=${limit}&abyss=true`, { signal });
 }
 
 // The most picked character of the latest tournament (home page promo); null when there's no data.
