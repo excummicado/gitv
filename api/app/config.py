@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     # House of the Hearth's: the same, with their own posts ("A VS B — 17:00 МСК", the casters under it)
     hoth_telegram_channel: str = "hoth_abyss"
     hoth_twitch_channel: str = "abyss_hoth"
+    # HotH Hub's integration key (hoth-hub.site): its matches' timers (services/hoth_hub.py); off when unset
+    hoth_hub_key: str | None = None
     # Abyss New Gen's: the same, its matches named in prose ("rooz1ee VS liarlialin, под комментарии X & Y")
     newgen_telegram_channel: str = "abyss_new_gen"
     newgen_twitch_channel: str = "abyss_new_gen"

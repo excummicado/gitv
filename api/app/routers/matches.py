@@ -40,6 +40,7 @@ from ..services.match_checks import (
     mode_label,
     room_times,
     technical_game,
+    tidy_title,
 )
 from ..services.organizers import organizer_resolver
 from ..services.player_names import display_names, merges, player_key, shown_name
@@ -500,7 +501,7 @@ def list_live_tournaments(session: SessionDep):
     rows = [
         LiveTournament(
             id=t["_id"],
-            title=t.get("title", ""),
+            title=tidy_title(t.get("title", "")),
             system=((t.get("system") or {}).get("main") or {}).get("title"),
             started_at=t.get("createdAt"),
             image=t.get("image"),

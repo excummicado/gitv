@@ -78,3 +78,8 @@
   .tourney-pool-row { grid-template-columns: 28px minmax(0, 1fr) 90px; }
   .tourney-pool-row .hide-sm { display: none; }
 }
+
+/* The tournament's links on darte.gg (socials, regulations), under its numbers */
+.tourney-links { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 14px; border-top: 1px solid var(--gitv-border); }
+.tourney-link { padding: 3px 9px; border: 1px solid var(--gitv-border); color: var(--gitv-text-soft); font-size: 12px; text-decoration: none; white-space: nowrap; }
+.tourney-link:hover, .tourney-link:focus-visible { border-color: var(--gitv-accent); color: var(--gitv-text); }

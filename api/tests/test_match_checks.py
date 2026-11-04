@@ -96,6 +96,21 @@ class TestTechnicalGame:
         t = technical_game([player(0, 150), player(1, 900)], {0: (50, 50, 50), 1: (TECH_ROOM_TIME,) * 3})
         assert t is not None and t.loser_slot == 1 and len(t.reasons) == 1
 
+    def test_a_room_left_empty_while_ahead_is_no_result(self):
+        """Not entered before the timer ran out, more likely than a defeat: 73/63/0 against 83/115/122."""
+        a, b = player(0, 136), player(1, 320)
+        t = technical_game([a, b], {0: (73, 63, 0), 1: (83, 115, 122)})
+        assert t is not None and t.loser_slot is None and t.rule is None
+        assert game_results(a, b, t, 136, 320) == (NO_RESULT, NO_RESULT)
+
+    def test_a_room_left_empty_while_behind_is_a_defeat(self):
+        t = technical_game([player(0, 320), player(1, 136)], {0: (171, 149, 0), 1: (139, 140, 95)})
+        assert t is not None and t.loser_slot == 0
+
+    def test_nothing_entered_is_a_defeat(self):
+        t = technical_game([player(0, 0), player(1, 320)], {0: (0, 0, 0), 1: (83, 115, 122)})
+        assert t is not None and t.loser_slot == 0
+
 
 class TestGameResults:
     def test_lower_time_wins(self):
@@ -182,6 +197,11 @@ def test_tidy_title():
     assert tidy_title("ABYSS FAST SOUP 5") == "Abyss Fast Soup 5"
     assert tidy_title("Abyss Ascend Casual League [ROUND 1]") == "Abyss Ascend Casual League [Round 1]"
     assert tidy_title("HotH: 2x2") == "HotH: 2x2"
+    # Written all in capitals or all in lowercase: capitalized, small words small
+    assert tidy_title("NOVICHOK CUP") == tidy_title("novichok cup") == "Novichok Cup"
+    assert tidy_title("CUP OF THE HEARTH 2X2") == "Cup of the Hearth 2X2"
+    assert tidy_title("the abyss cup") == "The Abyss Cup"
+    assert tidy_title("КУБОК НОВИЧКОВ") == "Кубок Новичков"
 
 
 def test_team_events_are_told_by_their_title():

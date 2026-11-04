@@ -4,7 +4,11 @@ import { getJson } from "../api";
 import { authRequest } from "../auth/client";
 
 // elo: their Elo when they're a player of the site; elo_active: played in the last six months
-export type ScheduledPlayer = { id: string | null; name: string; elo?: number | null; elo_active?: boolean; elo_rank?: number | null; elo_tier?: string | null };
+export type ScheduledPlayer = {
+  id: string | null; name: string; elo?: number | null; elo_active?: boolean; elo_rank?: number | null; elo_tier?: string | null;
+  // A team event's team: its players, from the stream's post
+  members?: ScheduledPlayer[];
+};
 export type ScheduledMatch = {
   id: number; tournament_id: string | null; tournament_title: string;
   player1: ScheduledPlayer; player2: ScheduledPlayer; starts_at: string; added_by: string;
@@ -24,13 +28,21 @@ export function listScheduled(from: Date, to: Date, signal?: AbortSignal) {
 // Each stream's matches of a day (Abyss Cup, House of the Hearth), from its Telegram channel, and whether it's on
 // (api/app/services/stream.py).
 export type StreamMatch = {
-  tournament_title: string; player1: ScheduledPlayer; player2: ScheduledPlayer;
+  // stage: in the tournament's bracket, as api/app/services/stream.py bracket_stage codes it ("final", "lower:2", ...)
+  tournament_title: string; stage: string | null; player1: ScheduledPlayer; player2: ScheduledPlayer;
   announced_at: string; starts_at: string | null; live_at: string | null; casters: string | null; finished_at: string | null; winner: 0 | 1 | null; live: boolean; post_url: string;
 };
 export type StreamDay = {
   name: string; url: string; live: boolean; title: string | null; viewers: number | null; started_at: string | null; casters: string | null;
   matches: StreamMatch[];
 };
+
+// A stream on air now, by Twitch (GET /api/v1/schedule/live-streams); name is its tournaments' organizer
+export type LiveStream = { name: string; channel: string; title: string | null; viewers: number | null; started_at: string | null };
+
+export function fetchLiveStreams(signal?: AbortSignal) {
+  return getJson<LiveStream[]>("/api/v1/schedule/live-streams", { signal });
+}
 
 export function streamMatches(from: Date, to: Date, signal?: AbortSignal) {
   const query = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });

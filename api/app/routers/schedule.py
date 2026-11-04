@@ -127,6 +127,7 @@ def list_scheduled(
 
 class StreamMatchOut(BaseModel):
     tournament_title: str
+    stage: str | None  # in the tournament's bracket: "final", "semifinal", "lower:2", ... (stream.bracket_stage)
     player1: PlayerOut
     player2: PlayerOut
     announced_at: datetime  # the day's post, about when the stream starts
@@ -221,6 +222,7 @@ def stream_matches(
             matches.append(
                 StreamMatchOut(
                     tournament_title=r.tournament_title,
+                    stage=r.stage,
                     player1=player(r.player1_name, r.channel),
                     player2=player(r.player2_name, r.channel),
                     announced_at=aware(r.announced_at),

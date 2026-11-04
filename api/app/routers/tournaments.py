@@ -11,7 +11,7 @@ from ..database import SessionDep
 from ..models import Agent, ChallongeTournament, IgnoredTournament, Match, MatchPlayer, Tournament, TournamentInfo
 from ..services.banners import banner_for
 from ..services.events import Event, TournamentDates, group_label, site_events, stage_of, tournament_events
-from ..services.match_checks import MAJOR_SYSTEM, MAJOR_TITLE
+from ..services.match_checks import MAJOR_SYSTEM, MAJOR_TITLE, tidy_title
 from ..services.player_names import display_names
 from ..services.roster_stats import tournament_pool
 from ..services.stats import (
@@ -426,7 +426,7 @@ def featured(session: SessionDep) -> list[FeaturedTournament]:
             items.append(
                 FeaturedTournament(
                     id=t["_id"],
-                    title=t.get("title", ""),
+                    title=tidy_title(t.get("title", "")),
                     image=banner_for(t.get("createdBy"), t.get("title"), t.get("image")),
                     live=True,
                     imported=row is not None,

@@ -10,7 +10,8 @@ import { LiveMatchRow } from "../match/LiveMatches";
 import { EloBadge } from "../components/EloBadge";
 import { excerpt, inLang, listArticles, NEWS_WRITER_ROLES, type Article } from "../articles/api";
 import { NewsColumn } from "../news/NewsColumn";
-import { listScheduled, localDay, streamMatches, type ScheduledMatch, type StreamDay } from "../schedule/api";
+import { fetchLiveStreams, listScheduled, localDay, streamMatches, type LiveStream, type ScheduledMatch, type StreamDay } from "../schedule/api";
+import { TwitchPlayer } from "../components/TwitchPlayer";
 import { fetchFeaturedTournaments, type FeaturedTournament } from "../tournament/api";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import { PLAYER_EDITOR_ROLES } from "../auth/client";
@@ -71,7 +72,8 @@ function EventBanner({ item }: { item: FeaturedTournament | null | undefined }) 
         <strong>{item.title}</strong>
         <small>
           {item.date && date(item.date)}
-          {item.players > 0 && ` · ${count(item.players, ["player", "players"], ["игрок", "игрока", "игроков"])}`}
+          {item.teams ? ` · ${count(item.teams, ["team", "teams"], ["команда", "команды", "команд"])}`
+            : item.players > 0 && ` · ${count(item.players, ["player", "players"], ["игрок", "игрока", "игроков"])}`}
           {item.organizer && ` · ${t("by", "орг.")} ${item.organizer.name}`}
         </small>
         {item.winner && <small className="gitv-banner-winner">{t("Winner", "Победитель")}: <b>{item.winner.name}</b></small>}
@@ -94,6 +96,27 @@ const EVENT_LINKS: { label: [string, string]; tab: string }[] = [
 
 // The reader's pick among the running tournaments, kept in this browser (it may be unavailable).
 const PICKED_EVENT = "gitv-home-event";
+
+const STAGES: Record<string, [string, string]> = {
+  final: ["Final", "Финал"], semifinal: ["Semifinal", "Полуфинал"], quarterfinal: ["Quarterfinal", "Четвертьфинал"],
+  grand_final: ["Grand final", "Гранд-финал"], upper_final: ["Upper final", "Финал верхней сетки"],
+  upper_semifinal: ["Upper semifinal", "Полуфинал верхней сетки"], lower_final: ["Lower final", "Финал нижней сетки"],
+  third_place: ["Third place match", "Матч за 3-е место"],
+};
+
+// A stream match's stage from its bracket code (api/app/services/stream.py bracket_stage).
+function stageLabel(code: string, t: (en: string, ru: string) => string) {
+  if (STAGES[code]) return t(...STAGES[code]);
+  const [kind, value] = code.split(":");
+  switch (kind) {
+    case "of": return t(`Round of ${Number(value) * 2}`, `1/${value} финала`);
+    case "upper": return t(`Upper bracket, round ${value}`, `Верхняя сетка, раунд ${value}`);
+    case "lower": return t(`Lower bracket, round ${value}`, `Нижняя сетка, раунд ${value}`);
+    case "group": return value ? t(`Group ${value}`, `Группа ${value}`) : t("Groups", "Группы");
+    case "round": return t(`Round ${value}`, `Раунд ${value}`);
+    default: return code;
+  }
+}
 
 function readPicked() {
   try { return localStorage.getItem(PICKED_EVENT); } catch { return null; }
@@ -234,6 +257,8 @@ function samePair(a: [string, string], b: [string, string]) {
 function TodaysMatches() {
   const [items, setItems] = useState<ScheduledMatch[] | null>(null);
   const [streams, setStreams] = useState<StreamDay[]>([]);
+  // On air now, for the player under the matches
+  const [onAir, setOnAir] = useState<LiveStream[]>([]);
   const { t, locale } = useLang();
   const user = useCurrentUser();
   const editor = user ? PLAYER_EDITOR_ROLES.includes(user.role) : false;
@@ -244,6 +269,7 @@ function TodaysMatches() {
       const [start, end] = localDay();
       listScheduled(start, end, controller.signal).then(setItems).catch(() => { if (!controller.signal.aborted) setItems([]); });
       streamMatches(start, end, controller.signal).then(setStreams).catch(() => {});
+      fetchLiveStreams(controller.signal).then(setOnAir).catch(() => {});
     };
     load();
     // The API reads the channels and Twitch every minute
@@ -257,6 +283,16 @@ function TodaysMatches() {
       {p.id ? <Link to={`/player/${p.id}`} className={`gitv-row-link${won ? " gitv-winner" : ""}`}>{p.name}</Link>
         : <span className={won ? "gitv-winner" : undefined}>{p.name}</span>}
       {p.elo != null && <EloBadge rating={p.elo} rank={p.elo_rank} tier={p.elo_tier} active={p.elo_active} />}
+      {!!p.members?.length && (
+        <small className="gitv-team-members">
+          {p.members.map((m, i) => (
+            <Fragment key={i}>
+              {i > 0 && " & "}
+              {m.id ? <Link to={`/player/${m.id}`} className="gitv-row-link">{m.name}</Link> : m.name}
+            </Fragment>
+          ))}
+        </small>
+      )}
     </>
   );
   const onStream = streams.flatMap((s) => s.matches);
@@ -286,7 +322,7 @@ function TodaysMatches() {
               <div className="gitv-matchline"><span>{player(m.player2, m.winner === 1)}</span>
                 {(m.live_at ?? m.starts_at) && <b>{time((m.live_at ?? m.starts_at)!)}</b>}</div>
               <small className="gitv-champion-tournament">
-                {m.tournament_title}{m.casters && m.casters !== stream.casters && ` · ${t("casters", "ведут")} ${m.casters}`}
+                {m.tournament_title}{m.stage && ` · ${stageLabel(m.stage, t)}`}{m.casters && m.casters !== stream.casters && ` · ${t("casters", "ведут")} ${m.casters}`}
               </small>
             </div>
           ))}
@@ -302,6 +338,7 @@ function TodaysMatches() {
               <small className="gitv-champion-tournament">{m.tournament_title}</small>
             </div>
           ))}
+      {onAir.length > 0 && <TwitchPlayer streams={onAir} className="gitv-twitch" />}
       {editor && <div className="gitv-foot"><Link to="/schedule" className="gitv-row-link">{t("Schedule matches", "Назначить матчи")}</Link></div>}
     </Card>
   );

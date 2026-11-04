@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from app.models import ChallongeBracket, ChallongeTournament, Tournament, TournamentInfo
+from app.models import Agent, ChallongeBracket, ChallongeTournament, Tournament, TournamentInfo
 from app.services.challonge import bracket_from_store
 from app.services.challonge_check import find_issues
 from app.services.challonge_import import estimate_date, slug_of
@@ -17,7 +17,7 @@ from app.services.stats import (
     tournament_standings,
     tournament_table,
 )
-from app.services.stats.snapshot import games_won, restrict
+from app.services.stats.snapshot import build, games_won, restrict
 
 from .challonge_data import m, store
 from .test_stats import START, World
@@ -292,3 +292,67 @@ def test_offsite_player_gets_bracket_names(world):
     inv = snap.players["offsite-inv"]
     assert inv.name == "Invinsik" and tid in inv.tournaments and not inv.games
     assert [o for o, _ in inv.matches.values()] == ["W"]
+
+
+def site_bracket(w: World, tid: str, matches, url="https://challonge.com/hoth_w99", groups=None):
+    data = store(matches)
+    if groups:
+        data["groups"] = [{"name": name, "matches_by_round": {"1": ms}} for name, ms in groups.items()]
+    w.s.add(TournamentInfo(tournament_id=tid, is_finished=True, challonge_url=url))
+    w.s.add(ChallongeBracket(tournament_id=tid, url=url, raw=json.dumps(data), fetched_at=datetime.now(UTC)))
+
+
+def test_a_site_tournaments_bracket_matches_without_drafts_count(world):
+    """A no-show's technical loss nobody drafted for is only on Challonge: it counts for records and Elo."""
+    from app.models import ChallongeAlias
+    from app.services.stats.elo import elo_ratings
+
+    site_players(world, "C", "Z")
+    world.s.add(ChallongeAlias(name="c", user_id="C", created_at=datetime.now(UTC)))
+    tid = world.tournament("HotH: Abyss Weekend 99")
+    world.win(tid, "A", "B")
+    site_bracket(world, tid, [m(1, "A", "C", "A", (1, 0)), m(1, "B", "D", "B", (1, 0)), m(2, "A", "B", "A", (2, 0))])
+    snap = world.snap()
+    mids = [mid for mid, t in snap.match_tournament.items() if t == tid]
+    assert len(mids) == 3  # the stored final once, and the two first-round matches from the bracket
+    tech = next(mid for mid in mids if frozenset(snap.match_sides[mid]) == frozenset("AC"))
+    assert snap.players["C"].matches[tech] == ("L", False) and snap.players["A"].matches[tech] == ("W", False)
+    assert tech in {s.match_id for s in elo_ratings(world.s, snap)["C"].history}
+
+
+def test_a_bracket_shared_by_site_tournaments_or_their_own_group_stage_is_not_added(world):
+    # A qualifier's groups as tournaments of their own, on one bracket: neither gets the whole bracket
+    groups = [world.tournament(f"Qualification Stage Group {g}") for g in "AB"]
+    world.win(groups[0], "A", "B")
+    world.win(groups[1], "C", "D")
+    for tid in groups:
+        site_bracket(
+            world, tid, [m(1, "A", "B", "A"), m(1, "C", "D", "C"), m(1, "A", "E", "A")], url="https://challonge.com/q"
+        )
+    # A play-off whose bracket carries the league played as tournaments of its own
+    league = world.tournament("Casual League [Round 1]")
+    world.win(league, "E", "F")
+    playoff = world.tournament("Casual League Play-Off")
+    world.win(playoff, "E", "F")
+    site_bracket(
+        world, playoff, [m(1, "E", "F", "E")], url="https://challonge.com/cl", groups={"Group A": [m(1, "F", "E", "F")]}
+    )
+    snap = world.snap()
+    for tid in [*groups, playoff]:
+        assert sum(1 for t in snap.match_tournament.values() if t == tid) == 1
+
+
+def test_snapshot_outlives_the_session_that_built_it(session):
+    """The cached snapshot's rows stay readable after that session's commit (a sync's, an import's) and close."""
+    session.add(Agent(id="furina", name_en="Furina"))
+    session.add(
+        ChallongeTournament(
+            tournament_id="ch-1", url="https://challonge.com/x", started_at=START, team=False, created_at=START
+        )
+    )
+    session.commit()
+    snap = build(session, ())
+    session.commit()
+    session.close()
+    assert snap.agents["furina"].name_en == "Furina"
+    assert snap.challonge_only["ch-1"].url == "https://challonge.com/x"

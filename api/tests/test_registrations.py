@@ -6,7 +6,7 @@ from sqlmodel import select
 
 from app.models import NewsItem
 from app.services.registrations import deadline, ends_at, is_registration, news_text, store_registrations
-from app.services.stream import Post, Stream
+from app.services.stream import MOSCOW, Post, Stream
 
 HOTH = Stream("hoth_abyss", "abyss_hoth", "House of the Hearth")
 CUP = Stream("abysscup", "abyss__cup", "Abyss Cup")
@@ -90,7 +90,8 @@ def test_the_item_leaves_when_the_tournament_starts(session):
     named = Post(4, at, "Регистрация на New Gen All-Star\nПодать заявку можно до 3 ноября 19:00 МСК", [])
     assert deadline(named) == datetime(2026, 11, 3).date()
 
-    soon, later = (datetime.now(UTC) + timedelta(days=d) for d in (1, 3))
+    # Days in Moscow, as ends_at reads them: by UTC's "tomorrow" the tournament has started for three hours a day
+    soon, later = (datetime.now(MOSCOW) + timedelta(days=d) for d in (1, 3))
     posts = [
         post(f"Открываем регистрацию на HotH: Abyss Weekend 2x2\nДаты турнира - {soon:%d.%m}", 2, pid=20),
         post("Открываем регистрацию на HotH: Abyss Weekend 2x2", 1, pid=21),  # no dates: the earlier post's

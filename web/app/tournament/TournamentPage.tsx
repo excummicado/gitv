@@ -7,9 +7,11 @@ import { MatchRow } from "../match/MatchesPage";
 import { fetchLiveMatches, fetchMatchesByTournament, type LiveMatch, type MatchSummary } from "../match/api";
 import { LiveMatchRow } from "../match/LiveMatches";
 import { useLang } from "../i18n";
-import { fetchTournament, type BracketRound, type BracketSide, type PoolCharacter, type PoolPlayer, type TableRow, type TournamentDetail } from "./api";
+import { fetchTournament, type TournamentLink, type BracketRound, type BracketSide, type PoolCharacter, type PoolPlayer, type TableRow, type TournamentDetail } from "./api";
 import { DateRange, KIND_LABELS, Prize } from "./common";
 import { TournamentAbyssBox } from "../abyss/TournamentAbyss";
+import { TwitchPlayer } from "../components/TwitchPlayer";
+import { fetchLiveStreams, type LiveStream } from "../schedule/api";
 import "../character/characters.css";
 import "./tournaments.css";
 
@@ -191,6 +193,43 @@ function LiveMatches({ tournamentId }: { tournamentId: string }) {
       <p className="player-note tourney-note">{t("Games open their draft on abyss.darte.gg. Updated every few minutes.",
         "Игры открывают драфт на abyss.darte.gg. Обновляется раз в несколько минут.")}</p>
     </Box>
+  );
+}
+
+// The organizer's stream while the tournament runs and it's on air (Abyss Cup, House of the Hearth, Abyss New Gen:
+// the streams are named as their tournaments' organizers). Checked again every minute.
+function LiveStreamBox({ organizer }: { organizer: string }) {
+  const { t } = useLang();
+  const [items, setItems] = useState<LiveStream[]>([]);
+  useEffect(() => {
+    const controller = new AbortController();
+    const load = () => fetchLiveStreams(controller.signal).then(setItems).catch(() => {});
+    load();
+    const timer = setInterval(load, 60000);
+    return () => { controller.abort(); clearInterval(timer); };
+  }, []);
+  const own = items.filter((s) => s.name === organizer);
+  if (!own.length) return null;
+  return <Box title={t("On stream", "Трансляция")}><TwitchPlayer streams={own} /></Box>;
+}
+
+const LINK_LABELS: Record<Exclude<TournamentLink["kind"], "site">, [string, string]> = {
+  telegram: ["Telegram", "Telegram"], discord: ["Discord", "Discord"], twitch: ["Twitch", "Twitch"], youtube: ["YouTube", "YouTube"],
+  vk: ["VK", "VK"], boosty: ["Boosty", "Boosty"], rules: ["Regulations", "Регламент"],
+};
+
+// The tournament's links on darte.gg (socials, regulations), a site of its own by its address.
+function TournamentLinks({ links }: { links: TournamentLink[] }) {
+  const { t } = useLang();
+  if (!links.length) return null;
+  return (
+    <nav className="tourney-links" aria-label={t("Tournament links", "Ссылки турнира")}>
+      {links.map((link) => (
+        <a key={link.url} className="tourney-link" href={link.url} target="_blank" rel="noopener noreferrer">
+          {link.kind === "site" ? new URL(link.url).hostname.replace(/^www\./, "") : t(...LINK_LABELS[link.kind])} ↗
+        </a>
+      ))}
+    </nav>
   );
 }
 
@@ -399,12 +438,15 @@ export function TournamentPage({ tournamentId }: { tournamentId: string }) {
                     {tournament.system && <> · {tournament.system}</>}
                   </p>
                   <div className="player-records">
-                    <div className="player-record"><span className="player-label">{t("Players", "Игроки")}</span><span className="player-value">{tournament.players}</span></div>
+                    {tournament.teams
+                      ? <div className="player-record"><span className="player-label">{t("Teams", "Команды")}</span><span className="player-value">{tournament.teams}</span></div>
+                      : <div className="player-record"><span className="player-label">{t("Players", "Игроки")}</span><span className="player-value">{tournament.players}</span></div>}
                     <div className="player-record"><span className="player-label">{t("Matches", "Матчи")}</span><span className="player-value">{tournament.matches}</span></div>
                     {tournament.prize ? <div className="player-record"><span className="player-label">{t("Prize", "Приз")}</span><span className="player-value"><Prize prize={tournament.prize} currency={tournament.currency} /></span></div> : null}
                     {tournament.challonge_url && <div className="player-record"><span className="player-label">{t("Bracket", "Сетка")}</span>
                       <a className="player-value player-match-link" href={tournament.challonge_url} target="_blank" rel="noreferrer">Challonge ↗</a></div>}
                   </div>
+                  <TournamentLinks links={tournament.links ?? []} />
                   {top.length > 0 && (
                     <div className="match-places" aria-label={t("Top four", "Первые четыре места")}>
                       {top.map((r) => r.player.id
@@ -419,6 +461,7 @@ export function TournamentPage({ tournamentId }: { tournamentId: string }) {
                 </header>
 
                 <TournamentAbyssBox phases={tournament.abyss ?? []} />
+                {tournament.live && tournament.organizer && <LiveStreamBox organizer={tournament.organizer.name} />}
                 {tournament.live && <LiveMatches tournamentId={tournament.id} />}
 
                 <div className="player-tabs" role="tablist" style={{ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }} aria-label={t("Tournament sections", "Разделы турнира")}>

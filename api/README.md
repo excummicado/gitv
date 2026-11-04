@@ -204,6 +204,10 @@ are saved as files under `media/news` and removed with the post. A reverse proxy
 heading or line. `GET /api/v1/articles` lists them; the author or an admin removes one. The site's old `/news`
 addresses redirect to `/articles`.
 
+Each article counts its reads (`reads`): the page reports one with `POST /api/v1/articles/{id}/read` once a reader
+has had it open for 30 seconds with the tab in view, once per browser. The same address counts once per article a
+day; addresses are only held in memory for that, never stored.
+
 ### Translating articles
 
 An article can carry a translation into the other language (English <-> Russian): its importer or an admin uploads
@@ -225,8 +229,20 @@ whether each is on air and whether the stream is. A results post of a match the 
 House of the Hearth's stream is read the same way, from `HOTH_TELEGRAM_CHANNEL` (`hoth_abyss`) and
 `HOTH_TWITCH_CHANNEL` (`abyss_hoth`). Its posts differ: the morning post lists each match with its time and casters
 ("💰 A VS B — 17:00 МСК", "Комментаторы: X & Y"; "TBD VS TBD" for a match whose players come later), "Игра A VS B
-переносится на 17:30 МСК" moves one, and "Результат матча A VS B" ends it (it names no winner; a TBD match takes
-its players from it). A match counts as on air from its time until its result, while the stream is live. The
+переносится на 17:30 МСК" moves one, and "Результат матча A VS B" ends it (it names no winner). A TBD match gets
+its players when its time comes, from the Challonge bracket the post links ("Сетка турнира"): the open match that
+follows the day's matches; failing that, from its results post. Each match's stage (final, semifinal, lower
+bracket round, group, ...) is read from that bracket too and shown with it.
+
+### HotH Hub timers
+
+House of the Hearth runs its stream from HotH Hub (hoth-hub.site), which records each match's timers: per game each
+side's three room times, penalty and restarts, and who played each half. With `HOTH_HUB_KEY` (its integration key) in
+`.env`, every sync reads them (or `app.cli import-hoth-hub`, `services/hoth_hub.py`); only the timers, not the
+characters. A confirmed match the site's House of the Hearth tournament has (the same day, a player of each team,
+by name or by the site's ties between names) gets the hub's times where it has none; one it doesn't have is added to
+it as `hothhub-<id>`, one player a side as the site keeps team events. An added match the tournament site gets later
+is dropped. Test matches (not confirmed) are left out, and so is a hub tournament with no site tournament. A match counts as on air from its time until its result, while the stream is live. The
 endpoint gives one entry per stream with matches that day.
 
 Whether the stream is live comes from Twitch (`TWITCH_CHANNEL`, `abyss__cup`) when an app's keys are set:
@@ -254,6 +270,7 @@ each imported match (no cookie needed) and stores every draft's spectator link i
 
 ```bash
 venv/bin/python -m app.cli fetch-draft-actions          # after fetch-draft-links; --refresh to fetch again
+venv/bin/python -m app.cli refresh-times                # games whose times changed on the site since they were stored
 ```
 
 Opens each draft's socket (socket.io v4 at `wss://abyss.darte.gg/socket.io/draft/`, namespace `/draft`,
@@ -430,6 +447,12 @@ the site's players like any bracket's; people who aren't on the site appear in i
 link. Match pages (`/match/ch-<Challonge match id>`) show the result only. The embed page has no dates, so unless
 `--date` is given the date is estimated from the bracket's Challonge id against site tournaments' brackets (shown
 with «≈»). Team events are kept for their page and bracket only.
+
+A site tournament's bracket counts the same way for its matches the site has none of (a no-show's technical loss
+nobody drafted for, a game played elsewhere): they count for match records, head-to-heads and Elo, timed between
+the tournament's first and last stored match. Only matches with a player who has a stored match there are added,
+group matches only when one of the stored matches is a group match, and a bracket shared by several site
+tournaments (a qualifier's groups) adds nothing.
 
 ### Tournaments from a picture of their bracket
 

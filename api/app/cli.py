@@ -114,6 +114,21 @@ def fetch_actions(refresh: bool) -> None:
         print("Error:", error)
 
 
+def refresh_times(tournaments: list[str]) -> None:
+    """Compares the stored games with the site and reads again those whose times changed there."""
+    from .services.sync import refresh_tournaments
+
+    create_db_and_tables()
+    with sync_lock() as got, Session(engine) as session:
+        if not got:
+            raise SystemExit("Another sync is running (the API's background sync?); try again in a moment.")
+        ids = set(tournaments) or set(session.exec(select(Match.tournament_id)))
+        result = refresh_tournaments(session, ids)
+    print(f"Checked {len(ids)} tournaments: read {result.games} games again.")
+    for error in result.errors:
+        print("Error:", error)
+
+
 def import_names() -> None:
     create_db_and_tables()
     with Session(engine) as session:
@@ -724,6 +739,24 @@ def run_fetch_abyss(refetch: bool) -> None:
         print("Error:", error)
 
 
+def import_hoth_hub() -> None:
+    from .config import settings
+    from .services.hoth_hub import fetch_hub_matches, import_hub
+
+    if not settings.hoth_hub_key:
+        raise SystemExit("Set HOTH_HUB_KEY (HotH Hub's integration key) in .env first.")
+    create_db_and_tables()
+    with Session(engine) as session:
+        result = import_hub(session, fetch_hub_matches(settings.hoth_hub_key))
+    for hub, site in result.tournaments.items():
+        print(f"{hub} -> site tournament {site}")
+    print(f"HotH Hub: {result.added} matches added, {result.filled} given their times.")
+    for title in result.unmatched:
+        print(f"No site tournament for {title}: left out.")
+    if result.unknown_players:
+        print("Not tied to a player:", ", ".join(sorted(set(result.unknown_players))))
+
+
 def check_challonge() -> None:
     from .services.challonge_check import find_issues, print_report
 
@@ -748,6 +781,10 @@ def main() -> None:
         "fetch-draft-actions", help="Fetch every draft's bans and picks over its socket (after fetch-draft-links)"
     )
     actions_cmd.add_argument("--refresh", action="store_true", help="Fetch again for drafts already stored")
+    times_cmd = commands.add_parser(
+        "refresh-times", help="Read again the stored games whose times changed on the site (sync does it for recent ones)"
+    )
+    times_cmd.add_argument("tournaments", nargs="*", help="Tournament ids; every stored tournament without any")
     commands.add_parser("import-catalog", help="Import the site's character and weapon names")
     commands.add_parser("fetch-tournaments", help="Fetch tournament organizers, prizes and finish dates")
     challonge_cmd = commands.add_parser(
@@ -805,6 +842,7 @@ def main() -> None:
     url_cmd.add_argument("url", nargs="?", help="The Challonge bracket")
     url_cmd.add_argument("--clear", action="store_true", help="Remove the link and the stored bracket")
     commands.add_parser("check-challonge", help="List where Challonge brackets and the site's matches disagree")
+    commands.add_parser("import-hoth-hub", help="Write House of the Hearth's match timers from HotH Hub into the site")
     abyss_cmd = commands.add_parser("fetch-abyss", help="Import Spiral Abyss phases (floor 12) from alioth.wiki")
     abyss_cmd.add_argument("--refetch", action="store_true", help="Fetch every phase again")
     player_cmd = commands.add_parser("add-player", help="Add a person who played only in bracket-only tournaments")
@@ -929,8 +967,12 @@ def main() -> None:
         telegram_ocr(args.channel)
     elif args.command == "fetch-abyss":
         run_fetch_abyss(args.refetch)
+    elif args.command == "import-hoth-hub":
+        import_hoth_hub()
     elif args.command == "check-challonge":
         check_challonge()
+    elif args.command == "refresh-times":
+        refresh_times(args.tournaments)
     elif args.command == "delete-tournaments":
         if not args.ids and not args.first:
             parser.error("delete-tournaments needs tournament ids or --first N")

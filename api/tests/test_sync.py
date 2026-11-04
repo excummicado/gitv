@@ -1,3 +1,5 @@
+import json
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -6,8 +8,9 @@ from sqlmodel import select
 
 from app.database import get_session
 from app.main import app
-from app.models import DraftLink, LiveMatch, Match, TournamentInfo
+from app.models import DraftLink, DraftState, LiveMatch, Match, MatchDraft, MatchPlayer, TournamentInfo
 from app.services import sync as sync_service
+from app.services.draft_actions import refresh_times
 from app.services.roster_stats import tournament_pool
 
 
@@ -198,3 +201,109 @@ class TestLiveRosters:
         site["running"].clear()
         sync_service.poll_live(session)
         assert session.exec(select(LiveRoster)).all() == []
+
+
+class TestRefreshTimes:
+    """A game stored as soon as it was marked finished, before its last room was entered (73/63/0, then 73/63/79)."""
+
+    def stored(self, session, clear=(136, 320), source=None):
+        session.add(Match(id="m", tournament_id="t", is_official=False, created_at=datetime.now(UTC), raw="{}"))
+        session.add(MatchDraft(id="d", match_id="m", game_no=1, status="FINISHED"))
+        session.add(DraftLink(draft_id="d", match_id="m", spectator_key="k", url="u"))
+        state = {"players": [{"clearTime": 136, "clearTimeRoom1": 73, "clearTimeRoom2": 63}, {"clearTime": 320}]}
+        session.add(DraftState(draft_id="d", match_id="m", status="FINISHED", raw=json.dumps(state)))
+        for slot, name in enumerate(("peudan", "energeqc")):
+            session.add(
+                MatchPlayer(
+                    draft_id="d", match_id="m", slot=slot, full_name=name, clear_time=clear[slot], time_source=source
+                )
+            )
+        session.commit()
+
+    @staticmethod
+    def site(*clear):
+        players = [{"clearTime": c, "restarts": 0} for c in clear]
+        return [{"_id": "m", "drafts": [{"_id": "d", "status": "FINISHED", "players": players}]}]
+
+    @staticmethod
+    def socket(asked):
+        def fetch(draft_id, key):
+            asked.append(draft_id)
+            rooms = {"clearTimeRoom1": 73, "clearTimeRoom2": 63, "clearTimeRoom3": 79}
+            return {"status": "FINISHED", "players": [{"clearTime": 215, "restarts": 2, **rooms}, {"clearTime": 320}]}
+
+        return fetch
+
+    def test_a_time_entered_later_is_read_again(self, session):
+        self.stored(session)
+        asked = []
+        assert refresh_times(session, self.site(215, 320), self.socket(asked)).games == 1
+        rows = session.exec(select(MatchPlayer).order_by(MatchPlayer.slot)).all()
+        assert (rows[0].clear_time, rows[0].restarts, rows[1].clear_time) == (215, 2, 320)
+        assert json.loads(session.get(DraftState, "d").raw)["players"][0]["clearTimeRoom3"] == 79
+        assert asked == ["d"]
+
+    def test_the_stored_totals_behind_their_own_draft_data_are_read_again(self, session):
+        self.stored(session, clear=(73, 198))
+        asked = []
+        assert refresh_times(session, self.site(136, 320), self.socket(asked)).games == 1 and asked
+
+    def test_an_unchanged_game_costs_no_connection(self, session):
+        self.stored(session)
+        asked = []
+        assert refresh_times(session, self.site(136, 320), self.socket(asked)).games == 0 and not asked
+
+    def test_a_time_from_the_hub_stays_while_the_site_has_none(self, session):
+        self.stored(session, clear=(136, 320), source="hoth-hub")
+        asked = []
+        assert refresh_times(session, self.site(0, 0), self.socket(asked)).games == 0 and not asked
+        assert session.exec(select(MatchPlayer).where(MatchPlayer.slot == 0)).one().clear_time == 136
+
+    def test_the_sites_own_time_replaces_the_hubs(self, session):
+        self.stored(session, clear=(136, 320), source="hoth-hub")
+        assert refresh_times(session, self.site(215, 320), self.socket([])).games == 1
+        row = session.exec(select(MatchPlayer).where(MatchPlayer.slot == 0)).one()
+        assert (row.clear_time, row.time_source) == (215, None)
+
+    def test_a_game_that_cant_be_read_stays_for_the_next_pass(self, session):
+        self.stored(session)
+
+        def down(draft_id, key):
+            raise OSError("no connection")
+
+        result = refresh_times(session, self.site(215, 320), down)
+        assert result.games == 0 and len(result.errors) == 1
+        assert session.exec(select(MatchPlayer).where(MatchPlayer.slot == 0)).one().clear_time == 136
+
+    def test_a_match_still_being_played_is_left_alone(self, session):
+        self.stored(session)
+        matches = self.site(215, 320)
+        matches[0]["drafts"][0]["status"] = "ACTIVE"
+        asked = []
+        assert refresh_times(session, matches, self.socket(asked)).games == 0 and not asked
+
+
+def test_the_live_poll_reads_again_a_game_whose_time_changed(session, site, monkeypatch):
+    match = site_match("m1")
+    match["drafts"][0]["players"] = [{"fullName": "a", "clearTime": 136}, {"fullName": "b", "clearTime": 320}]
+    site["live1"] = [match]
+    sync_service.poll_live(session)
+    session.add(DraftLink(draft_id="m1-d1", match_id="m1", spectator_key="k", url="u"))
+    session.commit()
+
+    sync_service.poll_live(session)  # nothing changed: no connection
+    assert sync_service.poll_live(session).times == 0
+
+    match["drafts"][0]["players"][0]["clearTime"] = 215
+    fresh = {"status": "FINISHED", "players": [{"clearTime": 215}, {"clearTime": 320}]}
+    monkeypatch.setattr(sync_service, "fetch_init", lambda draft_id, key: fresh)
+    assert sync_service.poll_live(session).times == 1
+    assert session.exec(select(MatchPlayer).where(MatchPlayer.slot == 0)).one().clear_time == 215
+
+
+def test_tournaments_the_site_doesnt_have_are_not_asked_for(session, monkeypatch):
+    asked = []
+    monkeypatch.setattr("app.services.match_import.fetch_matches", lambda client, url: asked.append(url) or [])
+    site_id = "6ae9f78fa3191bfcff8339ec"
+    sync_service.refresh_tournaments(session, {"manual-abyss_cup_major_1", "challonge-afc_fast_1", site_id})
+    assert len(asked) == 1 and site_id in asked[0]

@@ -2,19 +2,24 @@
 event organizers and admins add one by importing a Word file (.docx, up to 100 MB) or a Google document link
 (services/news.py), and may attach its translation into the other language the same way; whoever imported it or an
 admin changes or removes it, with its pictures. Nothing is added automatically.
+
+Each article counts its reads: the page reports one when a reader has had it open for READ_SECONDS (count_read).
+A browser reports an article once, and the same address counts once per article per READ_WINDOW; the addresses
+are only held in memory for that (rate_limit.py), never stored.
 """
 
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from pydantic import BaseModel
 from sqlmodel import select
 
 from ..database import SessionDep
 from ..dependencies import get_current_news_writer
 from ..models import NewsPost, User
-from ..rate_limit import rate_limit
+from ..rate_limit import client_ip, limiter, rate_limit
+from ..security import CSRF_HEADER
 from ..services.news import (
     DocumentError,
     delete_pictures,
@@ -26,6 +31,9 @@ from ..services.news import (
 )
 
 router = APIRouter(prefix="/articles", tags=["articles"])
+
+READ_SECONDS = 30  # as the page waits before reporting a read (web/app/articles/ArticlesPage.tsx)
+READ_WINDOW = 24 * 3600
 
 
 class NewsOut(BaseModel):
@@ -40,6 +48,7 @@ class NewsOut(BaseModel):
     lang: str | None  # the post's: "ru" or "en"
     title_tr: str | None
     body_html_tr: str | None  # cleaned like body_html; None without a translation
+    reads: int  # readers who stayed on it at least READ_SECONDS
 
 
 def out(session: SessionDep, rows: list[NewsPost]) -> list[NewsOut]:
@@ -56,6 +65,7 @@ def out(session: SessionDep, rows: list[NewsPost]) -> list[NewsOut]:
             lang=r.lang,
             title_tr=r.title_tr,
             body_html_tr=r.body_html_tr,
+            reads=r.reads or 0,
         )
         for r in rows
     ]
@@ -101,6 +111,26 @@ def read_news(news_id: int, session: SessionDep):
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such article.")
     return out(session, [row])[0]
+
+
+class ReadsOut(BaseModel):
+    reads: int
+
+
+@router.post("/{news_id}/read", response_model=ReadsOut, dependencies=[Depends(rate_limit("article-read", 60, 3600))])
+def count_read(news_id: int, request: Request, session: SessionDep):
+    """A reader has had the article open for READ_SECONDS: one more read, unless this address was counted for it in
+    the last READ_WINDOW. Anyone may report it, from the site's own pages (its request header)."""
+    if request.headers.get(CSRF_HEADER) != "1":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Missing the site's request header.")
+    row = session.get(NewsPost, news_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such article.")
+    if not limiter.hit(("article-read", client_ip(request), news_id), 1, READ_WINDOW):
+        row.reads = (row.reads or 0) + 1
+        session.add(row)
+        session.commit()
+    return {"reads": row.reads or 0}
 
 
 @router.post(

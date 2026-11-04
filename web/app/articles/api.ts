@@ -9,7 +9,11 @@ export type Article = {
   id: number; title: string; body_html: string; source: string; author: string; imported_by: string; created_at: string;
   // A translation into the other language, uploaded by hand: the post's language and the translated title and body
   lang: "ru" | "en" | null; title_tr: string | null; body_html_tr: string | null;
+  reads: number; // readers who stayed on it at least READ_SECONDS
 };
+
+// How long the article must be open (and its tab visible) before it counts as read (as the API's READ_SECONDS).
+export const READ_SECONDS = 30;
 
 // The post in the reader's language when it's been translated into it, else as written.
 export function inLang(post: Article, lang: string) {
@@ -48,6 +52,16 @@ export function setTranslation(id: number, input: { file?: File; googleUrl?: str
 
 export function deleteTranslation(id: number) {
   return authRequest<null>("DELETE", `/articles/${id}/translation`);
+}
+
+// Reports a read (no sign-in needed); the article's count after it, or null when it couldn't be reported.
+export async function reportRead(id: number): Promise<number | null> {
+  try {
+    const r = await fetch(`/api/v1/articles/${id}/read`, { method: "POST", headers: { "X-GITV": "1" } });
+    return r.ok ? ((await r.json()) as { reads: number }).reads : null;
+  } catch {
+    return null;
+  }
 }
 
 export function deleteArticle(id: number) {

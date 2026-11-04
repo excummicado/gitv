@@ -83,6 +83,12 @@
 .chars-table-row.is-clickable { cursor: pointer; }
 .chars-table-row.is-clickable:hover, .chars-table-row.is-open { background: var(--gitv-surface-hover); }
 .chars-table-row.is-clickable:focus-visible { outline: 1px solid var(--gitv-accent); outline-offset: -1px; }
+.chars-table-name { display: flex; align-items: center; gap: 7px; min-width: 0; }
+/* The disclosure arrow: points right, down when the row is open. */
+.chars-expand { flex: none; width: 7px; height: 7px; margin-left: 1px; border-right: 2px solid var(--gitv-accent); border-bottom: 2px solid var(--gitv-accent); transform: rotate(-45deg); transition: transform .15s; }
+.chars-table-row.is-open .chars-expand { transform: rotate(45deg); }
+.chars-table-row.is-clickable:hover .chars-expand { border-color: var(--gitv-text); }
+.chars-open-tip { display: flex; align-items: center; gap: 8px; margin: 0; padding: 7px 14px; border-bottom: 1px solid var(--gitv-border); color: var(--gitv-muted); font-size: 12px; }
 .chars-cons-panel { padding: 8px 14px 12px 54px; background: var(--gitv-surface); border-top: 1px solid var(--gitv-border); }
 .chars-cons-panel-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; font-size: 12px; color: var(--gitv-text); }
 .chars-cons-panel-head .player-label { font-size: 11px; }

@@ -121,6 +121,19 @@ def test_import_list_and_remove(writer):
     assert writer.get("/api/v1/articles").json() == []
 
 
+def test_reads_are_counted_once_per_reader(writer):
+    files = {"file": ("news.docx", docx([p("Анонс")]), "application/octet-stream")}
+    article = writer.post("/api/v1/articles", files=files).json()
+    assert article["reads"] == 0
+    anyone = TestClient(app)  # no sign-in needed
+    url = f"/api/v1/articles/{article['id']}/read"
+    assert anyone.post(url).status_code == 403  # not from the site's pages
+    assert anyone.post(url, headers={"X-GITV": "1"}).json() == {"reads": 1}
+    assert anyone.post(url, headers={"X-GITV": "1"}).json() == {"reads": 1}  # the same address again: not counted
+    assert writer.get(f"/api/v1/articles/{article['id']}").json()["reads"] == 1
+    assert anyone.post("/api/v1/articles/999/read", headers={"X-GITV": "1"}).status_code == 404
+
+
 def test_only_news_roles():
     assert Role.writer.can_write_news and Role.event_organizer.can_write_news and Role.admin.can_write_news
     assert not Role.user.can_write_news

@@ -300,6 +300,13 @@ def test_player_stats_since_a_date(client, session):
     r = client.get("/api/v1/players/A?since=2026-09-01")
     assert r.status_code == 404 and "since" in r.json()["detail"]
 
+    # The comparison carries each side's Elo, like the player page
+    compared = client.get("/api/v1/players/A/compare/B")
+    assert compared.status_code == 200
+    assert [p["elo"]["rating"] for p in compared.json()["players"]] == [
+        client.get(f"/api/v1/players/{p}").json()["elo"]["rating"] for p in "AB"
+    ]
+
 
 def test_characters_exclude_organizer(client, session):
     import importlib

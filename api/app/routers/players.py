@@ -688,6 +688,7 @@ def compare_players(player_id: str, other_id: str, session: SessionDep, scope: S
         if pid not in everything.players:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such player.")
     snap = snapshot(session, scope)
+    elo = elo_ratings(session, everything)
 
     def side(pid: str) -> dict | None:
         pd = snap.players.get(pid)
@@ -697,6 +698,7 @@ def compare_players(player_id: str, other_id: str, session: SessionDep, scope: S
         places = [f["place"] for f in data["finishes"]]
         return {
             **data,
+            "elo": elo_info(elo.get(pid)),
             "tournament_wins": places.count(1),
             "finals": places.count(2),
             "top_four": len(places),

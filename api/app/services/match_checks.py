@@ -93,9 +93,26 @@ GROUP_STAGE = re.compile(r"\bgroups?\b|\bswiss\b|\bquals?\b|qualification|\[roun
 CAPS_WORD = re.compile(r"(?<![^\W\d_])[^\W\d_]{3,}(?![^\W\d_])")
 
 
+# Small words a title written all in lowercase keeps lowercase (unless it starts with one)
+MINOR_WORDS = {"of", "the", "and", "in", "on", "at", "for", "vs", "и", "в", "на", "от", "для"}
+
+
 def tidy_title(title: str) -> str:
-    """A tournament title with words written in capitals capitalized: "ABYSS FAST SOUP 5" -> "Abyss Fast Soup 5",
-    "REVERSE CUP [ROUND 1]" -> "Reverse Cup [Round 1]". Mixed-case words (HotH) and short ones (2x2) stay."""
+    """A tournament title written all in capitals or all in lowercase, capitalized: "NOVICHOK CUP" and "novichok cup"
+    -> "Novichok Cup", "CUP OF THE HEARTH" -> "Cup of the Hearth" (small words stay small but the first). In a mixed one
+    only the words in capitals: "Abyss Ascend League [ROUND 1]" -> "... [Round 1]". Mixed-case words (HotH) and
+    words with digits (2x2) stay."""
+    if any(ch.isalpha() for ch in title) and title in (title.upper(), title.lower()):
+        words = re.split(r"(\W+)", title)
+        first = next((i for i, w in enumerate(words) if w.isalpha()), None)
+        return "".join(
+            w.capitalize()
+            if w.isalpha() and (i == first or w.lower() not in MINOR_WORDS)
+            else w.lower()
+            if w.isalpha()
+            else w
+            for i, w in enumerate(words)
+        )
     return CAPS_WORD.sub(lambda m: m.group().capitalize() if m.group().isupper() else m.group(), title)
 
 
@@ -165,15 +182,23 @@ def gave_up_at(r: tuple[int, ...]) -> int | None:
     return r.index(TECH_ROOM_TIME) if TECH_ROOM_TIME in r else None
 
 
+def leads_on_shared_rooms(r: tuple[int, ...], other: tuple[int, ...]) -> bool:
+    """Whether the first player is faster on the rooms both have a time for; False when they share none."""
+    shared = [(a, b) for a, b in zip(r, other, strict=False) if a > 0 and b > 0]
+    return bool(shared) and sum(a for a, _ in shared) < sum(b for _, b in shared)
+
+
 def technical_loser(
     statuses: list[str | None],
     restarts: list[int],
     gave_up: list[int | None] | None = None,
     played: list[int] | None = None,
+    ahead: list[bool] | None = None,
 ) -> tuple[int | None, str | None]:
     """The technical defeat goes to whoever entered 300 s from some room to the end; else to whoever left their time out
-    while the other has it; else, when neither entered it all, to whoever recorded fewer rooms (played: rooms with a
-    time), then to whoever restarted more. A negative room time
+    while the other has it, unless they lead on the rooms they did enter (ahead): that's more likely a time not entered
+    before the timer ran out than a defeat, so no result; else, when neither entered it all, to whoever recorded fewer
+    rooms (played: rooms with a time), then to whoever restarted more. A negative room time
     is a typo, not a defeat: such a game has no result."""
     if "invalid" in statuses:
         return None, None
@@ -187,6 +212,8 @@ def technical_loser(
         return None, None
     missing = [i for i, s in enumerate(statuses) if s == "missing"]
     if len(missing) == 1:
+        if ahead and ahead[missing[0]]:
+            return None, None
         return missing[0], "не записал время"
     if len(missing) == 2 and played and played[0] != played[1]:
         return (0 if played[0] < played[1] else 1), "оба не записали, сыграл меньше комнат"
@@ -234,6 +261,7 @@ def technical_game(players: list[MatchPlayer], rooms: dict[int, tuple[int, ...] 
         [p.restarts for p in dp],
         [gave_up_at(rooms[p.slot]) for p in dp],
         [sum(1 for t in rooms[p.slot] if t > 0) for p in dp],
+        [leads_on_shared_rooms(rooms[dp[i].slot], rooms[dp[1 - i].slot]) for i in range(2)],
     )
     return TechnicalGame(reasons, loser, rule)
 

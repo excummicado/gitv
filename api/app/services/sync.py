@@ -12,6 +12,10 @@ site can send people to a draft being played on the tournament site. It also
 reads their Challonge brackets until the final has a winner: until then the tournament has no places or winner
 (stats.Snapshot.live), from then on it shows as finished even before the site says so.
 
+Players enter their times after a game is marked finished, so a stored game can be behind the site: each live poll
+compares the running tournaments' matches with what's stored, and each sync those of the tournaments set up in the
+last RECHECK, and reads again the games that differ (draft_actions.refresh_times).
+
 Apart from the live poll's matches, nothing here may hit the site on its own more than once an hour
 (MIN_INTERVAL): the background sync, the `sync --watch` loop and the cached list of running tournaments all
 use it as their floor.
@@ -20,23 +24,25 @@ use it as their floor.
 import fcntl
 import json
 import logging
+import re
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import httpx
 import websocket
 from sqlmodel import Session, delete, select
 
-from ..models import IgnoredTournament, LiveMatch, LiveRoster, MatchPlayer, Tournament, TournamentInfo
+from ..models import IgnoredTournament, LiveMatch, LiveRoster, Match, MatchPlayer, Tournament, TournamentInfo
 from . import match_import
 from .abyss import maybe_fetch_abyss
 from .challonge import challonge_link, fetch_challonge
-from .draft_actions import fetch_draft_actions, fetch_init
+from .draft_actions import TimesResult, fetch_draft_actions, fetch_init, refresh_times
 from .draft_links import fetch_draft_links, fetch_match
 from .draft_systems import fetch_draft_systems
+from .hoth_hub import sync_hub
 from .match_checks import tidy_title
 from .match_import import ImportResult, import_from_urls, import_matches, is_finished, parse_date
 from .rosters import build_rosters
@@ -54,6 +60,8 @@ MIN_INTERVAL = 3600
 LIVE_INTERVAL = 300
 # The rosters in a live match's drafts (the draft socket, one connection per match) are read again at most this often.
 LIVE_ROSTER_INTERVAL = 3600
+# How long after a match was set up its times are still compared with the site, once a tournament no longer runs.
+RECHECK = timedelta(days=3)
 LOCK_FILE = Path(__file__).resolve().parents[2] / ".sync.lock"
 # When the site was last asked, kept on disk so API restarts (every code change in dev) don't reset the clock.
 STATE_FILE = Path(__file__).resolve().parents[2] / ".sync-state.json"
@@ -73,6 +81,7 @@ def write_state(**changes) -> None:
 
 
 MATCHES_URL = API + "/draft_sets/tournament?skip=0&tournament={id}"
+SITE_ID = re.compile(r"[0-9a-f]{24}")
 
 
 @dataclass
@@ -81,7 +90,26 @@ class SyncResult:
     matches_saved: int = 0
     draft_links: int = 0
     drafts: int = 0
+    times: int = 0  # stored games read again because their times changed on the site
     errors: list[str] = field(default_factory=list)
+
+
+def refresh_tournaments(session: Session, tournament_ids: set[str]) -> TimesResult:
+    """Compares these tournaments' stored games with the site, one request per tournament."""
+    result = TimesResult()
+    with httpx.Client(headers={"Accept": "application/json"}, timeout=60) as client:
+        for tid in sorted(tournament_ids):
+            if not SITE_ID.fullmatch(tid):
+                continue  # entered by hand or from a bracket (manual-..., challonge-...): the site doesn't have it
+            try:
+                matches = match_import.fetch_matches(client, MATCHES_URL.format(id=tid))
+            except (httpx.HTTPError, ValueError) as e:
+                result.errors.append(f"{tid}: {e}")
+                continue
+            done = refresh_times(session, matches, fetch_init)
+            result.games += done.games
+            result.errors += done.errors
+    return result
 
 
 def site_tournaments(client: httpx.Client, finished: bool) -> list[dict]:
@@ -114,6 +142,20 @@ def sync(session: Session, cookie: str | None = None) -> SyncResult:
         fetch_tournament_info(session)
         # Their Challonge brackets, once each: the source of results and places.
         result.errors += fetch_challonge(session).errors
+    # Times entered since the games were stored
+    since = datetime.now(UTC) - RECHECK
+    recent = set(session.exec(select(Match.tournament_id).where(Match.created_at >= since)))
+    times = refresh_tournaments(session, recent)
+    result.times = times.games
+    result.errors += times.errors
+    # House of the Hearth's timers from HotH Hub, when its key is set.
+    try:
+        hub = sync_hub(session)
+        if hub and hub.unmatched:
+            result.errors.append(f"hoth hub: no site tournament for {', '.join(hub.unmatched)}")
+    except (httpx.HTTPError, ValueError, KeyError) as e:
+        session.rollback()
+        result.errors.append(f"hoth hub: {e}")
     # New Spiral Abyss phases from alioth.wiki, at most once a day.
     try:
         abyss = maybe_fetch_abyss(session)
@@ -167,6 +209,10 @@ def poll_live(session: Session) -> SyncResult:
         import_matches(session, [m for ms in fetched.values() for m in ms], imported, only_new=True)
         result.matches_saved = imported.saved
         update_live_matches(session, client, running, fetched)
+    # Times entered since the games were stored
+    times = refresh_times(session, [m for ms in fetched.values() for m in ms], fetch_init)
+    result.times = times.games
+    result.errors += times.errors
     if not running:
         return result
     if imported.saved:
@@ -361,12 +407,13 @@ def poll_live_once(engine) -> SyncResult | None:
         write_state(last_live_poll=time.time())
         with Session(engine) as session:
             result = poll_live(session)
-    if result.matches_saved:
+    if result.matches_saved or result.times:
         log.info(
-            "live poll: %d matches, %d draft links, %d drafts%s",
+            "live poll: %d matches, %d draft links, %d drafts, %d games' times changed%s",
             result.matches_saved,
             result.draft_links,
             result.drafts,
+            result.times,
             f"; new: {', '.join(result.imported)}" if result.imported else "",
         )
     for error in result.errors:

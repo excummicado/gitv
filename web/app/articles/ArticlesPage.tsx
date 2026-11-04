@@ -5,7 +5,7 @@ import { Brand } from "../components/Brand";
 import { useAuth } from "../auth/useCurrentUser";
 import { STAFF_ROLES } from "../auth/client";
 import { useLang } from "../i18n";
-import { deleteArticle, deleteTranslation, excerpt, importArticle, inLang, listArticles, NEWS_WRITER_ROLES, readArticle, setTranslation, type Article } from "./api";
+import { deleteArticle, deleteTranslation, excerpt, importArticle, inLang, listArticles, NEWS_WRITER_ROLES, READ_SECONDS, readArticle, reportRead, setTranslation, type Article } from "./api";
 import "./articles.css";
 
 function Frame({ children }: { children: React.ReactNode }) {
@@ -110,6 +110,31 @@ function TranslationForm({ post, onDone }: { post: Article; onDone: (post: Artic
 
 // One article. Its body is HTML the API cleaned (only text formatting, links and pictures); a long one, with
 // chapters, gets a chapter list beside it (above it on a phone).
+// Counts the article as read once it has been open READ_SECONDS with its tab in view (time in a hidden tab doesn't
+// count); once per browser per article. Calls back with the new count.
+function useReadCounter(id: number | undefined, onCounted: (reads: number) => void) {
+  useEffect(() => {
+    if (id == null) return;
+    const key = `gitv-read-${id}`;
+    try { if (localStorage.getItem(key)) return; } catch { /* storage unavailable: count anyway */ }
+    let seen = 0;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      seen += 1;
+      if (seen < READ_SECONDS) return;
+      window.clearInterval(timer);
+      try { localStorage.setItem(key, "1"); } catch { /* storage unavailable */ }
+      reportRead(id).then((reads) => { if (reads != null) onCounted(reads); });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [id]);
+}
+
+function Reads({ count: n }: { count: number }) {
+  const { count } = useLang();
+  return <span title={`${READ_SECONDS}+ s`}>{count(n, ["read", "reads"], ["прочтение", "прочтения", "прочтений"])}</span>;
+}
+
 export function ArticlePage() {
   const { articleId = "" } = useParams();
   const { user } = useAuth();
@@ -148,6 +173,8 @@ export function ArticlePage() {
     document.querySelector(`.news-toc a[href="#${active}"]`)?.scrollIntoView({ block: "nearest" });
   }, [active]);
 
+  useReadCounter(post?.id, (reads) => setPost((p) => (p ? { ...p, reads } : p)));
+
   useEffect(() => {
     const controller = new AbortController();
     readArticle(articleId, controller.signal).then(setPost).catch((err) => { if (!controller.signal.aborted) { setPost(null); setError(err instanceof Error ? err.message : ""); } });
@@ -171,7 +198,7 @@ export function ArticlePage() {
             )}
             <article className="player-box news-article">
               <h1 className="news-title">{shown!.title}</h1>
-              <p className="player-label news-meta">{date(post.created_at)} · {post.author}</p>
+              <p className="player-label news-meta">{date(post.created_at)} · {post.author} · <Reads count={post.reads} /></p>
               {post.body_html_tr != null && post.lang !== lang && (
                 <p className="news-translation">
                   {original
@@ -281,7 +308,7 @@ export function ArticlesListPage() {
               <Link to={`/articles/${p.id}`} className="gitv-row-link news-row-title">{inLang(p, lang).title}</Link>
               <p className="news-row-excerpt">{excerpt(inLang(p, lang).body)}</p>
               <span className="player-label">
-                {date(p.created_at)} · {p.author}
+                {date(p.created_at)} · {p.author} · <Reads count={p.reads} />
                 {(staff || (user && p.imported_by === user.nickname)) && (
                   <> · <button type="button" className="news-remove" onClick={() => remove(p)}>{t("Remove", "Удалить")}</button></>
                 )}

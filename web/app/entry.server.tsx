@@ -12,7 +12,7 @@ import { NonceContext } from "./nonce";
 export const streamTimeout = 5_000;
 
 // Pages load scripts only from the site (React Router's inline ones carry the nonce), pictures from the site and
-// the character icons' host, fonts from Google, and can't be framed. Production only (handleRequest): the dev
+// the character icons' host, fonts from Google, frame only Twitch's player (a stream on air), and can't be framed. Production only (handleRequest): the dev
 // server injects its own scripts.
 function securityHeaders(headers: Headers, request: Request, nonce: string) {
   headers.set(
@@ -24,6 +24,7 @@ function securityHeaders(headers: Headers, request: Request, nonce: string) {
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob: https://static.darte.gg",
       "connect-src 'self'",
+      "frame-src https://player.twitch.tv",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",

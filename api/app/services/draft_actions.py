@@ -4,9 +4,13 @@ The draft page talks socket.io v4 at /socket.io/draft, namespace /draft, authent
 and its spectator key (see draft_links). Right after joining, the server sends an "init" event with the
 whole draft: actions in order with their timers, the flow, rooms/bosses, start and finish times.
 Run fetch-draft-links first. Drafts already stored are skipped unless refresh is set.
+
+A game is marked FINISHED before its players have entered all their times, so what was stored when it finished can be
+incomplete: refresh_times compares the site's matches list with what's stored and reads again the games that differ.
 """
 
 import json
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -15,7 +19,8 @@ import certifi
 import websocket
 from sqlmodel import Session, delete, select
 
-from ..models import DraftAction, DraftLink, DraftState
+from ..models import DraftAction, DraftLink, DraftState, MatchPlayer
+from .match_import import is_finished
 
 SOCKET = "wss://abyss.darte.gg/socket.io/draft/"
 WORKERS = 8
@@ -99,6 +104,65 @@ def save_draft(session: Session, link: DraftLink, data: dict) -> int:
             )
         )
     return len(actions)
+
+
+@dataclass
+class TimesResult:
+    games: int = 0  # games whose stored times were replaced
+    errors: list[str] = field(default_factory=list)
+
+
+def times_differ(rows: dict[int, MatchPlayer], site: list[dict], raw: str | None) -> bool:
+    """Whether a game's stored players (by slot) or draft data are behind the site's matches list. A time HotH Hub
+    filled in stays while the site has none."""
+    players = [(p, site[slot]) for slot, p in rows.items() if slot < len(site)]
+    if any(p.time_source and not s.get("clearTime") for p, s in players):
+        return False
+    stored = (json.loads(raw).get("players") or []) if raw else []
+    for p, s in players:
+        clear = s.get("clearTime") or 0
+        if p.clear_time != clear or p.restarts != (s.get("restarts") or 0):
+            return True
+        if p.slot < len(stored) and "clearTime" in stored[p.slot] and (stored[p.slot]["clearTime"] or 0) != clear:
+            return True
+    return False
+
+
+def refresh_times(session: Session, matches: list[dict], fetch=fetch_init) -> TimesResult:
+    """Reads again the stored games of these matches (from the site's list, which has their totals but no room times)
+    whose times have changed on the site, over the socket: only those, so a pass costs no connection when nothing did.
+    A game that can't be read stays as it is, to be tried again on the next pass."""
+    result = TimesResult()
+    finished = [m for m in matches if is_finished(m)]
+    stored: dict[str, dict[int, MatchPlayer]] = defaultdict(dict)
+    for p in session.exec(select(MatchPlayer).where(MatchPlayer.match_id.in_([m["_id"] for m in finished]))):
+        stored[p.draft_id][p.slot] = p
+    for m in finished:
+        for d in m["drafts"]:
+            rows = stored.get(d["_id"])
+            raw = session.exec(select(DraftState.raw).where(DraftState.draft_id == d["_id"])).first()
+            if not rows or not times_differ(rows, d.get("players") or [], raw):
+                continue
+            link = session.get(DraftLink, d["_id"])
+            if link is None:
+                continue
+            try:
+                data = fetch(link.draft_id, link.spectator_key)
+            except (websocket.WebSocketException, OSError, ValueError) as e:
+                result.errors.append(f"{link.draft_id}: {e}")
+                continue
+            save_draft(session, link, data)
+            for slot, p in rows.items():
+                if slot < len(data.get("players") or []):
+                    fresh = data["players"][slot]
+                    p.clear_time = fresh.get("clearTime") or 0
+                    p.restarts = fresh.get("restarts") or 0
+                    p.clear_points = fresh.get("clearPoints") or 0
+                    p.time_source = None
+                    session.add(p)
+            result.games += 1
+    session.commit()
+    return result
 
 
 def fetch_draft_actions(session: Session, refresh: bool = False) -> ActionsResult:

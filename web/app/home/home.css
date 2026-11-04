@@ -316,3 +316,10 @@
 .gitv-badge.gitv-stream-live { background: #ef4444; color: #fff; }
 .gitv-stream-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
 .gitv-winner { color: var(--gitv-win); }
+
+/* A team's players next to its name in the matches of the day */
+.gitv-team-members { margin-left: 6px; color: var(--gitv-muted); font-size: 11px; }
+.gitv-team-members .gitv-row-link { color: var(--gitv-text-soft); }
+
+/* The stream on air, under the matches of the day */
+.gitv-twitch { border-top: 1px solid var(--gitv-border-muted); }

@@ -142,6 +142,8 @@ class MatchPlayer(SQLModel, table=True):
     restarts: int = 0
     clear_time: int = 0
     clear_points: int = 0
+    # "hoth-hub" when the time came from HotH Hub (services/hoth_hub.py), not the tournament site
+    time_source: str | None = None
 
 
 class MatchPick(SQLModel, table=True):
@@ -474,6 +476,8 @@ class NewsPost(SQLModel, table=True):
     body_html_tr: str | None = None
     created_by: uuid.UUID = Field(foreign_key="user.id")
     created_at: datetime = Field(index=True)
+    # Readers who stayed on it at least 30 seconds (routers/articles.py count_read); None counts as 0
+    reads: int | None = None
 
 
 class NewsItem(SQLModel, table=True):
@@ -511,6 +515,10 @@ class StreamMatch(SQLModel, table=True):
     stream_url: str | None = None
     casters: str | None = None
     post_url: str  # the post that announced it
+    # The day post's bracket link ("Сетка турнира", Challonge): a TBD match's players are looked up there once it starts
+    bracket_url: str | None = None
+    # Its stage in that bracket (services/stream.py bracket_stage): "final", "semifinal", "lower:2", "group:A", ...
+    stage: str | None = None
 
 
 class StreamTeam(SQLModel, table=True):

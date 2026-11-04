@@ -401,6 +401,11 @@ export function CharactersPage() {
                       {excludedNames.length > 0 && ` · ${t("without", "без")} ${excludedNames.join(", ")}`}
                     </small>
                   </h2>
+                  <p className="chars-open-tip">
+                    <span className="chars-expand" aria-hidden />
+                    {t("Click a character to see its picks, winrate and times by constellation (C0–C6).",
+                      "Нажмите на персонажа, чтобы открыть пики, винрейт и время по созвездиям (C0–C6).")}
+                  </p>
                   <div className="chars-table-row chars-table-head">
                     <span />
                     {COLUMNS.map((c) => (
@@ -419,7 +424,10 @@ export function CharactersPage() {
                       onClick={(e) => { if (!(e.target as HTMLElement).closest("a, .chars-players")) setOpenId(openId === c.character.id ? null : c.character.id); }}
                       onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) { e.preventDefault(); setOpenId(openId === c.character.id ? null : c.character.id); } }}>
                       {c.character.icon ? <img src={c.character.icon} alt="" width={30} height={30} loading="lazy" className={`chars-table-icon rarity-${c.character.rarity ?? 4}`} /> : <span className="chars-table-icon" />}
-                      <b className="player-ellipsis">{name(c.character)}</b>
+                      <span className="chars-table-name">
+                        <span className="chars-expand" aria-hidden />
+                        <b className="player-ellipsis">{name(c.character)}</b>
+                      </span>
                       <span className="chars-presence">
                         <span>{pct(c.presence)}</span>
                         <span className="chars-presence-bar" aria-hidden><span style={{ width: `${c.presence ?? 0}%` }} /></span>

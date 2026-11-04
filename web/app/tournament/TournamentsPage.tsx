@@ -151,7 +151,7 @@ export function TournamentsPage() {
                         {!stage && r.organizer && <small className="player-label">{t("by", "орг.")} <OrganizerName organizer={r.organizer} /></small>}
                       </span>
                       <span className="hide-sm">{t(...KIND_LABELS[r.kind])}</span>
-                      <span className="hide-xs">{r.players}</span>
+                      <span className="hide-xs">{r.teams ? count(r.teams, ["team", "teams"], ["команда", "команды", "команд"]) : r.players}</span>
                       <span className="hide-sm"><Prize prize={r.prize} currency={r.currency} /></span>
                       <span className="tourneys-winner">{r.winner ? <Link to={`/player/${r.winner.id}`} className="player-match-link">{r.winner.name}</Link> : "—"}</span>
                     </div>

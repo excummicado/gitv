@@ -1,0 +1,12 @@
+/* Twitch's player for a stream on air (home page's matches of the day, a running tournament's page) */
+.twitch-player { display: flex; flex-direction: column; }
+.twitch-player-pick { display: flex; overflow-x: auto; border-bottom: 1px solid var(--gitv-border-muted); scrollbar-width: none; }
+.twitch-player-pick button { flex: 1 1 0; min-width: 0; overflow: hidden; padding: 6px 8px; border: 0; background: none; color: var(--gitv-text-soft); font: inherit; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.twitch-player-pick button + button { border-left: 1px solid var(--gitv-border-muted); }
+.twitch-player-pick button:hover { color: var(--gitv-text); }
+.twitch-player-pick button[aria-pressed="true"] { color: var(--gitv-text); box-shadow: inset 0 -2px 0 var(--gitv-accent); }
+.twitch-player-pick button:focus-visible { outline: 1px solid var(--gitv-accent); outline-offset: -1px; }
+.twitch-player-frame { position: relative; aspect-ratio: 16 / 9; background: #000; }
+.twitch-player-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.twitch-player-link { align-self: flex-end; padding: 6px 12px; color: var(--gitv-text-soft); font-size: 11px; text-decoration: none; }
+.twitch-player-link:hover, .twitch-player-link:focus-visible { color: var(--gitv-text); }

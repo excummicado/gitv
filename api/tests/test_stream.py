@@ -166,6 +166,87 @@ def test_team_events_put_an_emoji_for_vs(session):
     assert rows[0].finished_at is not None and rows[1].finished_at is None
 
 
+def bracket(*matches: tuple[int, str | None, str | None, bool, tuple[int | None, int | None]]) -> dict:
+    """A Challonge TournamentStore: (identifier, player 1, player 2, decided, (prerequisite identifiers))."""
+    return {
+        "matches_by_round": {
+            "1": [
+                {
+                    "identifier": n,
+                    "player1": {"display_name": a} if a else None,
+                    "player2": {"display_name": b} if b else None,
+                    "winner_id": 1 if done else None,
+                    "state": "complete" if done else "open" if a and b else "pending",
+                    "player1_prereq_identifier": before[0],
+                    "player2_prereq_identifier": before[1],
+                }
+                for n, a, b, done, before in matches
+            ]
+        }
+    }
+
+
+def test_a_tbd_match_gets_its_players_from_the_bracket_when_it_starts(session):
+    """ "TBD VS TBD" after the day's semifinal: once its time comes, the bracket's open match that follows it,
+    spelled as the channel spells the teams ("Nod-Cryo", not the bracket's "nod-cryo")."""
+    morning = (datetime.now(UTC) - timedelta(hours=4)).replace(microsecond=0)
+    at = lambda hours: (morning + timedelta(hours=hours)).astimezone(stream.MOSCOW).strftime("%H:%M")  # noqa: E731
+    hoth = "".join(
+        [
+            post(
+                39,
+                morning - timedelta(days=1),
+                f"♾️ Gat2z1ki ♿️ Nod-Cryo — {at(-21)} МСК\n\n⬇️ Состав команд:\nNod-Cryo — Peudan &amp; Bestingo",
+                channel="hoth_abyss",
+            ),
+            post(
+                40,
+                morning,
+                f"Привет 🎃\n\n♾️ Тихони ♿️ 2z1k1 — {at(1)} МСК\n\n👩‍⚖️ TBD ♿️ TBD — {at(3)} МСК\n\n⬇️ Сетка турнира",
+                ("https://challonge.com/hoth_fast_2v2",),
+                channel="hoth_abyss",
+            ),
+        ]
+    )
+    stream.store_posts(session, "hoth_abyss", stream.parse_page(hoth))
+    final = session.exec(select(StreamMatch).where(StreamMatch.player1_name == stream.TBD)).one()
+    assert final.bracket_url == "https://challonge.com/hoth_fast_2v2"
+    store = bracket(
+        (11, "nod-cryo", "Болвансеры", True, (None, None)),
+        (12, "Тихони", "2z1k1", True, (None, None)),
+        (13, "nod-cryo", "2z1k1", False, (11, 12)),
+        (14, "Someone", "Else", False, (None, None)),  # another open match, not after the day's
+    )
+    fetched = []
+
+    def fetch(url):
+        fetched.append(url)
+        return store
+
+    # Before its time: still TBD, the bracket not even asked
+    assert stream.fill_tbd(session, "hoth_abyss", morning + timedelta(hours=2), fetch) == 0 and not fetched
+    assert stream.fill_tbd(session, "hoth_abyss", morning + timedelta(hours=3, minutes=1), fetch) == 1
+    session.refresh(final)
+    assert (final.player1_name, final.player2_name) == ("Nod-Cryo", "2z1k1")
+    # Its results post now finds it by the names
+    result = post(41, morning + timedelta(hours=4), "♾️ Результат матча Nod-Cryo ↔️ 2z1k1 ♾️", channel="hoth_abyss")
+    stream.store_posts(session, "hoth_abyss", stream.parse_page(hoth + result))
+    session.refresh(final)
+    assert final.finished_at is not None
+
+
+def test_bracket_pair_keeps_a_known_side_and_gives_up_when_unclear():
+    store = bracket(
+        (1, "Peudan", "Divizor", True, (None, None)),
+        (2, "iolwann", "Smertik", False, (None, None)),
+        (3, "Peudan", "rpyt02", False, (None, None)),
+    )
+    assert stream.bracket_pair(store, "Peudan", set()) == ("Peudan", "rpyt02")
+    assert stream.bracket_pair(store, None, set()) is None  # two open matches, neither after the day's
+    # One of them is the day's own match: the other one it is
+    assert stream.bracket_pair(store, None, {stream.team_pair("Smertik", "iolwann")}) == ("Peudan", "rpyt02")
+
+
 def test_team_rosters_come_with_their_matches(session, client):
     """The day post's "Состав команд": the stream endpoint gives each team's players."""
     morning = (datetime.now(UTC) - timedelta(hours=2)).replace(microsecond=0)
@@ -232,3 +313,65 @@ def test_live_streams_are_the_ones_on_air_by_twitch(session, client):
     assert client.get("/api/v1/schedule/live-streams").json() == [
         {"name": "House of the Hearth", "channel": "abyss_hoth", "title": "Round 2", "viewers": 262, "started_at": None}
     ]
+
+
+def test_bracket_stage_words_where_a_match_is():
+    single = bracket(
+        (1, "A", "B", True, (None, None)),
+        (2, "C", "D", True, (None, None)),
+        (3, "A", "C", False, (1, 2)),
+    )
+    for n, r in ((1, 1), (2, 1), (3, 2)):
+        single["matches_by_round"]["1"][n - 1]["round"] = r
+    assert stream.bracket_stage(single, "B", "a") == "semifinal"
+    assert stream.bracket_stage(single, "C", "A") == "final"
+    assert stream.bracket_stage(single, "A", "D") is None
+    double = {
+        "tournament": {"tournament_type": "double elimination"},
+        "matches_by_round": {
+            str(r): [{"round": r, "player1": {"display_name": a}, "player2": {"display_name": b}}]
+            for r, a, b in ((1, "A", "B"), (2, "A", "C"), (3, "A", "D"), (-1, "B", "E"), (-2, "B", "C"))
+        },
+        "third_place_match": None,
+        "groups": [
+            {
+                "name": "A",
+                "matches_by_round": {"1": [{"player1": {"display_name": "Лёха"}, "player2": {"display_name": "F"}}]},
+            }
+        ],
+    }
+    assert [
+        stream.bracket_stage(double, a, b) for a, b in (("A", "B"), ("A", "C"), ("A", "D"), ("B", "E"), ("B", "C"))
+    ] == [
+        "upper_semifinal",
+        "upper_final",
+        "grand_final",
+        "lower:1",
+        "lower_final",
+    ]
+    assert stream.bracket_stage(double, "Леха", "F") == "group:A"
+
+
+def test_stream_matches_get_their_stage_from_the_bracket(session, client):
+    morning = (datetime.now(UTC) - timedelta(hours=2)).replace(microsecond=0)
+    at = (morning + timedelta(hours=1)).astimezone(stream.MOSCOW).strftime("%H:%M")
+    text = f"♾️ Тихони ♿️ 2z1k1 — {at} МСК\n\n👩‍⚖️ TBD ♿️ TBD — {at} МСК\n\n⬇️ Сетка турнира"
+    page = post(50, morning, text, ("https://challonge.com/hoth_fast_2v2",), channel="hoth_abyss")
+    stream.store_posts(session, "hoth_abyss", stream.parse_page(page))
+    store = bracket((1, "Тихони", "2z1k1", False, (None, None)), (2, "nod-cryo", "Болвансеры", True, (None, None)))
+    store["matches_by_round"]["1"][0]["round"] = store["matches_by_round"]["1"][1]["round"] = 3
+    store["matches_by_round"]["2"] = [
+        {"identifier": 3, "round": 4, "player1_prereq_identifier": 1, "player2_prereq_identifier": 2}
+    ]
+    assert stream.fill_stages(session, "hoth_abyss", fetch=lambda url: store) == 1  # the TBD one waits for its players
+    params = {"from": (morning - timedelta(hours=1)).isoformat(), "to": (morning + timedelta(hours=5)).isoformat()}
+    (data,) = client.get("/api/v1/schedule/stream", params=params).json()
+    assert [m["stage"] for m in data["matches"]] == ["semifinal", None]
+
+
+def test_a_time_long_before_the_post_is_the_next_days():
+    evening = datetime(2026, 11, 4, 18, 4, tzinfo=UTC)  # 21:04 in Moscow
+    assert stream.moscow_time(evening, "22", "30") == datetime(2026, 11, 4, 19, 30, tzinfo=UTC)
+    assert stream.moscow_time(evening, "00", "30") == datetime(2026, 11, 4, 21, 30, tzinfo=UTC)
+    # Posted after the match began: still that day
+    assert stream.moscow_time(evening, "20", "00") == datetime(2026, 11, 4, 17, tzinfo=UTC)

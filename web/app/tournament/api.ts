@@ -10,6 +10,8 @@ export type TournamentRow = {
   id: string; title: string; kind: TournamentKind; major: boolean; organizer: Organizer | null;
   system: string | null; prize: number | null; currency: string | null; challonge_url: string | null;
   first_match: string | null; last_match: string | null; matches: number; players: number;
+  // A team event's (2x2) teams in its Challonge bracket
+  teams?: number | null;
   winner: PlayerRef | null; places_source: "challonge" | "matches" | null;
   // Played only on Challonge (matches and places, no games or drafts); its date is then usually an estimate
   challonge_only: boolean; date_estimated: boolean;
@@ -44,7 +46,11 @@ export type PoolPlayer = { id: string | null; name: string };
 export type PoolCharacter = { character: Character; owned: number; rate: number | null; constellations: number[]; holders: PoolPlayer[][] };
 // unplayed: players of a running tournament counted with the roster of a draft they haven't played yet
 export type TournamentPool = { players: number; unplayed: number; characters: PoolCharacter[] };
+// A tournament's link on the site (socials, regulations); its Challonge bracket is challonge_url
+export type TournamentLink = { kind: "telegram" | "discord" | "twitch" | "youtube" | "vk" | "boosty" | "rules" | "site"; url: string };
+
 export type TournamentDetail = TournamentRow & {
+  links: TournamentLink[];
   stages: StageRef[]; abyss: TournamentAbyss[]; table: TableRow[]; stats: TournamentStats; bracket: BracketRound[] | null; unmatched: string[];
   pool: TournamentPool;
 };
@@ -62,7 +68,7 @@ export function fetchTournament(id: string, signal?: AbortSignal) {
 // The home page banner: a running tournament, else the latest finished one.
 export type FeaturedTournament = {
   id: string; title: string; image: string | null; live: boolean; imported: boolean; date: string | null;
-  matches: number; players: number; winner: PlayerRef | null; organizer: Organizer | null;
+  matches: number; players: number; teams: number | null; winner: PlayerRef | null; organizer: Organizer | null;
 };
 
 // Every tournament the banner can show: the running ones, those with a banner first; else the latest finished one.

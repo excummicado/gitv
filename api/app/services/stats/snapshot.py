@@ -7,6 +7,8 @@ match_checks.match_outcome, Challonge first. Team events (2x2) are left out.
 
 Tournaments played only on Challonge (services.challonge_import) have no games: their bracket's decided matches
 are added as matches (ids "ch-<Challonge match id>"), so they count for match records, head-to-heads and places.
+So are the bracket matches of a site tournament that the site has no match for (a no-show's technical loss nobody
+drafted for, a game played elsewhere): Elo and match records count them too.
 """
 
 import json
@@ -143,7 +145,8 @@ def data_key(session: Session) -> tuple:
     return (
         session.exec(select(func.count(Match.id), func.max(Match.created_at))).one(),
         session.exec(select(func.count()).select_from(DraftState)).one(),
-        session.exec(select(func.count()).select_from(MatchPlayer)).one(),
+        # Times written into stored games (HotH Hub's) change no count
+        session.exec(select(func.count(), func.sum(MatchPlayer.clear_time), func.sum(MatchPlayer.restarts))).one(),
         session.exec(select(func.count()).select_from(TournamentInfo)).one(),
         session.exec(select(func.count()).select_from(TournamentInfo).where(TournamentInfo.is_finished == False)).one(),  # noqa: E712
         session.exec(select(func.count(), func.max(ChallongeBracket.fetched_at))).one(),
@@ -245,6 +248,12 @@ def restrict(base: Snapshot, only: set[str]) -> Snapshot:
     )
 
 
+def detached(row):
+    """A copy of a row tied to no session. The snapshot outlives the request that built it: a row of that session
+    would expire on its commit (a sync's, an import's), and every later read of it would raise DetachedInstanceError."""
+    return type(row)(**row.model_dump())
+
+
 def build(session: Session, key: tuple, only: set[str] | None = None) -> Snapshot:
     """only: tournament ids to count (None for all)."""
     tournaments = {t.id: t.title for t in session.exec(select(Tournament))}
@@ -341,18 +350,39 @@ def build(session: Session, key: tuple, only: set[str] | None = None) -> Snapsho
     # on the site; its bracket's matches no game was entered for still count, as matches without games.
     played = {tid for tid, *_ in matches.values()}
     rows = [c for c in session.exec(select(ChallongeTournament)) if only is None or c.tournament_id in only]
-    only_rows = {c.tournament_id: c for c in rows if c.tournament_id not in played}
+    only_rows = {c.tournament_id: detached(c) for c in rows if c.tournament_id not in played}
     entered_rows = {c.tournament_id: c for c in rows if c.tournament_id in played}
+    # Site tournaments with a bracket: its matches the site has none for, between its first and last match's times
+    # One bracket shared by several site tournaments (a qualifier's groups, each its own tournament) is left out:
+    # every group would get the whole bracket.
+    times: dict[str, list[datetime]] = defaultdict(list)
+    for tid, created, _, _ in matches.values():
+        times[tid].append(created)
+    urls = Counter(url for url in session.exec(select(ChallongeBracket.url)) if url)
+    shared = {
+        tid for tid, url in session.exec(select(ChallongeBracket.tournament_id, ChallongeBracket.url)) if urls[url] > 1
+    }
+    site_rows = {
+        tid: BracketSpan(min(times[tid]), max(times[tid]), team=False, on_site=True)
+        for tid in played
+        if tid not in entered_rows
+        and tid not in shared
+        and (only is None or tid in only)
+        and challonge.get(tid)
+        and challonge[tid].bracket
+    }
     # Each stored match, by its two players' ids and by their names (one not tied to a player has no id)
     covered: dict[str, list[tuple[frozenset[str], frozenset[str]]]] = defaultdict(list)
     names_by_match: dict[str, set[str]] = defaultdict(set)
     for p in players:
         names_by_match[p.match_id].add(normalize(p.full_name))
     for match_id, games in match_games.items():
-        if match_id in matches and matches[match_id][0] in entered_rows:
+        if match_id in matches and (matches[match_id][0] in entered_rows or matches[match_id][0] in site_rows):
             ids = frozenset(g.side for g in games)
             covered[matches[match_id][0]].append((ids, frozenset(names_by_match[match_id])))
-    challonge_matches = add_challonge_only(data, match_games, only_rows | entered_rows, challonge, tournaments, covered)
+    challonge_matches = add_challonge_only(
+        data, match_games, only_rows | entered_rows | site_rows, challonge, tournaments, covered
+    )
     pairs = {}
     for match_id, rows in match_games.items():
         sides = list(dict.fromkeys(g.side for g in rows))
@@ -391,7 +421,7 @@ def build(session: Session, key: tuple, only: set[str] | None = None) -> Snapsho
         pd.games.sort(key=lambda g: (g.created_at, g.game_no))
         pd.name = names.get(pd.id) or (pd.games[-1].name if pd.games else pd.name)
 
-    agents = {a.id: a for a in session.exec(select(Agent))}
+    agents = {a.id: detached(a) for a in session.exec(select(Agent))}
     match_info = {mid: (created, tournaments.get(tid, "")) for mid, (tid, created, _, _) in matches.items()}
     match_tournament = {mid: tid for mid, (tid, _, _, _) in matches.items()}
     for mid, cm in challonge_matches.items():
@@ -445,6 +475,16 @@ def games_won(m: BracketMatch) -> tuple[int, int]:
 
 
 @dataclass
+class BracketSpan:
+    """When a site tournament's bracket matches were played (add_challonge_only takes it for a ChallongeTournament)."""
+
+    started_at: datetime
+    ended_at: datetime | None
+    team: bool
+    on_site: bool = False  # a site tournament's: only the bracket matches its stored ones leave uncovered
+
+
+@dataclass
 class ChallongeOnlyMatch:
     tournament_id: str
     created_at: datetime  # synthetic, see ROUND_STEP
@@ -456,10 +496,17 @@ class ChallongeOnlyMatch:
     round: int
 
 
+def is_stored(stored: tuple[frozenset[str], frozenset[str]], m: BracketMatch, ids: dict[str, str]) -> bool:
+    """Whether a stored match (its players' ids, their normalized names) is the bracket match m."""
+    return stored[0] == frozenset((ids.get(m.player1), ids.get(m.player2))) or stored[1] == frozenset(
+        (normalize(m.player1), normalize(m.player2))
+    )
+
+
 def add_challonge_only(
     data: dict[str, PlayerData],
     match_games: dict[str, list[SideGame]],
-    only_rows: dict[str, ChallongeTournament],
+    only_rows: dict[str, ChallongeTournament | BracketSpan],
     challonge: dict[str, ChallongeResult],
     tournaments: dict[str, str],
     covered: dict[str, list[tuple[frozenset[str], frozenset[str]]]] | None = None,
@@ -483,12 +530,40 @@ def add_challonge_only(
         if row.ended_at and len(steps) > 1:
             end = row.ended_at if row.ended_at.tzinfo else row.ended_at.replace(tzinfo=UTC)
             step = max(end - start, timedelta(0)) / (len(steps) - 1)
+        on_site = getattr(row, "on_site", False)
+        # Who played the site's matches of it: one of them in every bracket match added (a no-show's technical
+        # loss to someone who came)
+        entrants = {p for ids, _ in left.get(tid, []) for p in ids}
+
+        # A group stage the site keeps as tournaments of its own (a league's rounds before its play-off) isn't this
+        # one's: its group matches count only when a stored match here is one of them, not a bracket match's
+        rest = list(left.get(tid, []))
+        for m in decided:
+            if not m.group and (hit := next((p for p in rest if is_stored(p, m, ch.ids)), None)):
+                rest.remove(hit)
+        groups_here = any(m.group and any(is_stored(p, m, ch.ids) for p in rest) for m in decided)
+        if on_site:
+            # Matches between players the site knows first: a name tied to no one may be a stored match's player
+            # under another spelling, so such a match is added only once every stored match is accounted for
+            decided.sort(key=lambda m: not (m.player1 in ch.ids and m.player2 in ch.ids))
         for m in decided:
             a = ch.ids.get(m.player1) or f"?{m.player1}"
             b = ch.ids.get(m.player2) or f"?{m.player2}"
             if a == b:
                 continue
             done = left.get(tid, [])
+            if on_site and (a not in entrants and b not in entrants or m.group and not groups_here):
+                continue
+            if (
+                on_site
+                and done
+                and (a.startswith("?") or b.startswith("?"))
+                and not any(
+                    p[0] == frozenset((a, b)) or p[1] == frozenset((normalize(m.player1), normalize(m.player2)))
+                    for p in done
+                )
+            ):
+                continue
             names = frozenset((normalize(m.player1), normalize(m.player2)))
             same = next((pair for pair in done if pair[0] == frozenset((a, b)) or pair[1] == names), None)
             if same:
