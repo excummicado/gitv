@@ -99,6 +99,13 @@ def chapters(body: str) -> str:
     return HEADING.sub(lambda m: f'<{m[1]} id="ch-{next(count)}">{m[2]}</{m[1]}>', body)
 
 
+def brief(body: str, limit: int = 400) -> str:
+    """The start of a cleaned body as text, for a list's excerpt: a list needn't carry whole articles. Still escaped,
+    as body_html is shown as HTML."""
+    text = " ".join(html.unescape(re.sub(r"<[^>]+>", " ", body)).split())
+    return html.escape(text[:limit], quote=False)
+
+
 def docx_to_html(doc: BinaryIO) -> tuple[str, str, list[str]]:
     """(title found in it, cleaned HTML body, its pictures' paths under MEDIA_DIR) of a .docx file. Each picture
     is checked by its bytes (PNG, JPEG, GIF or WebP; others, like Word's vector drawings, are left out) and saved as a

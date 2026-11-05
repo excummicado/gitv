@@ -52,6 +52,7 @@ from ..services.stats import (
     snapshot,
     tournament_standings,
 )
+from ..services.stats.elo import live_weights
 from ..services.sync import live_tournaments
 from .abyss import current_id, phases
 
@@ -513,8 +514,8 @@ class LiveTournament(BaseModel):
 
 @router.get("/live-tournaments", response_model=list[LiveTournament])
 def list_live_tournaments(session: SessionDep):
-    """Tournaments running on the site now (from its public list, asked for at most once an hour), newest first;
-    not those whose final already has a winner on Challonge."""
+    """Tournaments running on the site now (from its public list, asked for at most once an hour), the ones weighing
+    most in the Elo rating first, then the newest; not those whose final already has a winner on Challonge."""
     ignored = set(session.exec(select(IgnoredTournament.tournament_id))) | snapshot(session).decided
     items = [t for t in live_tournaments() if t["_id"] not in ignored]
     counts = dict(
@@ -535,7 +536,8 @@ def list_live_tournaments(session: SessionDep):
         )
         for t in items
     ]
-    return sorted(rows, key=lambda r: r.started_at.timestamp() if r.started_at else 0, reverse=True)
+    weights = live_weights(session, items)
+    return sorted(rows, key=lambda r: (weights[r.id], r.started_at.timestamp() if r.started_at else 0), reverse=True)
 
 
 class LiveSide(BaseModel):

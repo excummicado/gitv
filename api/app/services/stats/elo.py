@@ -18,6 +18,7 @@ from sqlmodel import Session, select
 
 from ...models import TournamentInfo
 from ..challonge import normalize
+from ..match_checks import MAJOR_SYSTEM, MAJOR_TITLE
 from ..organizers import organizer_resolver
 from ..player_names import display_names
 from .snapshot import Snapshot, major_tournament_ids
@@ -87,6 +88,20 @@ def tournament_kind(title: str, organizer: str, major: bool) -> str:
 def weight(title: str, organizer: str, major: bool) -> float:
     """How much a tournament's matches move ratings."""
     return WEIGHTS[tournament_kind(title, organizer, major)]
+
+
+def live_weights(session: Session, tournaments: list[dict]) -> dict[str, float]:
+    """{id: weight} of tournaments on the site's running list, which may not be imported yet: its own fields tell."""
+    majors = major_tournament_ids(session)
+    resolve = organizer_resolver(session, display_names(session))
+    out = {}
+    for t in tournaments:
+        title = t.get("title", "")
+        system = ((t.get("system") or {}).get("main") or {}).get("title")
+        major = t["_id"] in majors or (system == MAJOR_SYSTEM and bool(MAJOR_TITLE.search(title)))
+        organizer = resolve(t.get("createdBy"), None)
+        out[t["_id"]] = weight(title, organizer.name if organizer else "", major)
+    return out
 
 
 def elo_ratings(session: Session, snap: Snapshot, now: datetime | None = None) -> dict[str, Rating]:

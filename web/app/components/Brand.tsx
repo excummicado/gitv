@@ -6,7 +6,7 @@ export function Brand() {
   return (
     <header className="gitv-brand">
       <Link to="/">
-        <img src="/Logo.jpeg" alt="" className="gitv-mark" width={58} height={58} />
+        <img src="/Logo-116.jpg" alt="" className="gitv-mark" width={58} height={58} />
         <span>GITV</span>
       </Link>
     </header>

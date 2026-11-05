@@ -192,7 +192,15 @@ class TestFeaturedTournament:
         )
         assert client.get("/api/v1/tournaments/featured").json()["image"] == "/banners/fast-soup.svg"
 
-    def test_running_tournaments_with_a_banner_come_first(self, client, session, monkeypatch):
+    def test_new_gen_all_star_has_its_banner_but_not_their_other_events(self, client, session, monkeypatch):
+        self.setup(session)
+        live = {"_id": "live1", "title": "New Gen All-Star", "image": "tiny.webp", "createdAt": "2026-06-01T10:00Z"}
+        monkeypatch.setattr("app.routers.tournaments.live_tournaments", lambda: [live])
+        assert client.get("/api/v1/tournaments/featured").json()["image"] == "/banners/new-gen-all-star.jpg"
+        monkeypatch.setattr("app.routers.tournaments.live_tournaments", lambda: [{**live, "title": "Abyss New Gen 6"}])
+        assert client.get("/api/v1/tournaments/featured").json()["image"] == "tiny.webp"
+
+    def test_running_tournaments_come_by_elo_weight_then_banner(self, client, session, monkeypatch):
         self.setup(session)
         live = [
             {"_id": "new", "title": "Novichok Cup", "image": None, "createdAt": "2026-06-03T10:00Z"},
@@ -201,11 +209,31 @@ class TestFeaturedTournament:
         ]
         monkeypatch.setattr("app.routers.tournaments.live_tournaments", lambda: live)
         items = client.get("/api/v1/tournaments/featured/all").json()
-        assert [i["id"] for i in items] == ["own", "soup", "new"]  # banners first, the newest first among each
+        # The fast cup weighs more; among the two weighing the same, the one with a banner
+        assert [i["id"] for i in items] == ["soup", "own", "new"]
         assert all(i["live"] for i in items)
-        assert client.get("/api/v1/tournaments/featured").json()["id"] == "own"
+        assert client.get("/api/v1/tournaments/featured").json()["id"] == "soup"
         monkeypatch.setattr("app.routers.tournaments.live_tournaments", lambda: [])
         assert [i["id"] for i in client.get("/api/v1/tournaments/featured/all").json()] == ["t1"]
+
+    def test_the_heaviest_running_tournament_comes_first_before_it_is_imported(self, client, session, monkeypatch):
+        from datetime import UTC, datetime
+
+        from app.models import OrganizerAlias
+
+        self.setup(session)
+        session.add(OrganizerAlias(organizer_id="org-newgen", name="Abyss New Gen", created_at=datetime.now(UTC)))
+        session.commit()
+        major = {"main": {"title": "Abyss Cup"}}
+        live = [
+            {"_id": "beer", "title": "Abyss Fast Beer 5", "image": "a.webp", "createdAt": "2026-06-05T10:00Z"},
+            {"_id": "gen", "title": "New Gen All-Star", "createdBy": "org-newgen", "createdAt": "2026-06-03T10:00Z"},
+            {"_id": "cup", "title": "Major 2 Playoff", "system": major, "createdAt": "2026-06-01T10:00Z"},
+            {"_id": "media", "title": "Abyss Cup Media", "image": "m.webp", "createdAt": "2026-06-06T10:00Z"},
+        ]
+        monkeypatch.setattr("app.routers.tournaments.live_tournaments", lambda: live)
+        items = client.get("/api/v1/tournaments/featured/all").json()
+        assert [i["id"] for i in items] == ["cup", "gen", "beer", "media"]
 
     def make_live(self, session, final_winner: str | None = None):
         """t1 still running on the site, optionally with a Challonge final A vs B that has a winner."""

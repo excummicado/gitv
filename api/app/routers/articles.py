@@ -22,6 +22,7 @@ from ..rate_limit import client_ip, limiter, rate_limit
 from ..security import CSRF_HEADER
 from ..services.news import (
     DocumentError,
+    brief,
     delete_pictures,
     docx_to_html,
     fetch_google_doc,
@@ -102,7 +103,16 @@ def editable(session: SessionDep, news_id: int, user: User) -> NewsPost:
 def list_news(session: SessionDep, limit: Annotated[int, Query(ge=1, le=50)] = 10):
     """The latest news, newest first."""
     rows = session.exec(select(NewsPost).order_by(NewsPost.created_at.desc()).limit(limit)).all()
-    return out(session, list(rows))
+    # Only the start of each text: the home page and the list show an excerpt, the article's own page loads the rest
+    return [
+        item.model_copy(
+            update={
+                "body_html": brief(item.body_html),
+                "body_html_tr": brief(item.body_html_tr) if item.body_html_tr is not None else None,
+            }
+        )
+        for item in out(session, list(rows))
+    ]
 
 
 @router.get("/{news_id}", response_model=NewsOut)

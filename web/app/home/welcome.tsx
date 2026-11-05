@@ -124,7 +124,7 @@ function readPicked() {
 }
 
 function EventSection() {
-  // Running tournaments with a banner first (GET /api/v1/tournaments/featured/all); several can be picked from
+  // Running tournaments, the ones weighing most in the Elo rating first (GET /api/v1/tournaments/featured/all); several can be picked from
   const [items, setItems] = useState<FeaturedTournament[] | null | undefined>(undefined);
   const [picked, setPicked] = useState<string | null>(null);
   const { t } = useLang();

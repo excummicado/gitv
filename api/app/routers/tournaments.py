@@ -22,6 +22,7 @@ from ..services.stats import (
     tournament_stats,
     tournament_table,
 )
+from ..services.stats.elo import live_weights
 from ..services.stream import streams
 from ..services.sync import live_tournaments
 from ..services.tournament_info import series_key
@@ -411,15 +412,17 @@ class FeaturedTournament(BaseModel):
 
 
 def featured(session: SessionDep) -> list[FeaturedTournament]:
-    """The home page banners: the running tournaments, those with a banner first, then the newest; else the latest
-    finished one alone (its banner from fetch-tournaments). The running list is the hourly-cached one, so this asks
-    the site for nothing new; a running tournament whose final has a winner on Challonge counts as finished."""
+    """The home page banners: the running tournaments, the ones weighing most in the Elo rating first, then those with
+    a banner, then the newest; else the latest finished one alone (its banner from fetch-tournaments). The running list
+    is the hourly-cached one, so this asks the site for nothing new; a running tournament whose final has a winner on
+    Challonge counts as finished."""
     ignored = set(session.exec(select(IgnoredTournament.tournament_id))) | snapshot(session).decided
     live = sorted(
         (t for t in live_tournaments() if t["_id"] not in ignored), key=lambda t: t.get("createdAt") or "", reverse=True
     )
     if live:
         found = {r.id: r for r in rows(session, [t["_id"] for t in live])}
+        weights = live_weights(session, live)
         items = []
         for t in live:
             row = found.get(t["_id"])
@@ -438,7 +441,7 @@ def featured(session: SessionDep) -> list[FeaturedTournament]:
                     organizer=row.organizer if row else None,
                 )
             )
-        return sorted(items, key=lambda i: not i.image)  # stable: the newest first among each
+        return sorted(items, key=lambda i: (-weights[i.id], not i.image))  # stable: the newest first among equals
     still_live = snapshot(session).live
     latest = next((r for r in rows(session) if r.id not in still_live), None)
     if latest is None:
@@ -463,7 +466,7 @@ def featured(session: SessionDep) -> list[FeaturedTournament]:
 
 @router.get("/featured", response_model=FeaturedTournament | None)
 def featured_tournament(session: SessionDep):
-    """The home page banner: the first of featured (a running tournament with a banner, else the newest)."""
+    """The home page banner: the first of featured (the running tournament weighing most in the Elo rating)."""
     items = featured(session)
     return items[0] if items else None
 

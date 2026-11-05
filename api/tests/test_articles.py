@@ -121,6 +121,16 @@ def test_import_list_and_remove(writer):
     assert writer.get("/api/v1/articles").json() == []
 
 
+def test_the_list_carries_only_the_start_of_an_article(writer):
+    text = "&lt;script&gt;x&lt;/script&gt; &amp; " + "слово " * 500  # as the document's XML holds them
+    files = {"file": ("long.docx", docx([p("Длинная"), p(text)]), "application/octet-stream")}
+    post = writer.post("/api/v1/articles", files=files).json()
+    listed = writer.get("/api/v1/articles").json()[0]["body_html"]
+    assert len(listed) < 500 < len(post["body_html"])
+    assert "<" not in listed and "&amp;" in listed
+    assert len(writer.get(f"/api/v1/articles/{post['id']}").json()["body_html"]) > 500
+
+
 def test_reads_are_counted_once_per_reader(writer):
     files = {"file": ("news.docx", docx([p("Анонс")]), "application/octet-stream")}
     article = writer.post("/api/v1/articles", files=files).json()
