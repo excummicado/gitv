@@ -4,6 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import func, select
 
 from ..database import SessionDep
@@ -39,6 +40,10 @@ def update_users_me(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This nickname is taken.")
     current_user.nickname = data.nickname
     session.add(current_user)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError as error:  # taken just now
+        session.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This nickname is taken.") from error
     session.refresh(current_user)
     return current_user

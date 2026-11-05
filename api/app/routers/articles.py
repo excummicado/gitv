@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Reques
 from pydantic import BaseModel
 from sqlmodel import select
 
-from ..database import SessionDep
+from ..database import RowId, SessionDep
 from ..dependencies import get_current_news_writer
 from ..models import NewsPost, User
 from ..rate_limit import client_ip, limiter, rate_limit
@@ -106,7 +106,7 @@ def list_news(session: SessionDep, limit: Annotated[int, Query(ge=1, le=50)] = 1
 
 
 @router.get("/{news_id}", response_model=NewsOut)
-def read_news(news_id: int, session: SessionDep):
+def read_news(news_id: RowId, session: SessionDep):
     row = session.get(NewsPost, news_id)
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such article.")
@@ -118,7 +118,7 @@ class ReadsOut(BaseModel):
 
 
 @router.post("/{news_id}/read", response_model=ReadsOut, dependencies=[Depends(rate_limit("article-read", 60, 3600))])
-def count_read(news_id: int, request: Request, session: SessionDep):
+def count_read(news_id: RowId, request: Request, session: SessionDep):
     """A reader has had the article open for READ_SECONDS: one more read, unless this address was counted for it in
     the last READ_WINDOW. Anyone may report it, from the site's own pages (its request header)."""
     if request.headers.get(CSRF_HEADER) != "1":
@@ -139,7 +139,7 @@ def count_read(news_id: int, request: Request, session: SessionDep):
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(rate_limit("news", 20, 3600, per="user"))],
 )
-async def add_news(
+def add_news(  # not async: converting a document takes a while, and would stop every other request meanwhile
     session: SessionDep,
     user: Annotated[User, Depends(get_current_news_writer)],
     file: Annotated[UploadFile | None, File(description="A Word document (.docx)")] = None,
@@ -171,7 +171,7 @@ async def add_news(
 
 
 @router.delete("/{news_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_news(news_id: int, session: SessionDep, user: Annotated[User, Depends(get_current_news_writer)]):
+def delete_news(news_id: RowId, session: SessionDep, user: Annotated[User, Depends(get_current_news_writer)]):
     """Its author or an admin removes a news post, with its pictures (its translation's too)."""
     row = editable(session, news_id, user)
     session.delete(row)
@@ -184,8 +184,8 @@ def delete_news(news_id: int, session: SessionDep, user: Annotated[User, Depends
     response_model=NewsOut,
     dependencies=[Depends(rate_limit("news", 20, 3600, per="user"))],
 )
-async def set_translation(
-    news_id: int,
+def set_translation(  # not async, as add_news
+    news_id: RowId,
     session: SessionDep,
     user: Annotated[User, Depends(get_current_news_writer)],
     file: Annotated[UploadFile | None, File(description="The translated document (.docx)")] = None,
@@ -214,7 +214,7 @@ async def set_translation(
 
 
 @router.delete("/{news_id}/translation", status_code=status.HTTP_204_NO_CONTENT)
-def delete_translation(news_id: int, session: SessionDep, user: Annotated[User, Depends(get_current_news_writer)]):
+def delete_translation(news_id: RowId, session: SessionDep, user: Annotated[User, Depends(get_current_news_writer)]):
     row = editable(session, news_id, user)
     old = unused_pictures(row.body_html_tr or "", row.body_html)
     row.lang = row.title_tr = row.body_html_tr = None

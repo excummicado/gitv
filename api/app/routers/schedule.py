@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlmodel import select
 
-from ..database import SessionDep
+from ..database import RowId, SessionDep
 from ..dependencies import get_current_player_editor
 from ..models import ScheduledMatch, StreamMatch, StreamStatus, StreamTeam, User
 from ..rate_limit import rate_limit
@@ -80,7 +80,10 @@ class TournamentOption(BaseModel):
 def utc(value: datetime) -> datetime:
     if value.tzinfo is None:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="The time needs a time zone.")
-    return value.astimezone(UTC)
+    try:
+        return value.astimezone(UTC)
+    except OverflowError as error:  # the first or last days a datetime can hold
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Pick another time.") from error
 
 
 def out(session: SessionDep, rows: list[ScheduledMatch]) -> list[ScheduledOut]:
@@ -328,7 +331,7 @@ def add_scheduled(data: ScheduledIn, session: SessionDep, editor: Annotated[User
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(rate_limit("schedule-delete", 120, 3600, per="user"))],
 )
-def delete_scheduled(match_id: int, session: SessionDep, editor: Annotated[User, Depends(get_current_player_editor)]):
+def delete_scheduled(match_id: RowId, session: SessionDep, editor: Annotated[User, Depends(get_current_player_editor)]):
     row = session.get(ScheduledMatch, match_id)
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such scheduled match.")

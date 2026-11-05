@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, Path
 from sqlalchemy import event
 from sqlmodel import Session, create_engine
 
@@ -30,3 +30,7 @@ def get_session():
 
 
 SessionDep = Annotated[Session, Depends(get_session)]
+
+# SQLite's integers end here: a bigger number in a request would be a server error instead of a plain refusal.
+MAX_ROW_ID = 2**63 - 1
+RowId = Annotated[int, Path(le=MAX_ROW_ID)]

@@ -29,6 +29,11 @@ def plain(body: str, limit: int = 200) -> str:
     return text if len(text) <= limit else text[: limit - 1].rsplit(" ", 1)[0] + "…"
 
 
+def row_id(id: str) -> int | None:
+    """A page's numeric id; None for anything a table's id can't be (too long, or digits int() doesn't read)."""
+    return int(id) if id.isascii() and id.isdigit() and len(id) <= 18 else None
+
+
 def percent(part: int, whole: int) -> str:
     return f"{round(100 * part / whole)}%" if whole else "—"
 
@@ -47,7 +52,7 @@ def preview(
         return rus if ru else en
 
     if kind == "article":
-        post = session.get(NewsPost, int(id)) if id.isdigit() else None
+        post = session.get(NewsPost, row_id(id)) if row_id(id) is not None else None
         if post is None:
             return None
         translated = post.body_html_tr is not None and post.lang != lang
@@ -55,7 +60,7 @@ def preview(
         return Preview(title=title, description=plain(post.body_html_tr if translated else post.body_html))
 
     if kind == "abyss":
-        phase = session.get(AbyssPhase, int(id)) if id.isdigit() else None
+        phase = session.get(AbyssPhase, row_id(id)) if row_id(id) is not None else None
         if phase is None:
             return None
         moons = [b["name"] for b in json.loads(phase.blessings) if b.get("name")]

@@ -43,8 +43,13 @@ def test_a_change_needs_the_sites_header(browser):
     assert done.status_code == 200 and done.json()["nickname"] == "cookie2"
 
 
+def test_signing_out_needs_the_sites_header(browser):
+    assert browser.post("/api/v1/auth/discord/logout").status_code == 403
+    assert browser.get("/api/v1/users/me").status_code == 200
+
+
 def test_signing_out_drops_the_cookie(browser):
-    response = browser.post("/api/v1/auth/discord/logout")
+    response = browser.post("/api/v1/auth/discord/logout", headers={"X-GITV": "1"})
     assert response.status_code == 204 and SESSION_COOKIE in response.headers["set-cookie"]
     browser.cookies.clear()
     assert browser.get("/api/v1/users/me").status_code == 401

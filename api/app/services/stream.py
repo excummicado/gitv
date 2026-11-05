@@ -526,7 +526,8 @@ def twitch_token(client: httpx.Client) -> str:
     if _token is None or _token[1] < time.time() + 60:
         r = client.post(
             TWITCH_TOKEN_URL,
-            params={
+            # In the body: httpx logs every request's URL
+            data={
                 "client_id": settings.twitch_client_id,
                 "client_secret": settings.twitch_client_secret,
                 "grant_type": "client_credentials",

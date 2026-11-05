@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlmodel import func, or_, select
 
-from ..database import SessionDep
+from ..database import MAX_ROW_ID, SessionDep
 from ..models import (
     Agent,
     DraftAction,
@@ -206,7 +206,7 @@ def list_matches(
     q: Annotated[str, Query(max_length=64)] = "",
     tournament: str | None = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 30,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    offset: Annotated[int, Query(ge=0, le=MAX_ROW_ID)] = 0,
 ):
     """Newest first. q matches a player's name (any nickname they played under) or the tournament title."""
     query = filtered(
@@ -375,7 +375,7 @@ def list_matches_by_tournament(
     q: Annotated[str, Query(max_length=64)] = "",
     tournament: str | None = None,
     limit: Annotated[int, Query(ge=1, le=20)] = 3,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    offset: Annotated[int, Query(ge=0, le=MAX_ROW_ID)] = 0,
 ):
     """Matches grouped by tournament, the most recent tournament first; paged by tournament so a group is
     never split. Same filters as the flat list."""

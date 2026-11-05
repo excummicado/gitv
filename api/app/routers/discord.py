@@ -12,13 +12,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 from jwt.exceptions import InvalidTokenError
 from pydantic import BaseModel, Field
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import func, select
 
 from ..config import settings
 from ..database import SessionDep
 from ..models import NICKNAME_PATTERN, User, UserPublic
 from ..rate_limit import rate_limit
-from ..security import clear_session_cookie, create_access_token, set_session_cookie
+from ..security import CSRF_HEADER, clear_session_cookie, create_access_token, set_session_cookie
 
 router = APIRouter(prefix="/auth/discord", tags=["login"])
 
@@ -81,7 +82,14 @@ async def discord_login(prompt: Literal["none", "consent"] = "none"):
     }
     # Discord separates scopes with %20, so quote (not quote_plus) the query.
     response = RedirectResponse(f"{AUTHORIZE_URL}?{urlencode(params, quote_via=quote)}")
-    response.set_cookie(STATE_COOKIE, state, max_age=600, httponly=True, samesite="lax")
+    response.set_cookie(
+        STATE_COOKIE,
+        state,
+        max_age=600,
+        httponly=True,
+        secure=settings.frontend_url.startswith("https://"),
+        samesite="lax",
+    )
     return response
 
 
@@ -105,20 +113,26 @@ async def discord_callback(
     if not state or not expected_state or not secrets.compare_digest(state, expected_state):
         return back_to_frontend("error=expired")
 
-    async with httpx.AsyncClient() as client:
-        # The token endpoint only accepts form data; client credentials go in HTTP Basic auth.
-        token_response = await client.post(
-            TOKEN_URL,
-            data={"grant_type": "authorization_code", "code": code, "redirect_uri": settings.discord_redirect_uri},
-            auth=(settings.discord_client_id, settings.discord_client_secret),
-        )
-        if token_response.status_code != 200:
-            return back_to_frontend("error=discord")
-        discord_token = token_response.json()["access_token"]
-        me_response = await client.get(ME_URL, headers={"Authorization": f"Bearer {discord_token}"})
-        if me_response.status_code != 200:
-            return back_to_frontend("error=discord")
-        profile = me_response.json()
+    try:
+        async with httpx.AsyncClient() as client:
+            # The token endpoint only accepts form data; client credentials go in HTTP Basic auth.
+            token_response = await client.post(
+                TOKEN_URL,
+                data={"grant_type": "authorization_code", "code": code, "redirect_uri": settings.discord_redirect_uri},
+                auth=(settings.discord_client_id, settings.discord_client_secret),
+            )
+            if token_response.status_code != 200:
+                return back_to_frontend("error=discord")
+            discord_token = token_response.json()["access_token"]
+            me_response = await client.get(ME_URL, headers={"Authorization": f"Bearer {discord_token}"})
+            if me_response.status_code != 200:
+                return back_to_frontend("error=discord")
+            profile = me_response.json()
+            if not profile.get("id") or not profile.get("username"):
+                return back_to_frontend("error=discord")
+    except (httpx.HTTPError, KeyError, ValueError):
+        # Discord unreachable or answering nonsense: the sign-in page says so, instead of a bare server error.
+        return back_to_frontend("error=discord")
 
     user = session.exec(select(User).where(User.discord_id == profile["id"])).first()
     if user is None:
@@ -171,13 +185,20 @@ def discord_register(data: DiscordSignup, session: SessionDep, response: Respons
         discord_username=payload.get("discord_username"),
     )
     session.add(user)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError as error:  # the same sign-up sent twice at once, or the nickname taken just now
+        session.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This nickname is taken.") from error
     session.refresh(user)
     sign_in(response, user)
     return UserPublic.model_validate(user)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-def logout(response: Response):
-    """Signs the browser out (the cookie is the only copy of its token)."""
+def logout(request: Request, response: Response):
+    """Signs the browser out (the cookie is the only copy of its token). Needs the site's request header, so another
+    site can't sign a visitor out with a form."""
+    if request.headers.get(CSRF_HEADER) != "1":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Missing the site's request header.")
     clear_session_cookie(response)

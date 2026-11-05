@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlmodel import select
 
-from ..database import SessionDep
+from ..database import MAX_ROW_ID, RowId, SessionDep
 from ..dependencies import get_current_news_writer
 from ..models import NewsItem, User
 from ..rate_limit import rate_limit
@@ -53,7 +53,9 @@ def out(session: SessionDep, rows: list[NewsItem]) -> list[NewsItemOut]:
 def list_news(
     session: SessionDep,
     limit: Annotated[int, Query(ge=1, le=50)] = 5,
-    before: Annotated[int | None, Query(description="Only items older than this one (the next page)")] = None,
+    before: Annotated[
+        int | None, Query(le=MAX_ROW_ID, description="Only items older than this one (the next page)")
+    ] = None,
 ):
     """The latest news, newest first, without registrations for tournaments that have started."""
     query = (
@@ -91,7 +93,7 @@ def add_news(data: NewsIn, session: SessionDep, user: Annotated[User, Depends(ge
 
 
 @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_news(item_id: int, session: SessionDep, user: Annotated[User, Depends(get_current_news_writer)]):
+def delete_news(item_id: RowId, session: SessionDep, user: Annotated[User, Depends(get_current_news_writer)]):
     """Its author or an admin removes it."""
     row = session.get(NewsItem, item_id)
     if row is None or row.hidden:

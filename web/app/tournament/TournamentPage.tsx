@@ -218,6 +218,16 @@ const LINK_LABELS: Record<Exclude<TournamentLink["kind"], "site">, [string, stri
   vk: ["VK", "VK"], boosty: ["Boosty", "Boosty"], rules: ["Regulations", "Регламент"],
 };
 
+// A site's name for its link. Organizers type these on darte.gg: one the browser can't read shows as typed, rather
+// than taking the whole page down.
+function siteName(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
 // The tournament's links on darte.gg (socials, regulations), a site of its own by its address.
 function TournamentLinks({ links }: { links: TournamentLink[] }) {
   const { t } = useLang();
@@ -226,7 +236,7 @@ function TournamentLinks({ links }: { links: TournamentLink[] }) {
     <nav className="tourney-links" aria-label={t("Tournament links", "Ссылки турнира")}>
       {links.map((link) => (
         <a key={link.url} className="tourney-link" href={link.url} target="_blank" rel="noopener noreferrer">
-          {link.kind === "site" ? new URL(link.url).hostname.replace(/^www\./, "") : t(...LINK_LABELS[link.kind])} ↗
+          {link.kind === "site" ? siteName(link.url) : t(...LINK_LABELS[link.kind])} ↗
         </a>
       ))}
     </nav>

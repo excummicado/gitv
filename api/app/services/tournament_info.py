@@ -36,7 +36,10 @@ def links(site_links: list[dict] | None) -> str | None:
     out, seen = [], set()
     for link in site_links or []:
         url = (link.get("url") or "").strip()
-        host = urlparse(url).hostname or ""
+        try:
+            host = urlparse(url).hostname or ""
+        except ValueError:  # an organizer's typo ("https://[…") mustn't stop the sync for every tournament
+            continue
         if not url.startswith(("https://", "http://")) or module_url(url) or url in seen:
             continue
         seen.add(url)
