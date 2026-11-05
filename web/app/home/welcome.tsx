@@ -40,10 +40,10 @@ function TopPickPromo() {
     return () => controller.abort();
   }, []);
 
-  if (!pick) return <Card><div className="gitv-image gitv-promo">{pick === undefined ? "" : t("Promo image", "Промо-изображение")}</div></Card>;
+  if (!pick) return <Card className="gitv-desktop-only"><div className="gitv-image gitv-promo">{pick === undefined ? "" : t("Promo image", "Промо-изображение")}</div></Card>;
   const art = pick.character.splash ?? pick.character.card ?? pick.character.icon;
   return (
-    <Card>
+    <Card className="gitv-desktop-only">
       {/* Opens the tournament's Stats tab, where its picks and bans are. */}
       <Link to={`/tournament/${pick.tournament.id}?tab=stats`} className="gitv-promo gitv-top-pick">
         {art && <img src={art} alt="" className="gitv-top-pick-art" />}
@@ -443,7 +443,7 @@ function RecentChampions() {
   }, []);
 
   return (
-    <Card><div className="gitv-card-title">{t("Recent Champions", "Последние чемпионы")}</div>
+    <Card className="gitv-desktop-only"><div className="gitv-card-title">{t("Recent Champions", "Последние чемпионы")}</div>
       {failed ? <div className="gitv-row"><small>{t("Couldn't load the champions.", "Не удалось загрузить чемпионов.")}</small></div>
         : !champions ? <Rows count={CHAMPIONS}>{(i) => <div className="gitv-row" key={i}><small>{i + 1}.</small><small>…</small></div>}</Rows>
         : champions.map((c, i) => (

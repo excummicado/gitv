@@ -245,11 +245,13 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  /* On a phone the left column holds only the live tournaments, at full width and last on the page. */
   .gitv-columns>aside:first-child {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    align-items: start;
+    order: 1;
+  }
+
+  .gitv-desktop-only {
+    display: none;
   }
 
   .gitv-columns>aside:last-child {

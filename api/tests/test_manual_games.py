@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import select
@@ -135,3 +137,51 @@ def test_teams_become_picks(session):
     ]  # an unknown one is left out
     import_manual_games(session, spec)
     assert len(session.exec(select(MatchPick)).all()) == 3  # importing again replaces them
+
+
+def test_games_added_to_a_tournament_of_the_site_leave_its_matches_alone(session):
+    import importlib
+
+    from app.models import MatchPick, Tournament, TournamentPlayer
+
+    importlib.import_module("app.services.stats.snapshot")._cache.clear()
+    session.add(Tournament(id="site1", title="Site Cup"))
+    session.add(Match(id="a" * 24, tournament_id="site1", created_at=datetime(2026, 1, 1, tzinfo=UTC), raw="{}"))
+    session.add(TournamentPlayer(tournament_id="site1", user_id="u1", discord_name="nick69", full_name="Nick"))
+    session.commit()
+    spec = {
+        "keep_site_matches": True,
+        "matches": [
+            {
+                "tournament": "site1",
+                "date": "2026-01-02T10:00",
+                "players": ["Nick", "Other"],
+                "free_restarts": 3,
+                "paid_restarts": [5, 5, 10],
+                "games": [
+                    {
+                        "rooms": [[64, 66, 50], [87, 91, 75]],
+                        "restarts": [2, 5],
+                        "teams": [["x"], ["y"]],
+                        "constellations": [[5], [0]],
+                    }
+                ],
+            }
+        ],
+    }
+    for _ in range(2):  # importing again replaces only its own
+        import_manual_games(session, spec)
+    assert sorted(m.id for m in session.exec(select(Match))) == ["a" * 24, "site1-m1"]
+    players = {p.full_name: p for p in session.exec(select(MatchPlayer))}
+    assert (players["Nick"].user_id, players["Nick"].clear_time, players["Other"].restarts) == ("u1", 180, 5)
+    assert sorted(p.agent_mindscape for p in session.exec(select(MatchPick))) == [0, 5]
+
+
+def test_draft_links_are_not_asked_for_matches_added_from_elsewhere(session, monkeypatch):
+    from app.models import Tournament
+
+    session.add(Tournament(id="site1", title="Site Cup"))
+    session.add(Match(id="site1-m1", tournament_id="site1", created_at=datetime(2026, 1, 1, tzinfo=UTC), raw="{}"))
+    session.commit()
+    monkeypatch.setattr(draft_links, "fetch_match", lambda *_: pytest.fail("asked the site"))
+    assert draft_links.fetch_draft_links(session).matches == 0

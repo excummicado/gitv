@@ -45,6 +45,7 @@ def fetch_draft_links(session: Session, refresh: bool = False) -> LinksResult:
         m
         for m, tid in session.exec(select(Match.id, Match.tournament_id).order_by(Match.created_at))
         if not tid.startswith(OFF_SITE)
+        and "-" not in m  # the site's ids have no dash: not a match added from elsewhere
     ]
     if not refresh:
         done = set(session.exec(select(DraftLink.match_id).distinct()))
