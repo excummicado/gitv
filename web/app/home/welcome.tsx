@@ -82,9 +82,7 @@ function EventBanner({ item }: { item: FeaturedTournament | null | undefined }) 
       </span>
     </>
   );
-  return item.imported
-    ? <Link to={`/tournament/${item.id}`} className="gitv-banner gitv-banner-event">{body}</Link>
-    : <div className="gitv-banner gitv-banner-event">{body}</div>;
+  return <Link to={`/tournament/${item.id}`} className="gitv-banner gitv-banner-event">{body}</Link>;
 }
 
 // The links under the banner: sections of the banner's tournament page ("Results" falls back to the table
@@ -156,9 +154,8 @@ function EventSection() {
       )}
       <EventBanner item={item} />
       <nav className="gitv-tabs" aria-label={t("Tournament sections", "Разделы турнира")}>
-        {EVENT_LINKS.map(({ label, tab }) => item?.imported
+        {EVENT_LINKS.map(({ label, tab }) => item
           ? <Link key={tab} to={`/tournament/${item.id}${tab ? `?tab=${tab}` : ""}`}>{t(...label)}</Link>
-          // A running tournament with no finished match yet has no page to open.
           : <span key={tab} className="is-disabled" aria-disabled="true">{t(...label)}</span>)}
       </nav>
     </>
@@ -415,9 +412,7 @@ function LiveTournaments() {
             <div key={item.id}>
               <div className="gitv-row">
                 <span className="gitv-champion-text">
-                  {item.imported_matches
-                    ? <Link to={`/tournament/${item.id}`} className="gitv-row-link">{item.title}</Link>
-                    : <span>{item.title}</span>}
+                  <Link to={`/tournament/${item.id}`} className="gitv-row-link">{item.title}</Link>
                   <small className="gitv-champion-tournament">
                     {item.imported_matches ? count(item.imported_matches, ["match played", "matches played"], ["матч сыгран", "матча сыграно", "матчей сыграно"]) : t("No matches finished yet", "Матчей пока нет")}
                   </small>

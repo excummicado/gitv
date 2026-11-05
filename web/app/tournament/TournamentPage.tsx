@@ -4,7 +4,8 @@ import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
 import { OrganizerName } from "../match/OrganizerName";
 import { MatchRow } from "../match/MatchesPage";
-import { fetchLiveMatches, fetchMatchesByTournament, type LiveMatch, type MatchSummary } from "../match/api";
+import { ApiError } from "../api";
+import { fetchLiveMatches, fetchLiveTournaments, fetchMatchesByTournament, type LiveMatch, type LiveTournament, type MatchSummary } from "../match/api";
 import { LiveMatchRow } from "../match/LiveMatches";
 import { useLang } from "../i18n";
 import { fetchTournament, type TournamentLink, type BracketRound, type BracketSide, type PoolCharacter, type PoolPlayer, type TableRow, type TournamentDetail } from "./api";
@@ -390,9 +391,33 @@ function Stats({ tournament }: { tournament: TournamentDetail }) {
   );
 }
 
+// A running tournament with no finished match yet isn't imported, so it has no table or statistics: what's known of it
+// from the site's running list, and its games under way.
+function RunningTournament({ item }: { item: LiveTournament }) {
+  const { t, date } = useLang();
+  return (
+    <>
+      <header className="player-box player-header">
+        <div className="player-label tourney-kicker">
+          <Link className="player-match-link" to="/tournaments">{t("Tournaments", "Турниры")}</Link>
+        </div>
+        <h1 className="player-nickname">{item.title}</h1>
+        <p className="player-label">
+          {item.started_at && <>{date(item.started_at)} · </>}{t("No matches finished yet", "Завершённых матчей пока нет")}
+        </p>
+        {item.discord && (
+          <p><a className="live-game is-discord" href={item.discord} target="_blank" rel="noopener noreferrer">{t("Discord server", "Сервер в Discord")} ↗</a></p>
+        )}
+      </header>
+      <LiveMatches tournamentId={item.id} />
+    </>
+  );
+}
+
 export function TournamentPage({ tournamentId }: { tournamentId: string }) {
   const [params, setParams] = useSearchParams();
   const [tournament, setTournament] = useState<TournamentDetail | null>(null);
+  const [running, setRunning] = useState<LiveTournament | null>(null);
   const [error, setError] = useState("");
   const { t, count } = useLang();
   const navigate = useNavigate();
@@ -400,14 +425,27 @@ export function TournamentPage({ tournamentId }: { tournamentId: string }) {
   useEffect(() => {
     const controller = new AbortController();
     setTournament(null);
+    setRunning(null);
     setError("");
+    const failed = (err: unknown) => { if (!controller.signal.aborted) setError(err instanceof Error ? err.message : t("Couldn't load the tournament.", "Не удалось загрузить турнир.")); };
     fetchTournament(tournamentId, controller.signal)
       .then((found) => {
         // A qualifier group opens its round's stage: show that stage's address.
         if (found.id !== tournamentId) navigate(`/tournament/${found.id}${window.location.search}`, { replace: true });
         setTournament(found);
       })
-      .catch((err) => { if (!controller.signal.aborted) setError(err instanceof Error ? err.message : t("Couldn't load the tournament.", "Не удалось загрузить турнир.")); });
+      .catch((err) => {
+        if (controller.signal.aborted) return;
+        if (!(err instanceof ApiError && err.status === 404)) return failed(err);
+        // Not imported: it may be running, with no match finished yet
+        fetchLiveTournaments(controller.signal)
+          .then((live) => {
+            const found = live.find((item) => item.id === tournamentId);
+            if (found) setRunning(found);
+            else failed(err);
+          })
+          .catch(() => failed(err));
+      });
     return () => controller.abort();
   }, [tournamentId]);
 
@@ -426,7 +464,8 @@ export function TournamentPage({ tournamentId }: { tournamentId: string }) {
           <Brand />
           <div className="player-content match-content">
             {error ? <div className="player-box player-message">{error}</div>
-              : !tournament ? <div className="player-box player-message">{t("Loading tournament…", "Загрузка турнира…")}</div>
+              : running ? <RunningTournament item={running} />
+              : !tournament ?<div className="player-box player-message">{t("Loading tournament…", "Загрузка турнира…")}</div>
               : <>
                 <header className="player-box player-header">
                   <div className="player-label tourney-kicker">
