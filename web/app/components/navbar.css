@@ -20,6 +20,10 @@
   min-height: 38px;
 }
 
+/* On wider screens the menu's items stand in the bar itself; the button that opens them is for phones. */
+.gitv-nav-menu { display: contents; }
+.gitv-nav-link.gitv-nav-toggle { display: none; }
+
 /* Links fill the bar's full height, so the whole strip around the text hovers and clicks. */
 .gitv-nav-link {
   display: flex;
@@ -116,15 +120,35 @@ a.gitv-nav-link:hover,
 .gitv-search-empty { padding: 8px 10px; color: var(--gitv-muted); font-size: 12px; }
 
 @media (max-width: 760px) {
-  .gitv-nav .hide-mobile { display: none; }
-  /* With the search hidden, the Ko-fi link starts the right-hand group, as an icon only. */
+  .gitv-nav { position: relative; z-index: 30; font-size: 13px; }
+  .gitv-nav-content { min-height: 44px; gap: 12px; }
+  .gitv-nav-link.gitv-nav-toggle { display: flex; gap: 6px; }
+
+  /* The sections and the search, dropping down under the bar. */
+  .gitv-nav-menu { display: none; }
+  .gitv-nav-menu.is-open {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--gitv-border);
+    background: var(--gitv-nav-bg);
+  }
+  .gitv-nav-menu .gitv-nav-link { min-height: 44px; padding: 0 16px; font-size: 14px; }
+  .gitv-nav-menu .gitv-nav-link.is-active { background: var(--gitv-surface-hover); box-shadow: inset 3px 0 var(--gitv-accent); }
+  .gitv-nav-menu .gitv-search { margin: 8px 16px 0; }
+  /* 16px: at less, iPhones zoom the page in when the field is focused. */
+  .gitv-nav-menu .gitv-search-input { width: 100%; padding: 8px 10px; font-size: 16px; }
+  .gitv-nav-menu .gitv-search-results { position: static; width: auto; max-height: 50vh; margin-top: 6px; overflow-y: auto; }
+
+  /* The Ko-fi link starts the right-hand group, as an icon only. */
   .gitv-nav-kofi { margin-left: auto; }
   .gitv-nav-kofi-label { display: none; }
-}
-
-@media (max-width: 520px) {
-  .gitv-nav { font-size: 11px; }
-  .gitv-nav-content { gap: 8px; }
+  /* A long nickname mustn't push the language switch off the screen. */
+  .gitv-nav-user { display: block; max-width: 34vw; overflow: hidden; text-overflow: ellipsis; line-height: 44px; }
 }
 
 

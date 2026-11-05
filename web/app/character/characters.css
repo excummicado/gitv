@@ -19,7 +19,7 @@
 .chars-table-row > :nth-child(n + 3) { text-align: right; }
 .chars-table-row small { font-size: 10px; }
 .chars-table-head { padding-top: 6px; padding-bottom: 6px; }
-.chars-table-icon { width: 30px; height: 30px; background: var(--gitv-surface-hover); border: 1px solid var(--gitv-border); }
+.chars-table-icon { width: 30px; height: 30px; object-fit: cover; background: var(--gitv-surface-hover); border: 1px solid var(--gitv-border); }
 .chars-table-icon.rarity-5 { border-color: rgba(245, 197, 66, .6); }
 .chars-table-icon.rarity-4 { border-color: rgba(167, 139, 250, .55); }
 .chars-presence { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; font-weight: 600; }
@@ -35,11 +35,15 @@
 }
 @media (max-width: 700px) {
   .chars-table-row { grid-template-columns: 28px minmax(0, 1.2fr) 80px repeat(3, minmax(0, 1fr)) 46px; gap: 6px; }
+  .chars-table-icon { width: 28px; height: 28px; }
   .chars-table-row .hide-sm { display: none; }
 }
 @media (max-width: 480px) {
-  .chars-table-row { grid-template-columns: 26px minmax(0, 1fr) 70px repeat(3, minmax(0, 1fr)); padding: 6px 10px; font-size: 12px; }
+  .chars-table-row { grid-template-columns: 26px minmax(0, 1.7fr) 62px repeat(3, minmax(0, 1fr)); padding: 6px 10px; font-size: 12px; }
+  .chars-table-icon { width: 26px; height: 26px; }
   .chars-table-row .hide-xs { display: none; }
+  /* The columns are narrow: their names wrap instead of running into each other. */
+  .chars-table-head > * { white-space: normal; font-size: 9px; letter-spacing: 0; line-height: 1.2; }
 }
 .chars-prize { display: inline-flex; }
 .chars-prize .player-control { white-space: nowrap; }
