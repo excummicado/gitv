@@ -761,7 +761,8 @@ def main() -> None:
     )
     actions_cmd.add_argument("--refresh", action="store_true", help="Fetch again for drafts already stored")
     times_cmd = commands.add_parser(
-        "refresh-times", help="Read again the stored games whose times changed on the site (sync does it for recent ones)"
+        "refresh-times",
+        help="Read again the stored games whose times changed on the site (sync does it for recent ones)",
     )
     times_cmd.add_argument("tournaments", nargs="*", help="Tournament ids; every stored tournament without any")
     commands.add_parser("import-catalog", help="Import the site's character and weapon names")

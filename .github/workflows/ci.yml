@@ -26,6 +26,10 @@ jobs:
       - run: ruff check app tests
       - run: ruff format --check app tests
       - run: python -m pytest
+      # The migrations build a new database, and it matches the models: a changed model needs its migration.
+      - run: alembic upgrade head && alembic check
+        env:
+          DATABASE_URL: sqlite:///ci.db
 
   web:
     runs-on: ubuntu-latest
