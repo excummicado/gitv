@@ -22,7 +22,7 @@ export function PrivacyPage() {
       t("gitv_session — keeps you signed in (only after you sign in; scripts on the page can't read it).",
         "gitv_session — держит вас в аккаунте (только после входа; скрипты страницы его не видят)."),
       t("discord_oauth_state — protects the Discord sign-in, for 10 minutes.", "discord_oauth_state — защищает вход через Discord, 10 минут."),
-      t("gitv-lang — the site's language.", "gitv-lang — язык сайта."),
+      t("gitv-lang — the site's language, once you choose it; until then the site follows your browser's language.", "gitv-lang — язык сайта, когда вы его выбрали; до этого сайт следует языку браузера."),
       t("Your browser's local storage keeps your nickname and role, to show them before the page loads.",
         "Локальное хранилище браузера держит ваш ник и роль, чтобы показать их до загрузки страницы."),
     ]],

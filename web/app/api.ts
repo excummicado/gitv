@@ -1,5 +1,5 @@
 // Shared by every API client: the error type, public GET requests, and messages in the site's language.
-// Errors the API sends come translated already (api/app/messages.py reads the same gitv-lang cookie);
+// Errors the API sends come translated already (api/app/messages.py follows the same rule as the site);
 // the messages written here are for when the API can't answer at all.
 
 export class ApiError extends Error {
@@ -10,10 +10,10 @@ export class ApiError extends Error {
 
 export type Message = [en: string, ru: string];
 
-// The site language outside React (API helpers run in effects, after the cookie is set).
+// The site language outside React (API helpers run in effects): the page's own, whether chosen or from the browser.
 export function tr([en, ru]: Message): string {
   if (typeof document === "undefined") return en;
-  return /(?:^|;\s*)gitv-lang=ru\b/.test(document.cookie) ? ru : en;
+  return document.documentElement.lang === "ru" ? ru : en;
 }
 
 export const UNREACHABLE: Message = ["Can't reach the server. Check that the API is running.", "Сервер недоступен. Проверьте, что API запущен."];

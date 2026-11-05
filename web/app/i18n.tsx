@@ -1,5 +1,6 @@
-// Site language: English or Russian, chosen in the navbar and kept in a cookie so the server renders
-// the right one straight away. Strings sit where they're used as t("English", "Русский") pairs.
+// Site language: English or Russian. Until someone chooses in the navbar it follows their browser's first language;
+// the choice is kept in a cookie and wins from then on, and either way the server renders the right one straight away.
+// Strings sit where they're used as t("English", "Русский") pairs.
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { useRevalidator } from "react-router";
@@ -8,9 +9,11 @@ export type Lang = "en" | "ru";
 export const LANGS: Lang[] = ["en", "ru"];
 const COOKIE = "gitv-lang";
 
-export function langFromCookie(cookieHeader: string | null | undefined): Lang {
-  const match = /(?:^|;\s*)gitv-lang=(en|ru)\b/.exec(cookieHeader ?? "");
-  return (match?.[1] as Lang) ?? "en";
+// The same rule as the API's errors (api/app/messages.py, request_lang).
+export function requestLang(request: Request): Lang {
+  const chosen = /(?:^|;\s*)gitv-lang=(en|ru)\b/.exec(request.headers.get("Cookie") ?? "");
+  if (chosen) return chosen[1] as Lang;
+  return /^\s*ru\b/i.test(request.headers.get("Accept-Language") ?? "") ? "ru" : "en";
 }
 
 type LangState = { lang: Lang; setLang: (lang: Lang) => void };

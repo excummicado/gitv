@@ -1,6 +1,6 @@
 // Link previews (Discord, Telegram, search engines) for pages that load their data in the browser: the page's
 // server loader asks the API for its title and description (api/app/routers/preview.py). Server only.
-import { langFromCookie } from "./i18n";
+import { requestLang } from "./i18n";
 import type { PageInfo } from "./preview";
 
 // Where the web server reaches the API: the same machine by default (see the README's deployment notes).
@@ -19,7 +19,7 @@ export async function previewFor(kind: string, id: string | undefined, request: 
   const page = { url: `${origin}${url.pathname}`, image: `${origin}/apple-touch-icon.png` };
   if (!id) return { ...page, title: null, description: null };
   try {
-    const query = new URLSearchParams({ kind, id, lang: langFromCookie(request.headers.get("Cookie")) });
+    const query = new URLSearchParams({ kind, id, lang: requestLang(request) });
     const response = await fetch(`${API}/api/v1/preview?${query}`, { signal: AbortSignal.timeout(2000) });
     const data = response.ok ? ((await response.json()) as { title: string; description: string } | null) : null;
     return { ...page, title: data?.title ?? null, description: data?.description ?? null };

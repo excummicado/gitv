@@ -18,7 +18,7 @@ import "./styles/layout.css";
 import "./styles/stats.css";
 import "./styles/matches.css";
 import "./styles/forms.css";
-import { LangProvider, langFromCookie, type Lang } from "./i18n";
+import { LangProvider, requestLang, type Lang } from "./i18n";
 import { NotFoundPage } from "./not-found/NotFoundPage";
 import { useTooltipPlacement } from "./components/useTooltipPlacement";
 import { NonceContext } from "./nonce";
@@ -39,9 +39,9 @@ function countPageView(path: string, referrer: string | null) {
   });
 }
 
-// The language comes from the cookie, so the first render on the server is already in it.
+// The language comes with the request, so the first render on the server is already in it.
 export function loader({ request }: Route.LoaderArgs) {
-  return { lang: langFromCookie(request.headers.get("Cookie")) };
+  return { lang: requestLang(request) };
 }
 
 export const links: Route.LinksFunction = () => [
