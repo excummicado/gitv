@@ -10,8 +10,9 @@ function gameState(g: LiveGame) {
   return g.status === "FINISHED" ? "done" : g.status === "NOT_STARTED" ? "waiting" : "live";
 }
 
-// showTournament: the tournament's name under the match, bottom left, where rows of several tournaments are listed
-export function LiveMatchRow({ match, onlyLive = false, showTournament = false }: { match: LiveMatch; onlyLive?: boolean; showTournament?: boolean }) {
+// showTournament: the tournament's name under the match, bottom left, where rows of several tournaments are listed.
+// discord: the tournament's server, where games off stream can often be watched in its open voice channels.
+export function LiveMatchRow({ match, onlyLive = false, showTournament = false, discord = null }: { match: LiveMatch; onlyLive?: boolean; showTournament?: boolean; discord?: string | null }) {
   const { t } = useLang();
   const titles = { done: t("Finished: open the draft", "Завершена: открыть драфт"), waiting: t("Not started yet: open the draft", "Ещё не началась: открыть драфт"), live: t("Being played now: watch the draft", "Идёт сейчас: смотреть драфт") };
   const games = onlyLive ? match.games.filter((g) => gameState(g) === "live") : match.games;
@@ -33,6 +34,12 @@ export function LiveMatchRow({ match, onlyLive = false, showTournament = false }
             ? <a key={g.game_no} className={`live-game is-${state}`} href={g.url} target="_blank" rel="noopener noreferrer" title={titles[state]}>{label} ↗</a>
             : <span key={g.game_no} className={`live-game is-${state}`}>{label}</span>;
         })}
+        {discord && (
+          <a className="live-game is-discord" href={discord} target="_blank" rel="noopener noreferrer"
+            title={t("The tournament's Discord server: games are often played in its open voice channels", "Discord-сервер турнира: игры часто идут в его открытых голосовых каналах")}>
+            {t("Watch in Discord", "Смотреть в Discord")} ↗
+          </a>
+        )}
       </span>
       {showTournament && <small className="live-match-tournament">{match.tournament}</small>}
     </div>

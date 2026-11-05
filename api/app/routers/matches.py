@@ -54,6 +54,7 @@ from ..services.stats import (
 )
 from ..services.stats.elo import live_weights
 from ..services.sync import live_tournaments
+from ..services.tournament_info import discord_link
 from .abyss import current_id, phases
 
 router = APIRouter(prefix="/matches", tags=["matches"])
@@ -510,6 +511,8 @@ class LiveTournament(BaseModel):
     image: str | None
     # Finished matches already imported by sync (0 until the first one comes in)
     imported_matches: int
+    # Its Discord server: games off stream are often played in its open voice channels
+    discord: str | None
 
 
 @router.get("/live-tournaments", response_model=list[LiveTournament])
@@ -533,6 +536,7 @@ def list_live_tournaments(session: SessionDep):
             started_at=t.get("createdAt"),
             image=t.get("image"),
             imported_matches=counts.get(t["_id"], 0),
+            discord=discord_link(t.get("links")),
         )
         for t in items
     ]

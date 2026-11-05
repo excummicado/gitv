@@ -86,7 +86,7 @@ export function fetchTopPick(signal?: AbortSignal) {
   return getJson<TopPick | null>("/api/v1/matches/top-pick", { signal });
 }
 
-export type LiveTournament = { id: string; title: string; system: string | null; started_at: string | null; image: string | null; imported_matches: number };
+export type LiveTournament = { id: string; title: string; system: string | null; started_at: string | null; image: string | null; imported_matches: number; discord: string | null };
 
 // Tournaments running on the site now (the API asks the site for them at most once an hour).
 export function fetchLiveTournaments(signal?: AbortSignal) {

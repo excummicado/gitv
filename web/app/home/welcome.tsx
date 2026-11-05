@@ -423,7 +423,7 @@ function LiveTournaments() {
                 </span>
                 <b className="gitv-badge push">{t("Live", "Идёт")}</b>
               </div>
-              {matches.filter((m) => m.started && m.tournament_id === item.id).map((m) => <LiveMatchRow match={m} onlyLive showTournament key={m.id} />)}
+              {matches.filter((m) => m.started && m.tournament_id === item.id).map((m) => <LiveMatchRow match={m} onlyLive showTournament discord={item.discord} key={m.id} />)}
             </div>
           ))}
     </Card>

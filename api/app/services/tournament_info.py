@@ -48,6 +48,12 @@ def links(site_links: list[dict] | None) -> str | None:
     return json.dumps(out) if out else None
 
 
+def discord_link(site_links: list[dict] | None) -> str | None:
+    """The Discord server among a tournament's own links. Only its own: invites of an organizer's past tournaments
+    expire, so they'd lead nowhere."""
+    return next((link["url"] for link in json.loads(links(site_links) or "[]") if link["kind"] == "discord"), None)
+
+
 def series_key(title: str) -> str:
     """A tournament's series, for the ones of a series to share their links: its title without the edition, stage
     or round ("Abyss Fast Soup 24", "HotH: Abyss Weekend 13" and "Summer Quals Group A & B" -> "abyss fast soup",

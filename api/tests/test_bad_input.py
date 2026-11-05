@@ -55,6 +55,31 @@ def test_discord_being_down_sends_back_to_the_sign_in_page(client, monkeypatch):
     assert response.status_code == 307 and response.headers["location"].endswith("#error=discord")
 
 
+def test_a_running_tournament_shows_only_its_own_discord(client, monkeypatch):
+    live = [
+        {
+            "_id": "with",
+            "title": "A Cup",
+            "createdAt": "2026-06-02T10:00Z",
+            "links": [
+                {"url": "https://t.me/cup"},
+                {"url": "https://discord.gg/abc"},
+                {"url": "https://discord.gg.evil.example/abc"},
+            ],
+        },
+        {
+            "_id": "fake",
+            "title": "B Cup",
+            "createdAt": "2026-06-01T10:00Z",
+            "links": [{"url": "javascript:discord.gg/x"}],
+        },
+        {"_id": "without", "title": "C Cup", "createdAt": "2026-05-31T10:00Z"},
+    ]
+    monkeypatch.setattr("app.routers.matches.live_tournaments", lambda: live)
+    rows = client.get("/api/v1/matches/live-tournaments").json()
+    assert {r["id"]: r["discord"] for r in rows} == {"with": "https://discord.gg/abc", "fake": None, "without": None}
+
+
 def test_a_broken_link_of_an_organizer_is_skipped():
     assert links([{"url": "https://["}]) is None
     assert '"https://example.com"' in links([{"url": "https://["}, {"url": "https://example.com"}])

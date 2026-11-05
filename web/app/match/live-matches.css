@@ -10,6 +10,8 @@
 a.live-game:hover, a.live-game:focus-visible { border-color: var(--gitv-accent); color: var(--gitv-text); }
 .live-game.is-live { border-color: var(--gitv-win); color: var(--gitv-text); }
 .live-game.is-done { color: var(--gitv-muted); }
+.live-game.is-discord { border-color: #5865f2; color: var(--gitv-text); }
+a.live-game.is-discord:hover, a.live-game.is-discord:focus-visible { background: #5865f2; border-color: #5865f2; color: #ffffff; }
 .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gitv-win); animation: live-dot 1.6s ease-in-out infinite; }
 @keyframes live-dot { 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
