@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .config import settings
-from .database import create_db_and_tables, engine
+from .database import engine
 from .messages import request_lang, translate
 from .routers import (
     abyss,
@@ -40,8 +40,6 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # SQLite tables are created on startup only for the time being (no migrations yet).
-    create_db_and_tables()
     # Statistics are built in the background straight away instead of on the first request.
     warming = asyncio.create_task(asyncio.to_thread(warm_up, engine))
     # Background sync with the tournament site, when SYNC_INTERVAL is set (off by default): the hourly one and the

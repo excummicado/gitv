@@ -40,7 +40,7 @@ from datetime import UTC
 
 from sqlmodel import Session, func, select
 
-from .database import create_db_and_tables, engine
+from .database import engine
 from .models import (
     Match,
     MatchPlayer,
@@ -77,7 +77,6 @@ def set_role(nickname: str, role: Role) -> None:
 
 
 def import_matches(urls_file: str | None, files: list[str]) -> None:
-    create_db_and_tables()
     with Session(engine) as session:
         if files:
             result = import_from_files(session, files)
@@ -97,7 +96,6 @@ def import_matches(urls_file: str | None, files: list[str]) -> None:
 
 
 def fetch_links(refresh: bool) -> None:
-    create_db_and_tables()
     with Session(engine) as session:
         result = fetch_draft_links(session, refresh)
     print(f"Checked {result.matches} matches: saved {result.saved} draft links.")
@@ -106,7 +104,6 @@ def fetch_links(refresh: bool) -> None:
 
 
 def fetch_actions(refresh: bool) -> None:
-    create_db_and_tables()
     with Session(engine) as session:
         result = fetch_draft_actions(session, refresh)
     print(f"Checked {result.drafts} drafts: saved {result.saved} with {result.actions} bans and picks.")
@@ -118,7 +115,6 @@ def refresh_times(tournaments: list[str]) -> None:
     """Compares the stored games with the site and reads again those whose times changed there."""
     from .services.sync import refresh_tournaments
 
-    create_db_and_tables()
     with sync_lock() as got, Session(engine) as session:
         if not got:
             raise SystemExit("Another sync is running (the API's background sync?); try again in a moment.")
@@ -130,7 +126,6 @@ def refresh_times(tournaments: list[str]) -> None:
 
 
 def import_names() -> None:
-    create_db_and_tables()
     with Session(engine) as session:
         counts = import_catalog(session)
     print(f"Saved {counts['agents']} characters and {counts['engines']} weapons.")
@@ -141,7 +136,6 @@ def run_sync(watch: int | None) -> None:
     import time
     from datetime import datetime
 
-    create_db_and_tables()
     cookie = os.environ.get("ABYSS_COOKIE", "").strip() or None
     if watch and watch < MIN_INTERVAL:
         print(f"--watch {watch} is too often for someone else's site; using {MIN_INTERVAL} s.")
@@ -174,7 +168,6 @@ def run_sync(watch: int | None) -> None:
 
 
 def fetch_systems() -> None:
-    create_db_and_tables()
     with Session(engine) as session:
         counts = fetch_draft_systems(session)
     print(
@@ -185,7 +178,6 @@ def fetch_systems() -> None:
 
 
 def rebuild_rosters() -> None:
-    create_db_and_tables()
     with Session(engine) as session:
         counts = build_rosters(session)
     print(
@@ -195,7 +187,6 @@ def rebuild_rosters() -> None:
 
 
 def fetch_tournaments() -> None:
-    create_db_and_tables()
     with Session(engine) as session:
         counts = fetch_tournament_info(session)
     print(
@@ -208,7 +199,6 @@ def run_fetch_challonge(refetch: bool) -> None:
     from .services.challonge import fetch_challonge
     from .services.stats.snapshot import snapshot
 
-    create_db_and_tables()
     with Session(engine) as session:
         result = fetch_challonge(session, refetch)
         for error in result.errors:
@@ -222,7 +212,6 @@ def run_fetch_challonge(refetch: bool) -> None:
 
 
 def export_matches(path: str) -> None:
-    create_db_and_tables()
     with Session(engine) as session:
         counts = export_xlsx(session, path)
     print(
@@ -233,7 +222,6 @@ def export_matches(path: str) -> None:
 
 
 def check_matches(examples: int) -> None:
-    create_db_and_tables()
     with Session(engine) as session:
         print_report(find_anomalies(session), examples)
 
@@ -243,7 +231,6 @@ def fmt_date(value) -> str:
 
 
 def show_tournaments() -> None:
-    create_db_and_tables()
     with Session(engine) as session:
         infos = list_tournaments(session)
     if not infos:
@@ -256,7 +243,6 @@ def show_tournaments() -> None:
 
 
 def remove_tournaments(ids: list[str], first: int | None, yes: bool) -> None:
-    create_db_and_tables()
     with Session(engine) as session:
         infos = list_tournaments(session)
         if first:
@@ -284,7 +270,6 @@ def remove_tournaments(ids: list[str], first: int | None, yes: bool) -> None:
 
 def set_player_name(player: str, name: str | None) -> None:
     """player is a site user id or any nickname they played under; name None goes back to the imported one."""
-    create_db_and_tables()
     with Session(engine) as session:
         user_id = find_player(session, player)
         current = session.get(PlayerName, user_id)
@@ -329,7 +314,6 @@ def merge_players(player: str, into: str | None) -> None:
 
     from .models import PlayerMerge
 
-    create_db_and_tables()
     with Session(engine) as session:
         user_id = find_player(session, player)
         current = session.get(PlayerMerge, user_id)
@@ -361,7 +345,6 @@ def set_challonge_name(name: str, player: str | None) -> None:
     from .models import ChallongeAlias
     from .services.challonge import normalize
 
-    create_db_and_tables()
     key = normalize(name)
     if not key:
         raise SystemExit(f"{name!r} has no letters or digits.")
@@ -384,7 +367,6 @@ def set_tournament_winner(tournament: str, player: str | None, source: str | Non
     player None removes the winner set by hand."""
     from datetime import datetime
 
-    create_db_and_tables()
     with Session(engine) as session:
         found = (
             session.get(Tournament, tournament)
@@ -435,7 +417,6 @@ def add_challonge_tournament(
     from .services.challonge_import import add_challonge_tournament as add
     from .services.challonge_import import store_from_file
 
-    create_db_and_tables()
     if ended and not date:
         raise SystemExit("--ended needs --date")
     started = datetime.fromisoformat(date).replace(tzinfo=UTC) if date else None
@@ -455,7 +436,6 @@ def set_challonge_url(tournament: str, url: str | None) -> None:
     from .services.challonge import fetch_challonge
     from .services.challonge_import import set_challonge_url as set_url
 
-    create_db_and_tables()
     with Session(engine) as session:
         found = (
             session.get(Tournament, tournament)
@@ -481,7 +461,6 @@ def set_tournament_event(event: str | None, stages: list[str]) -> None:
 
     from .models import TournamentEvent
 
-    create_db_and_tables()
     with Session(engine) as session:
         for position, arg in enumerate(stages):
             ref, _, label = arg.partition("=")
@@ -515,7 +494,6 @@ def add_manual_tournament(path: str) -> None:
 
     from .services.challonge_import import add_manual_tournament as add
 
-    create_db_and_tables()
     with open(path, encoding="utf-8") as f:
         spec = json.load(f)
     with Session(engine) as session:
@@ -546,7 +524,6 @@ def set_organizer(ref: str, name: str | None, into: str | None, clear: bool) -> 
 
     from .models import OrganizerAlias
 
-    create_db_and_tables()
     with Session(engine) as session:
         oid = find_organizer(session, ref)
         row = session.get(OrganizerAlias, oid)
@@ -585,7 +562,6 @@ def add_player(name: str, challonge_names: list[str]) -> None:
     from .models import OffsitePlayer
     from .services.events import slug
 
-    create_db_and_tables()
     # A name with no Latin letters or digits ("Японец") gets a short hash of itself instead.
     pid = "offsite-" + (slug(name) or hashlib.sha1(name.encode()).hexdigest()[:8])
     with Session(engine) as session:
@@ -645,7 +621,6 @@ def add_manual_games(path: str) -> None:
 
     from .services.manual_games import import_manual_games
 
-    create_db_and_tables()
     with open(path, encoding="utf-8") as f, Session(engine) as session:
         try:
             stored = import_manual_games(session, json.load(f))
@@ -670,7 +645,6 @@ def import_aspirine() -> None:
     """Stores the old tournaments export-aspirine saved as matches (services/aspirine_import.py)."""
     from .services.aspirine_import import import_aspirine as run
 
-    create_db_and_tables()
     with Session(engine) as session:
         try:
             counts = run(session)
@@ -688,7 +662,6 @@ def poll_stream() -> None:
     """Reads the streams' Telegram channels and Twitch status once (services/stream.py)."""
     from .services.stream import poll_stream as run
 
-    create_db_and_tables()
     with Session(engine) as session:
         errors = run(session)
         latest = session.exec(select(StreamMatch).order_by(StreamMatch.announced_at.desc()).limit(6)).all()
@@ -719,7 +692,6 @@ def set_news_translation(news_id: int, path: str, title: str | None) -> None:
     from .models import NewsPost
     from .services.news import DocumentError, delete_pictures, docx_to_html, language, unused_pictures
 
-    create_db_and_tables()
     with Session(engine) as session, open(path, "rb") as doc:
         post = session.get(NewsPost, news_id)
         if post is None:
@@ -740,7 +712,6 @@ def set_news_translation(news_id: int, path: str, title: str | None) -> None:
 def run_fetch_abyss(refetch: bool) -> None:
     from .services.abyss import fetch_abyss
 
-    create_db_and_tables()
     with Session(engine) as session:
         result = fetch_abyss(session, refetch)
     print(f"Abyss: {len(result.phases)} phases stored, {result.icons} icons downloaded.")
@@ -754,7 +725,6 @@ def import_hoth_hub() -> None:
 
     if not settings.hoth_hub_key:
         raise SystemExit("Set HOTH_HUB_KEY (HotH Hub's integration key) in .env first.")
-    create_db_and_tables()
     with Session(engine) as session:
         result = import_hub(session, fetch_hub_matches(settings.hoth_hub_key))
     for hub, site in result.tournaments.items():

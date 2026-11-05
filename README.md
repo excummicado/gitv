@@ -62,6 +62,7 @@ Challonge embed page ─┘     (api/app/services)
 
 ## Running in production
 
+- On every deploy, with the API stopped, run `venv/bin/alembic upgrade head` in `api/` before starting it.
 - One API process (`fastapi run app/main.py`, no extra workers): syncing, the stream poll and the rate limits
   live in it. Behind a proxy, set `TRUST_FORWARDED_FOR=true`; the proxy sends `/api/*` to the API (allow 100 MB
   bodies for news imports) and the rest to the web server.
@@ -83,6 +84,7 @@ API (from `api/`):
 python3 -m venv venv
 venv/bin/pip install -r requirements-dev.txt
 cp .env.example .env            # fill in SECRET_KEY and the Discord app keys
+venv/bin/alembic upgrade head   # creates the tables
 venv/bin/fastapi dev app/main.py
 ```
 

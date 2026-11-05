@@ -13,7 +13,7 @@ Discord sign-in the user chooses a nickname, and that creates the account.
 api/
 ├── app/
 │   ├── config.py        # Settings from environment variables and .env
-│   ├── database.py      # Engine, table creation, session dependency
+│   ├── database.py      # Engine, session dependency
 │   ├── models.py        # User table and API models
 │   ├── security.py      # JWT access tokens
 │   ├── dependencies.py  # Current user from the Bearer token
@@ -22,6 +22,7 @@ api/
 │   ├── routers/         # health, users (/users/me), discord (sign-in), matches, players, ...
 │   ├── services/        # Business logic; stats/ is the player and tournament statistics
 │   └── main.py          # FastAPI app and ASGI entry point
+├── migrations/          # Alembic: every change to the database's tables
 ├── tests/               # pytest; an in-memory database, never gitv.db
 ├── .env.example         # Copy to .env and fill in
 ├── requirements.txt
@@ -35,10 +36,28 @@ From inside `api/`:
 ```bash
 cp .env.example .env   # then fill in SECRET_KEY and the Discord keys
 venv/bin/pip install -r requirements.txt
+venv/bin/alembic upgrade head
 venv/bin/fastapi dev app/main.py
 ```
 
 Tests: `venv/bin/pip install -r requirements-dev.txt`, then `venv/bin/python -m pytest`.
+
+## Migrations
+
+Tables are made and changed only by Alembic, never when the API or a command starts. Run
+`venv/bin/alembic upgrade head` on a new database and after pulling new migrations; without it the API and the
+commands fail on missing tables or columns.
+
+After changing `app/models.py`:
+
+```bash
+venv/bin/alembic revision --autogenerate -m "what changed"   # read the file it writes: a rename comes out as drop + add
+venv/bin/alembic upgrade head
+venv/bin/alembic check                                       # the database matches the models
+```
+
+Commit the migration with the model. A database made before migrations has its tables already: it's marked with the
+baseline (`venv/bin/alembic stamp f48c93de158c`) and then upgraded as usual.
 
 Error messages come in the site's language: the API reads the `gitv-lang` cookie (or `Accept-Language`) and
 answers in Russian from `app/messages.py`. Sign-in, sign-up, news imports, matches of the day
@@ -556,9 +575,8 @@ Abyss Fight Club events (Abyss Fight Club 2, 3, 4, every stage), not the Abyss F
 ### No personal details of players
 
 GITV keeps no real names, birthdays or avatars of players: only what tournaments publish (nicknames, matches,
-results). The member suggestions of those details were removed; their tables (`playerprofile`,
-`playerprofilechange`, `playersuggestion`, `suggestionban`) are dropped from older databases at startup
-(`database.REMOVED_TABLES`).
+results). The member suggestions of those details were removed, with their tables (`playerprofile`,
+`playerprofilechange`, `playersuggestion`, `suggestionban`).
 
 ### Matches of the day
 
