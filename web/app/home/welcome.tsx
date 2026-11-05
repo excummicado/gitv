@@ -16,6 +16,7 @@ import { fetchFeaturedTournaments, type FeaturedTournament } from "../tournament
 import { useCurrentUser } from "../auth/useCurrentUser";
 import { PLAYER_EDITOR_ROLES } from "../auth/client";
 import { useLang } from "../i18n";
+import { Nick } from "../components/PlayerNick";
 
 const CHAMPIONS = 5;
 const ARTICLES = 5;
@@ -287,7 +288,7 @@ function TodaysMatches() {
   const time = (iso: string) => new Date(iso).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
   const player = (p: ScheduledMatch["player1"], won = false) => (
     <>
-      {p.id ? <Link to={`/player/${p.id}`} className={`gitv-row-link${won ? " gitv-winner" : ""}`}>{p.name}</Link>
+      {p.id ? <Link to={`/player/${p.id}`} className={`gitv-row-link${won ? " gitv-winner" : ""}`}><Nick id={p.id} name={p.name} /></Link>
         : <span className={won ? "gitv-winner" : undefined}>{p.name}</span>}
       {p.elo != null && <EloBadge rating={p.elo} rank={p.elo_rank} tier={p.elo_tier} active={p.elo_active} />}
       {!!p.members?.length && (
@@ -295,7 +296,7 @@ function TodaysMatches() {
           {p.members.map((m, i) => (
             <Fragment key={i}>
               {i > 0 && " & "}
-              {m.id ? <Link to={`/player/${m.id}`} className="gitv-row-link">{m.name}</Link> : m.name}
+              {m.id ? <Link to={`/player/${m.id}`} className="gitv-row-link"><Nick id={m.id} name={m.name} /></Link> : m.name}
             </Fragment>
           ))}
         </small>
@@ -451,7 +452,7 @@ function RecentChampions() {
               <small>{i + 1}.</small>
               <span className="gitv-champion-text">
                 <span className="gitv-champion-name">
-                  <Link to={`/player/${c.player.id}`} className="gitv-row-link">{c.player.name}</Link>
+                  <Link to={`/player/${c.player.id}`} className="gitv-row-link"><Nick id={c.player.id} name={c.player.name} /></Link>
                   {c.elo && <EloBadge rating={c.elo.rating} rank={c.elo.rank} tier={c.elo.tier} active={c.elo.active} />}
                 </span>
                 <Link to={`/match/${c.final_match_id}`} className="gitv-row-link gitv-champion-tournament">{c.tournament.title}</Link>

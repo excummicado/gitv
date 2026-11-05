@@ -5,6 +5,7 @@ import { Link } from "react-router";
 import { useLang } from "../i18n";
 import type { LiveGame, LiveMatch } from "./api";
 import "./live-matches.css";
+import { Nick } from "../components/PlayerNick";
 
 function gameState(g: LiveGame) {
   return g.status === "FINISHED" ? "done" : g.status === "NOT_STARTED" ? "waiting" : "live";
@@ -22,7 +23,7 @@ export function LiveMatchRow({ match, onlyLive = false, showTournament = false, 
         {match.players.map((p, i) => (
           <Fragment key={i}>
             {i > 0 && <span className="live-match-vs">vs</span>}
-            {p.id ? <Link className="player-match-link" to={`/player/${p.id}`}>{p.name}</Link> : <span>{p.name}</span>}
+            {p.id ? <Link className="player-match-link" to={`/player/${p.id}`}><Nick id={p.id} name={p.name} /></Link> : <span>{p.name}</span>}
           </Fragment>
         ))}
       </span>

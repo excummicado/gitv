@@ -10,6 +10,7 @@ import { distinctNames, fetchPlayer, fetchRosters, type CharacterCount, type Cha
 import "./player-page.css";
 import "./compare.css";
 import { CharactersTab } from "./CharactersTab";
+import { Nick } from "../components/PlayerNick";
 
 const tabs = ["stats", "matches", "tournaments", "characters"] as const;
 type Tab = (typeof tabs)[number];
@@ -215,7 +216,7 @@ function MatchList({ player, options, onChange }: { player: PlayerDetail; option
       {matches.map((m) => (
         <div className="player-match" key={m.match_id}>
           <Link className="gitv-date player-match-link" to={`/match/${m.match_id}`}>{l.date(m.date)}</Link>
-          <span className="player-ellipsis">{m.opponent ? <Link className="player-match-link" to={`/player/${m.opponent.id}`}>{m.opponent.name}</Link> : "—"}</span>
+          <span className="player-ellipsis">{m.opponent ? <Link className="player-match-link" to={`/player/${m.opponent.id}`}><Nick id={m.opponent.id} name={m.opponent.name} /></Link> : "—"}</span>
           <Link className="player-label player-ellipsis player-match-link" to={`/match/${m.match_id}`}>{m.tournament}{m.technical ? t(" · incomplete", " · неполный") : ""}</Link>
           <span>{m.games_won} – {m.games_lost}</span>
           <span>{seconds(l, m.avg_time)}</span>
@@ -473,7 +474,7 @@ function FrequentOpponents({ player }: { player: PlayerDetail }) {
               </div>
             </div>
             <div className="player-opponent-main">
-              <Link className="player-match-link player-ellipsis player-opponent-name" to={`/player/${o.player.id}`}>{o.player.name}</Link>
+              <Link className="player-match-link player-ellipsis player-opponent-name" to={`/player/${o.player.id}`}><Nick id={o.player.id} name={o.player.name} /></Link>
               <span className="player-label" title={`${t("Last met", "Последняя встреча")}: ${l.date(o.last_met)}`}>{l.count(o.matches, ["match", "matches"], ["матч", "матча", "матчей"])}</span>
             </div>
             <div className="player-opponent-record">
@@ -647,7 +648,7 @@ export function PlayerPage({ playerId }: { playerId: string }) {
                     <div className="player-identity">
                       <div className="player-identity-text">
                         <div className="player-name-row">
-                          <div className="player-nickname">{player.name}</div>
+                          <div className="player-nickname"><Nick id={player.id} name={player.name} /></div>
                           <MajorChampion titles={player.major_titles} />
                         </div>
                       </div>

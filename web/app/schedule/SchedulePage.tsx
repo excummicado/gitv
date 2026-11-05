@@ -8,6 +8,7 @@ import { fetchPlayers, type PlayerSummary } from "../player/api";
 import { useLang } from "../i18n";
 import { addScheduled, deleteScheduled, listScheduled, localDay, scheduleTournaments, type ScheduledMatch } from "./api";
 import "./schedule.css";
+import { Nick } from "../components/PlayerNick";
 
 const DAYS_SHOWN = 31;
 const OTHER = "__other__";
@@ -153,9 +154,9 @@ export function SchedulePage() {
                             <div className="schedule-item" key={m.id}>
                               <span className="schedule-time">{time(m.starts_at)}</span>
                               <span className="player-ellipsis">
-                                {m.player1.id ? <Link className="player-match-link" to={`/player/${m.player1.id}`}>{m.player1.name}</Link> : m.player1.name}
+                                {m.player1.id ? <Link className="player-match-link" to={`/player/${m.player1.id}`}><Nick id={m.player1.id} name={m.player1.name} /></Link> : m.player1.name}
                                 {" vs "}
-                                {m.player2.id ? <Link className="player-match-link" to={`/player/${m.player2.id}`}>{m.player2.name}</Link> : m.player2.name}
+                                {m.player2.id ? <Link className="player-match-link" to={`/player/${m.player2.id}`}><Nick id={m.player2.id} name={m.player2.name} /></Link> : m.player2.name}
                               </span>
                               <span className="player-label player-ellipsis">{m.tournament_title} · {t("by", "добавил(а)")} {m.added_by}</span>
                               {(staff || m.added_by === user?.nickname)

@@ -6,6 +6,7 @@ import { OrganizerName } from "./OrganizerName";
 import { fetchMatch, type Character, type DraftMove, type Game, type GamePlayer, type MatchDetail, type Result } from "./api";
 import "./match-page.css";
 import { useLang } from "../i18n";
+import { Nick } from "../components/PlayerNick";
 
 const MOVE_LABELS: Record<string, [string, string]> = {
   IMMUNE_BAN: ["Immune ban", "Иммунный бан"], IMMUNE_PICK: ["Immune pick", "Иммунный пик"], IMMUNE: ["Immune", "Иммунитет"],
@@ -45,7 +46,7 @@ function PlayerPanel({ player, game }: { player: GamePlayer; game: Game }) {
     <div className={`match-side${player.result === "W" ? " is-winner" : ""}`}>
       <div className="match-side-head">
         <div className="match-side-name">
-          {player.user_id ? <Link className="match-player-link" to={`/player/${player.user_id}`}>{player.name}</Link> : player.name}
+          {player.user_id ? <Link className="match-player-link" to={`/player/${player.user_id}`}><Nick id={player.user_id} name={player.name} /></Link> : player.name}
           {game.first_pick_slot === player.slot && <span className="match-tag">{t("First pick", "Первый пик")}</span>}
         </div>
         <ResultChip result={player.result} />
@@ -159,9 +160,9 @@ function MatchHeader({ match }: { match: MatchDetail }) {
       </div>
       {a && b && (
         <div className="match-score">
-          <span className={`match-score-name${match.winner === 0 ? " is-winner" : ""}`}>{a.user_id ? <Link className="match-player-link" to={`/player/${a.user_id}`}>{a.name}</Link> : a.name}</span>
+          <span className={`match-score-name${match.winner === 0 ? " is-winner" : ""}`}>{a.user_id ? <Link className="match-player-link" to={`/player/${a.user_id}`}><Nick id={a.user_id} name={a.name} /></Link> : a.name}</span>
           <span className="match-score-value">{a.games_won} – {b.games_won}</span>
-          <span className={`match-score-name right${match.winner === 1 ? " is-winner" : ""}`}>{b.user_id ? <Link className="match-player-link" to={`/player/${b.user_id}`}>{b.name}</Link> : b.name}</span>
+          <span className={`match-score-name right${match.winner === 1 ? " is-winner" : ""}`}>{b.user_id ? <Link className="match-player-link" to={`/player/${b.user_id}`}><Nick id={b.user_id} name={b.name} /></Link> : b.name}</span>
         </div>
       )}
       <div className="match-summary">

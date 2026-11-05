@@ -1,0 +1,24 @@
+/* A donor's nickname: rainbow colours flowing through the letters. The gradient repeats exactly over its doubled width,
+   so the loop has no seam. */
+.gitv-donor {
+  background: linear-gradient(90deg, #ff6b6b, #ffb04d, #ffe66d, #6ee7a0, #5cc8ff, #a78bfa, #f472d0, #ff6b6b) 0 0 / 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  font-weight: 700;
+  animation: gitv-donor 6s linear infinite;
+}
+
+.gitv-donor-nick { white-space: nowrap; }
+.gitv-donor-cup { margin-left: .3em; color: var(--gitv-gold); }
+/* inline-block: the page's base styles make every svg a block, which would drop the cup under the nickname. */
+.gitv-donor-cup .coffee-icon { display: inline-block; width: max(.7em, 12px); height: max(.7em, 12px); vertical-align: -.05em; }
+
+@keyframes gitv-donor {
+  to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gitv-donor { animation: none; }
+}

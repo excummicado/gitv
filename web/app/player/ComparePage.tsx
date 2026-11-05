@@ -6,6 +6,7 @@ import { MajorToggle } from "./MajorToggle";
 import { useLang } from "../i18n";
 import { distinctNames, fetchComparison, fetchPlayers, type CharacterCount, type Comparison, type CompareSide, type MeetingSide, type PlayerSummary } from "./api";
 import "./compare.css";
+import { Nick } from "../components/PlayerNick";
 
 type L = ReturnType<typeof useLang>;
 // Which value is better: the higher, the lower (times, technical defeats), or neither (just shown).
@@ -117,7 +118,7 @@ function PlayerHead({ side, fallback, id, align }: { side: CompareSide | null; f
   return (
     <div className={`cmp-head ${align}`}>
       <div className="cmp-head-text">
-        <Link className="player-match-link cmp-name" to={`/player/${id}`}>{side?.name ?? fallback}</Link>
+        <Link className="player-match-link cmp-name" to={`/player/${id}`}><Nick id={id} name={side?.name ?? fallback} /></Link>
       </div>
     </div>
   );

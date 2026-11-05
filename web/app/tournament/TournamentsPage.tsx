@@ -8,6 +8,7 @@ import { useLang } from "../i18n";
 import { fetchTournamentList, type TournamentKind, type TournamentRow } from "./api";
 import { DateRange, KIND_LABELS, Prize } from "./common";
 import "./tournaments.css";
+import { Nick } from "../components/PlayerNick";
 
 const KINDS: ("" | TournamentKind)[] = ["", "bracket", "groups", "qualifier", "team"];
 
@@ -124,7 +125,7 @@ export function TournamentsPage() {
                           {/* The event's players: its widest stage (the first qualifier round has everyone) */}
                           <span className="hide-xs">{stages.length ? Math.max(...stages.map((s) => s.players)) : "—"}</span>
                           <span className="hide-sm"><Prize prize={(final ?? last).prize} currency={(final ?? last).currency} /></span>
-                          <span className="tourneys-winner">{final?.winner ? <Link to={`/player/${final.winner.id}`} className="player-match-link">{final.winner.name}</Link> : "—"}</span>
+                          <span className="tourneys-winner">{final?.winner ? <Link to={`/player/${final.winner.id}`} className="player-match-link"><Nick id={final.winner.id} name={final.winner.name} /></Link> : "—"}</span>
                         </div>
                         {isOpen && stages.map((r) => <Row r={r} key={r.id} stage />)}
                       </div>
@@ -153,7 +154,7 @@ export function TournamentsPage() {
                       <span className="hide-sm">{t(...KIND_LABELS[r.kind])}</span>
                       <span className="hide-xs">{r.teams ? count(r.teams, ["team", "teams"], ["команда", "команды", "команд"]) : r.players}</span>
                       <span className="hide-sm"><Prize prize={r.prize} currency={r.currency} /></span>
-                      <span className="tourneys-winner">{r.winner ? <Link to={`/player/${r.winner.id}`} className="player-match-link">{r.winner.name}</Link> : "—"}</span>
+                      <span className="tourneys-winner">{r.winner ? <Link to={`/player/${r.winner.id}`} className="player-match-link"><Nick id={r.winner.id} name={r.winner.name} /></Link> : "—"}</span>
                     </div>
     );
   }

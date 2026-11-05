@@ -8,6 +8,7 @@ import { distinctNames, fetchPlayers, type PlayerSummary } from "./api";
 import "./player-page.css";
 import "./players-page.css";
 import { useLang } from "../i18n";
+import { Nick } from "../components/PlayerNick";
 
 type SortKey = "name" | "elo" | "tournaments" | "matches" | "match_winrate" | "games" | "winrate" | "avg_time" | "best_time" | "avg_restarts" | "tech_losses" | "tech_loss_rate" | "last_played";
 
@@ -191,7 +192,7 @@ export function PlayersPage() {
                     {shown.map((p) => (
                       <Link className="players-row" role="row" to={`/player/${p.id}${major ? "?major=1" : ""}`} key={p.id}>
                         <span className="players-name">
-                          {p.name}
+                          <Nick id={p.id} name={p.name} />
                           {distinctNames(p.name, p.other_names).length > 0 && <span className="players-aka player-label">aka {distinctNames(p.name, p.other_names).slice(0, 2).join(", ")}</span>}
                         </span>
                         {p.elo ? (

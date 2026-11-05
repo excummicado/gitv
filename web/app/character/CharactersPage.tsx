@@ -6,6 +6,7 @@ import { MajorToggle } from "../player/MajorToggle";
 import { useLang } from "../i18n";
 import { fetchCharacterConstellations, fetchCharacterPlayers, fetchCharacterTable, type CharacterPlayer, type ConstellationRow, type CharacterRow, type CharacterTable, type PrizeFilter, type TableFilters } from "./api";
 import "./characters.css";
+import { Nick } from "../components/PlayerNick";
 
 type SortKey = "name" | "presence" | "pick_rate" | "ban_rate" | "winrate" | "picks" | "bans" | "avg_constellation" | "avg_time" | "players";
 
@@ -167,7 +168,7 @@ function PlayersPopover({ character, count, filters, label, className = "" }: {
             : list.map((p) => (
               <Link key={p.player.id} to={`/player/${p.player.id}?tab=characters`} className="chars-players-row"
                 title={t(`${p.wins} won, ${p.losses} lost; latest at C${p.last_constellation ?? "?"}`, `${p.wins} побед, ${p.losses} поражений; последний раз на C${p.last_constellation ?? "?"}`)}>
-                <b className="player-ellipsis">{p.player.name}</b>
+                <b className="player-ellipsis"><Nick id={p.player.id} name={p.player.name} /></b>
                 <span>{p.picks}</span>
                 <span className={p.winrate == null ? "" : p.winrate >= 52 ? "is-good" : p.winrate <= 48 ? "is-bad" : ""}>{p.winrate == null ? "—" : `${p.winrate}%`}</span>
                 <span>{cons(p)}</span>
@@ -446,7 +447,7 @@ export function CharactersPage() {
                       <span className="hide-md chars-top">
                         {c.top_player ? <Link className="player-match-link player-ellipsis" to={`/player/${c.top_player.id}?tab=characters`}
                           title={t(`${c.top_player.picks} picks · ${c.top_player.winrate ?? "—"}% winrate`, `${c.top_player.picks} пиков · винрейт ${c.top_player.winrate ?? "—"}%`)}>
-                          {c.top_player.name}<small className="player-label"> ×{c.top_player.picks}</small></Link> : "—"}
+                          <Nick id={c.top_player.id} name={c.top_player.name} /><small className="player-label"> ×{c.top_player.picks}</small></Link> : "—"}
                       </span>
                     </div>
                     {openId === c.character.id && <ConstellationPanel row={c} filters={tableFilters} />}

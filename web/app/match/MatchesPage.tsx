@@ -6,6 +6,7 @@ import { fetchMatchesByTournament, fetchTournaments, type GroupedMatches, type M
 import { OrganizerName } from "./OrganizerName";
 import { useLang } from "../i18n";
 import "./match-page.css";
+import { Nick } from "../components/PlayerNick";
 
 // Tournaments per page; a tournament is never split across pages.
 const PAGE_SIZE = 3;
@@ -45,7 +46,7 @@ function TournamentSection({ group }: { group: TournamentGroup }) {
         <div className="match-places" aria-label={t("Top four", "Первые четыре места")}>
           {places.map((p) => (
             <Link className={`match-place place-${p.place}`} to={`/player/${p.player.id}`} key={`${p.place}-${p.player.id}`}>
-              <span className="match-place-no">{p.place}</span>{p.player.name}
+              <span className="match-place-no">{p.place}</span><Nick id={p.player.id} name={p.player.name} />
             </Link>
           ))}
         </div>

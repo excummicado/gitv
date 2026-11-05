@@ -14,6 +14,7 @@ import { TwitchPlayer } from "../components/TwitchPlayer";
 import { fetchLiveStreams, type LiveStream } from "../schedule/api";
 import "../character/characters.css";
 import "./tournaments.css";
+import { Nick } from "../components/PlayerNick";
 
 type Tab = "standings" | "bracket" | "matches" | "stats";
 const TAB_LABELS: Record<Tab, [string, string]> = {
@@ -64,7 +65,7 @@ function Standings({ tournament }: { tournament: TournamentDetail }) {
             {bracket ? <Place row={row} manual={tournament.challonge_only && !tournament.challonge_url} />
               : <span className="player-label">{i + 1 - (row.group ? tournament.table.findIndex((r) => r.group === row.group) : 0)}</span>}
             {row.player.id
-              ? <Link className="player-match-link tourney-player" to={`/player/${row.player.id}?tournament=${tournament.id}`}>{row.player.name}</Link>
+              ? <Link className="player-match-link tourney-player" to={`/player/${row.player.id}?tournament=${tournament.id}`}><Nick id={row.player.id} name={row.player.name} /></Link>
               : <span className="tourney-player player-ellipsis" title={t("Not on the site: matched to no player", "Нет на сайте: не сопоставлен с игроком")}>{row.player.name}</span>}
             <span>{row.match_wins} – {row.match_losses}{row.match_draws ? ` – ${row.match_draws}` : ""}</span>
             <span className="hide-xs">{row.games_won} – {row.games_lost}</span>
@@ -111,7 +112,7 @@ function Side({ side, won, score }: { side: BracketSide | null; won: boolean; sc
   if (!side) return <div className="tourney-bracket-side is-empty"><span>{t("TBD", "—")}</span></div>;
   return (
     <div className={`tourney-bracket-side${won ? " is-winner" : ""}`}>
-      {side.id ? <Link to={`/player/${side.id}`} className="player-match-link player-ellipsis">{side.name}</Link>
+      {side.id ? <Link to={`/player/${side.id}`} className="player-match-link player-ellipsis"><Nick id={side.id} name={side.name} /></Link>
         : <span className="player-ellipsis" title={t("Not matched to a player", "Не сопоставлен с игроком")}>{side.name}</span>}
       <b>{score ?? ""}</b>
     </div>
@@ -264,7 +265,7 @@ function PoolPlayers({ title, players, children, className = "" }: {
         <div className="chars-games-list">
           {players.map(({ player, constellation }, i) => player.id
             ? <Link key={player.id} to={`/player/${player.id}?tab=characters`} className="tourney-pool-players chars-players-row">
-                <b className="player-ellipsis">{player.name}</b><span>C{constellation}</span>
+                <b className="player-ellipsis"><Nick id={player.id} name={player.name} /></b><span>C{constellation}</span>
               </Link>
             : <span key={`?${player.name}${i}`} className="tourney-pool-players chars-players-row"
                 title={t("Not on the site yet: no player page", "Ещё не играл на сайте: страницы игрока нет")}>
@@ -359,7 +360,7 @@ function Stats({ tournament }: { tournament: TournamentDetail }) {
             <div className="player-stat-row"><span className="player-label">{t("Technical defeats", "Тех. поражения")}</span><span className="player-value">{s.technical_games}</span></div>
             <div className="player-stat-row"><span className="player-label">{t("Average time", "Среднее время")}</span><span className="player-value">{s.avg_time == null ? "—" : `${s.avg_time}s`}</span></div>
             <div className="player-stat-row"><span className="player-label">{t("Fastest game", "Самая быстрая игра")}</span>
-              <span className="player-value">{s.fastest ? <><Link className="player-match-link" to={`/match/${s.fastest.match_id}`}>{s.fastest.time}s</Link> · <Link className="player-match-link" to={`/player/${s.fastest.player.id}`}>{s.fastest.player.name}</Link></> : "—"}</span></div>
+              <span className="player-value">{s.fastest ? <><Link className="player-match-link" to={`/match/${s.fastest.match_id}`}>{s.fastest.time}s</Link> · <Link className="player-match-link" to={`/player/${s.fastest.player.id}`}><Nick id={s.fastest.player.id} name={s.fastest.player.name} /></Link></> : "—"}</span></div>
           </div>
         </Box>
         <Box title={t("Most picked", "Чаще всего пикали")}>
@@ -461,7 +462,7 @@ export function TournamentPage({ tournamentId }: { tournamentId: string }) {
                     <div className="match-places" aria-label={t("Top four", "Первые четыре места")}>
                       {top.map((r) => r.player.id
                         ? <Link className={`match-place place-${r.place![0]}`} to={`/player/${r.player.id}`} key={r.player.id}>
-                          <span className="match-place-no">{r.place![0]}</span>{r.player.name}
+                          <span className="match-place-no">{r.place![0]}</span><Nick id={r.player.id} name={r.player.name} />
                         </Link>
                         : <span className={`match-place place-${r.place![0]}`} key={`?${r.player.name}`}>
                           <span className="match-place-no">{r.place![0]}</span>{r.player.name}
