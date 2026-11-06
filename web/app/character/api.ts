@@ -16,16 +16,19 @@ export type CharacterTable = { games: number; teams: number; tournaments: number
 // "players": only their picks, bans and games; "versus": only games between two of them.
 export type PrizeFilter = "" | "players" | "versus";
 
-export type TableFilters = { scope: Scope; since?: string; exclude: string[]; prize?: PrizeFilter; constellations?: [number, number] };
+// since, until: tournaments that started within those days; abyss: only the games played on these phases.
+export type TableFilters = { scope: Scope; since?: string; until?: string; abyss?: string[]; exclude: string[]; prize?: PrizeFilter; constellations?: [number, number] };
 
 // constellations: [lowest, highest] picks to count (bans don't have one and always count).
-function filterQuery(options: TableFilters) {
+export function filterQuery(options: TableFilters) {
   const query = new URLSearchParams({ scope: options.scope });
   if (options.constellations) {
     query.set("cons_min", String(options.constellations[0]));
     query.set("cons_max", String(options.constellations[1]));
   }
   if (options.since) query.set("since", options.since);
+  if (options.until) query.set("until", options.until);
+  for (const id of options.abyss ?? []) query.append("abyss", id);
   for (const id of options.exclude) query.append("exclude", id);
   if (options.prize) query.set("prize", options.prize);
   return query;

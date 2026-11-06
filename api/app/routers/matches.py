@@ -55,7 +55,7 @@ from ..services.stats import (
 from ..services.stats.elo import live_weights
 from ..services.sync import live_tournaments
 from ..services.tournament_info import discord_link
-from .abyss import current_id, phases
+from .abyss import current_id, phase_on, phases
 
 router = APIRouter(prefix="/matches", tags=["matches"])
 
@@ -167,6 +167,8 @@ class MatchDetail(BaseModel):
     challonge_only: bool = False
     # That bracket on Challonge; None for one entered by hand
     challonge_url: str | None = None
+    # The Abyss phase running on the match's day
+    abyss_phase: int | None = None
 
 
 def rooms_of(state: DraftState | None) -> dict[int, list[int]]:
@@ -665,6 +667,7 @@ def challonge_match_detail(session: SessionDep, match_id: str) -> MatchDetail:
         games=[],
         challonge_only=True,
         challonge_url=(info := session.get(TournamentInfo, cm.tournament_id)) and info.challonge_url,
+        abyss_phase=phase_on(session, cm.created_at.date()),
     )
 
 
@@ -789,4 +792,5 @@ def match_detail(session: SessionDep, m: Match, snap: Snapshot | None = None) ->
         technical=scored.outcome.technical,
         result_source=scored.outcome.source if scored.outcome.decided else None,
         games=games,
+        abyss_phase=phase_on(session, m.created_at.date()),
     )

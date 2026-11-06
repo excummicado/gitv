@@ -4,7 +4,10 @@ import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
 import { MajorToggle } from "../player/MajorToggle";
 import { useLang } from "../i18n";
-import { fetchCharacterConstellations, fetchCharacterPlayers, fetchCharacterTable, type CharacterPlayer, type ConstellationRow, type CharacterRow, type CharacterTable, type PrizeFilter, type TableFilters } from "./api";
+import { fetchCharacterConstellations, fetchCharacterPlayers, fetchCharacterTable, filterQuery, type CharacterPlayer, type ConstellationRow, type CharacterRow, type PrizeFilter, type TableFilters } from "./api";
+import { fetchPhases } from "../abyss/api";
+import { MonsterIcon } from "../abyss/AbyssView";
+import { useCached } from "../cached";
 import "./characters.css";
 import { Nick } from "../components/PlayerNick";
 
@@ -248,7 +251,7 @@ function value(row: CharacterRow, key: SortKey, name: (c: CharacterRow["characte
 
 export function CharactersPage() {
   const [params, setParams] = useSearchParams();
-  const { t, name } = useLang();
+  const { t, name, date } = useLang();
   const sort = (params.get("sort") as SortKey | null) ?? "presence";
   const ascending = params.get("dir") === "asc";
   const major = params.get("major") === "1";
@@ -256,6 +259,9 @@ export function CharactersPage() {
   const prize: PrizeFilter = prizeParam === "versus" ? "versus" : prizeParam === "players" || prizeParam === "1" ? "players" : "";
   const sinceParam = params.get("since") ?? "";
   const since = /^\d{4}-\d{2}-\d{2}$/.test(sinceParam) ? sinceParam : "";
+  const untilParam = params.get("until") ?? "";
+  const until = /^\d{4}-\d{2}-\d{2}$/.test(untilParam) ? untilParam : "";
+  const abyss = useMemo(() => (params.get("abyss") ?? "").split(",").filter((id) => /^\d+$/.test(id)), [params]);
   const exclude = useMemo(() => (params.get("exclude") ?? "").split(",").filter(Boolean), [params]);
   const rarity = params.get("rarity") ?? "";
   const minPicks = Number(params.get("min") ?? "") || 0;
@@ -263,13 +269,16 @@ export function CharactersPage() {
   const consMax = Math.max(consMin, clampConstellation(params.get("cmax"), MAX_CONSTELLATION));
   const consFiltered = consMin !== 0 || consMax !== MAX_CONSTELLATION;
   const tableFilters: TableFilters = useMemo(() => ({
-    scope: major ? "major" : "all", since: since || undefined, exclude, prize,
+    scope: major ? "major" : "all", since: since || undefined, until: until || undefined, abyss, exclude, prize,
     constellations: consFiltered ? [consMin, consMax] : undefined,
-  }), [major, since, exclude.join(","), prize, consMin, consMax]);
+  }), [major, since, until, abyss.join(","), exclude.join(","), prize, consMin, consMax]);
   const [search, setSearch] = useState(params.get("q") ?? "");
-  const [data, setData] = useState<CharacterTable | null>(null);
-  const [error, setError] = useState("");
+  const { data, error } = useCached(`characters?${filterQuery(tableFilters)}`, (signal) => fetchCharacterTable(tableFilters, signal),
+    t("Couldn't load the characters.", "Не удалось загрузить персонажей."));
   const [organizersOpen, setOrganizersOpen] = useState(exclude.length > 0);
+  const [abyssOpen, setAbyssOpen] = useState(abyss.length > 0);
+  // Needed only once the choice is open, or for naming what the link came with.
+  const { data: phases } = useCached(abyssOpen || abyss.length ? "abyss-phases" : null, fetchPhases, "");
   // The character whose constellation split is open (one at a time); ?open=<id> opens one on arrival (from the
   // home page's popular characters), scrolled into view once the table is there.
   const [openId, setOpenId] = useState<string | null>(params.get("open"));
@@ -281,15 +290,6 @@ export function CharactersPage() {
     setOpenId(wanted);
     document.getElementById(`char-${wanted}`)?.scrollIntoView({ block: "center" });
   }, [data, params]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setError("");
-    fetchCharacterTable(tableFilters, controller.signal)
-      .then(setData)
-      .catch((err) => { if (!controller.signal.aborted) setError(err instanceof Error ? err.message : t("Couldn't load the characters.", "Не удалось загрузить персонажей.")); });
-    return () => controller.abort();
-  }, [major, since, prize, consMin, consMax, exclude.join(",")]);
 
   // Applied to the live URL: React Router hands the function the params of the last render.
   function update(changes: Record<string, string>) {
@@ -306,6 +306,10 @@ export function CharactersPage() {
   function toggleOrganizer(id: string) {
     const next = exclude.includes(id) ? exclude.filter((x) => x !== id) : [...exclude, id];
     update({ exclude: next.join(",") });
+  }
+
+  function togglePhase(id: string) {
+    update({ abyss: (abyss.includes(id) ? abyss.filter((x) => x !== id) : [...abyss, id]).join(",") });
   }
 
   function sortBy(key: SortKey) {
@@ -330,6 +334,7 @@ export function CharactersPage() {
 
   const pct = (v: number | null) => (v == null ? "—" : `${v}%`);
   const excludedNames = data?.organizers.filter((o) => o.excluded).map((o) => o.name) ?? [];
+  const chosenPhases = phases?.filter((p) => abyss.includes(String(p.id))).map((p) => p.version) ?? [];
 
   return (
     <main className="gitv-page">
@@ -354,8 +359,13 @@ export function CharactersPage() {
                 </label>
                 <label className="chars-filter-label">
                   <span className="player-label">{t("Count from", "Считать с")}</span>
-                  <input className="match-input" type="date" value={since} max={new Date().toISOString().slice(0, 10)}
+                  <input className="match-input" type="date" value={since} max={until || new Date().toISOString().slice(0, 10)}
                     title={t("Only tournaments that started on or after this day", "Только турниры, начавшиеся с этого дня")} onChange={(e) => update({ since: e.target.value })} />
+                </label>
+                <label className="chars-filter-label">
+                  <span className="player-label">{t("Count to", "Считать до")}</span>
+                  <input className="match-input" type="date" value={until} min={since || undefined} max={new Date().toISOString().slice(0, 10)}
+                    title={t("Only tournaments that started on or before this day", "Только турниры, начавшиеся не позже этого дня")} onChange={(e) => update({ until: e.target.value })} />
                 </label>
                 <MajorToggle on={major} onChange={(on) => update({ major: on ? "1" : "" })} />
                 <span className="player-segment chars-prize" role="group" aria-label={t("Whose games count", "Чьи игры считать")}>
@@ -366,6 +376,10 @@ export function CharactersPage() {
                     </button>
                   ))}
                 </span>
+                <button type="button" className={`player-control${abyssOpen || abyss.length ? " active" : ""}`} aria-expanded={abyssOpen}
+                  onClick={() => setAbyssOpen(!abyssOpen)}>
+                  {t("Abyss", "Бездны")}{abyss.length ? ` · ${abyss.length}` : ""}
+                </button>
                 <button type="button" className={`player-control${organizersOpen || exclude.length ? " active" : ""}`} aria-expanded={organizersOpen}
                   onClick={() => setOrganizersOpen(!organizersOpen)}>
                   {t("Organizers", "Организаторы")}{exclude.length ? ` · −${exclude.length}` : ""}
@@ -373,6 +387,29 @@ export function CharactersPage() {
               </div>
               <ConstellationRange value={[consMin, consMax]}
                 onChange={([lo, hi]) => update({ cmin: lo ? String(lo) : "", cmax: hi !== MAX_CONSTELLATION ? String(hi) : "" })} />
+              {abyssOpen && (
+                <div className="chars-phases">
+                  <div className="chars-phases-head">
+                    <span className="player-label">{t("Count only games played on these Abyss phases:", "Считать только игры на этих Безднах:")}</span>
+                    {abyss.length > 0 && <button type="button" className="player-control" onClick={() => update({ abyss: "" })}>{t("All phases", "Все Бездны")}</button>}
+                  </div>
+                  {!phases ? <p className="player-message">{t("Loading…", "Загрузка…")}</p> : (
+                    <div className="chars-phases-list">
+                      {phases.filter((p) => p.matches > 0).map((p) => (
+                        <label key={p.id} className={`chars-phase${abyss.includes(String(p.id)) ? " is-chosen" : ""}`}>
+                          <input type="checkbox" checked={abyss.includes(String(p.id))} onChange={() => togglePhase(String(p.id))} />
+                          <span className="chars-phase-text">
+                            <b>{p.version}</b>
+                            <small className="gitv-date">{date(p.starts_on)} – {date(p.ends_on)}</small>
+                          </span>
+                          <span className="chars-phase-bosses" aria-hidden>{p.bosses.map((b, i) => <MonsterIcon monster={b} size={20} key={i} />)}</span>
+                          <small className="player-label">{p.matches}</small>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               {organizersOpen && data && (
                 <div className="chars-organizers">
                   <span className="player-label">{t("Count tournaments by:", "Учитывать турниры организаторов:")}</span>
@@ -397,6 +434,7 @@ export function CharactersPage() {
                     <small className="player-label">
                       {t(`${data.games} games · ${data.tournaments} tournaments`, `${data.games} игр · ${data.tournaments} турниров`)}
                       {consFiltered && ` · ${t("picks at", "пики на")} ${consMin === consMax ? `C${consMin}` : `C${consMin}–C${consMax}`} (${t("bans: all", "баны: все")})`}
+                      {abyss.length > 0 && ` · ${t("Abyss", "Бездны")} ${chosenPhases.length ? chosenPhases.join(", ") : abyss.length}`}
                       {prize === "players" && ` · ${t("prize winners only", "только призёры")}`}
                       {prize === "versus" && ` · ${t("prize winners against prize winners", "призёры против призёров")}`}
                       {excludedNames.length > 0 && ` · ${t("without", "без")} ${excludedNames.join(", ")}`}

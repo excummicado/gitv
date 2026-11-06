@@ -14,7 +14,8 @@ from ..models import Agent, PlayerRoster, RosterCharacter, TournamentInfo
 from ..services.organizers import organizer_resolver
 from ..services.player_names import display_names, merges
 from ..services.stats import character_constellations, character_players, character_stats, prize_winners, snapshot
-from ..services.stats.snapshot import Snapshot, restrict
+from ..services.stats.snapshot import Snapshot, cached_json, played_during, restrict
+from .abyss import phase_spans
 from .matches import Character
 
 router = APIRouter(prefix="/characters", tags=["characters"])
@@ -67,6 +68,7 @@ Scope = Annotated[str, Query(pattern="^(all|major)$")]
 Prize = Annotated[str, Query(pattern="^(players|versus)$")]
 Constellation = Annotated[int, Query(ge=0, le=6)]
 Exclude = Annotated[list[str] | None, Query(description="Organizer ids to leave out; 'unknown' for none")]
+AbyssPhases = Annotated[list[int] | None, Query(description="Abyss phase ids: only games played on them count")]
 
 
 @dataclass
@@ -87,13 +89,18 @@ def filters(
     prize: str | None,
     cons_min: int,
     cons_max: int,
+    until: date | None = None,
+    abyss: list[int] | None = None,
 ) -> Filters:
     """What the table and the per-character players both apply: scope and dates (major: Abyss Cup qualifiers and
-    playoffs and the numbered Abyss Fight Club events; since: tournaments that started on or after the date),
+    playoffs and the numbered Abyss Fight Club events; since, until: tournaments that started on or after, on or
+    before the date; abyss: only the games played on those Abyss phases, even if that's part of a tournament),
     tournaments of excluded organizers left out, prize winners ("players": their picks, bans and games; "versus":
     only games between two of them; prize winners are whoever ever finished in a top four, whatever the filters) and
     constellations (picks only)."""
-    snap = snapshot(session, scope, since)
+    snap = snapshot(session, scope, since, until)
+    if abyss:
+        snap = played_during(snap, phase_spans(session, abyss))
     in_scope = {snap.match_tournament[m] for pd in snap.players.values() for m in pd.matches}
     infos = {i.tournament_id: i for i in session.exec(select(TournamentInfo))}
     names = display_names(session)
@@ -136,25 +143,43 @@ def list_characters(
     session: SessionDep,
     scope: Scope = "all",
     since: date | None = None,
+    until: date | None = None,
+    abyss: AbyssPhases = None,
     exclude: Exclude = None,
     prize: Prize | None = None,
     cons_min: Constellation = 0,
     cons_max: Constellation = 6,
 ):
     """Every character picked or banned under the filters (see filters)."""
-    f = filters(session, scope, since, exclude or [], prize, cons_min, cons_max)
-    data = character_stats(f.snap, f.players, versus=f.versus, constellations=f.constellations)
-    agents = {a.id: a for a in session.exec(select(Agent))}
-    for c in data["characters"]:
-        a = agents.get(c["character"])
-        c["character"] = Character(
-            id=c["character"],
-            name=(a and (a.name_en or a.name_ru)) or c["character"],
-            name_ru=a and a.name_ru,
-            icon=a and a.icon,
-            rarity=a and a.rarity,
-        )
-    return {**data, "organizers": f.organizers, "prize_players": f.winners}
+
+    def body() -> str:
+        f = filters(session, scope, since, exclude or [], prize, cons_min, cons_max, until, abyss)
+        data = character_stats(f.snap, f.players, versus=f.versus, constellations=f.constellations)
+        agents = {a.id: a for a in session.exec(select(Agent))}
+        for c in data["characters"]:
+            a = agents.get(c["character"])
+            c["character"] = Character(
+                id=c["character"],
+                name=(a and (a.name_en or a.name_ru)) or c["character"],
+                name_ru=a and a.name_ru,
+                icon=a and a.icon,
+                rarity=a and a.rarity,
+            )
+        table = {**data, "organizers": f.organizers, "prize_players": f.winners}
+        return CharacterTable.model_validate(table).model_dump_json()
+
+    name = (
+        "characters",
+        scope,
+        since,
+        until,
+        tuple(sorted(set(abyss or []))),
+        tuple(sorted(set(exclude or []))),
+        prize,
+        cons_min,
+        cons_max,
+    )
+    return cached_json(session, name, body)
 
 
 class PlayerRef(BaseModel):
@@ -181,13 +206,15 @@ def list_character_players(
     session: SessionDep,
     scope: Scope = "all",
     since: date | None = None,
+    until: date | None = None,
+    abyss: AbyssPhases = None,
     exclude: Exclude = None,
     prize: Prize | None = None,
     cons_min: Constellation = 0,
     cons_max: Constellation = 6,
 ):
     """Who picked the character and when, under the same filters as the table; most picks first."""
-    f = filters(session, scope, since, exclude or [], prize, cons_min, cons_max)
+    f = filters(session, scope, since, exclude or [], prize, cons_min, cons_max, until, abyss)
     return character_players(f.snap, agent_id, f.players, versus=f.versus, constellations=f.constellations)
 
 
@@ -212,12 +239,14 @@ def list_character_constellations(
     session: SessionDep,
     scope: Scope = "all",
     since: date | None = None,
+    until: date | None = None,
+    abyss: AbyssPhases = None,
     exclude: Exclude = None,
     prize: Prize | None = None,
 ):
     """The character's picks and winrate at each constellation, C0 to C6, under the table's filters (the
     constellation range aside: this is the split by constellation)."""
-    f = filters(session, scope, since, exclude or [], prize, 0, 6)
+    f = filters(session, scope, since, exclude or [], prize, 0, 6, until, abyss)
     merged = merges(session)
     owned: dict[tuple[str, str], list[tuple]] = {}
     rows = session.exec(

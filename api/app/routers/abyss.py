@@ -104,6 +104,7 @@ class Mechanic(BaseModel):
 
 
 class Guide(BaseModel):
+    monster_id: int  # the wave monsters it describes
     monster: str
     icon: str | None
     mechanics: list[Mechanic]
@@ -217,6 +218,18 @@ def phase_of(day: date, ordered: list[AbyssPhase]) -> AbyssPhase | None:
     return None
 
 
+def phase_on(session: Session, day: date) -> int | None:
+    """The phase running on that day."""
+    return session.exec(select(AbyssPhase.id).where(AbyssPhase.starts_on <= day, AbyssPhase.ends_on > day)).first()
+
+
+def phase_spans(session: Session, ids: list[int]) -> list[tuple[date, date]]:
+    """The [start, end) days of these phases; ids that aren't phases have none."""
+    wanted = set(ids)
+    rows = session.exec(select(AbyssPhase.id, AbyssPhase.starts_on, AbyssPhase.ends_on)).all()
+    return [(start, end) for pid, start, end in rows if pid in wanted]
+
+
 def usage(session: Session, ordered: list[AbyssPhase]) -> dict[int, Counter]:
     """{phase id: Counter(tournament id -> matches)}."""
     out: dict[int, Counter] = defaultdict(Counter)
@@ -290,6 +303,7 @@ def read_phase(phase_id: int, session: SessionDep):
     monsters = json.loads(p.monsters)
     guides = [
         Guide(
+            monster_id=int(mid),
             monster=clean(monsters.get(mid, {}).get("Name")) or mid,
             icon=icon_url(monsters.get(mid, {}).get("Icon")),
             mechanics=[

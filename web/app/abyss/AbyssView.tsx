@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLang } from "../i18n";
-import type { AbyssMonster, Chamber, Guide, PhaseDetail, Shield, Text } from "./api";
+import { fetchPhase, type AbyssMonster, type Chamber, type Guide, type PhaseDetail, type Shield, type Text } from "./api";
 import "./abyss.css";
 
 // The API serves element icons under alioth's names.
@@ -15,6 +15,21 @@ const ELEMENT_RU: Record<string, string> = {
 export function useText() {
   const { lang } = useLang();
   return (t: Text) => (lang === "ru" && t.ru ? t.ru : t.en);
+}
+
+export function usePhase(id: string) {
+  const [phase, setPhase] = useState<PhaseDetail | null>(null);
+  const [error, setError] = useState("");
+  const { t } = useLang();
+  useEffect(() => {
+    const controller = new AbortController();
+    setPhase(null);
+    setError("");
+    fetchPhase(id, controller.signal).then(setPhase)
+      .catch((err) => { if (!controller.signal.aborted) setError(err instanceof Error ? err.message : t("Couldn't load the Abyss.", "Не удалось загрузить Бездну.")); });
+    return () => controller.abort();
+  }, [id]);
+  return { phase, error };
 }
 
 export function hpShort(hp: number | null, ru: boolean) {
@@ -51,13 +66,16 @@ function waveLabel(label: string, ru: boolean) {
   return ru ? label.replace(/WAVES/g, "Волны").replace(/WAVE/g, "Волна").replace(/Group/g, "Группа") : label;
 }
 
-function MonsterRow({ monster }: { monster: AbyssMonster }) {
+// A monster with known mechanics opens them under itself when pressed.
+function MonsterRow({ monster, guide }: { monster: AbyssMonster; guide?: Guide }) {
   const { lang, t } = useLang();
+  const tx = useText();
   const ru = lang === "ru";
-  return (
-    <div className="abyss-monster">
+  const [open, setOpen] = useState(false);
+  const row = (
+    <>
       <MonsterIcon monster={monster} />
-      <div className="abyss-monster-text">
+      <span className="abyss-monster-text">
         <span className="abyss-monster-name">
           {monster.name}{monster.count > 1 && <b className="abyss-count"> ×{monster.count}</b>}
         </span>
@@ -76,12 +94,32 @@ function MonsterRow({ monster }: { monster: AbyssMonster }) {
             ))}
           </span>
         )}
-      </div>
+      </span>
+    </>
+  );
+  if (!guide) return <div className="abyss-monster">{row}</div>;
+  return (
+    <div className="abyss-monster-item">
+      <button type="button" className="abyss-monster is-clickable" aria-expanded={open} onClick={() => setOpen(!open)}
+        title={open ? t("Hide the mechanics", "Скрыть механики") : t("Show the mechanics", "Показать механики")}>
+        {row}
+        <span className="abyss-guide-toggle" aria-hidden>{open ? "−" : "+"}</span>
+      </button>
+      {open && (
+        <div className="abyss-guide-body">
+          {guide.mechanics.map((m, i) => (
+            <div key={i}>
+              <b>{tx(m.title)}</b>
+              {m.lines.map((l, j) => <p key={j}>{tx(l)}</p>)}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function Half({ chamber }: { chamber: Chamber }) {
+function Half({ chamber, guides }: { chamber: Chamber; guides: Guide[] }) {
   const { lang, t } = useLang();
   const ru = lang === "ru";
   return (
@@ -93,7 +131,7 @@ function Half({ chamber }: { chamber: Chamber }) {
       {chamber.waves.map((w, i) => (
         <div className="abyss-wave" key={i}>
           {chamber.waves.length > 1 && <span className="abyss-wave-label player-label">{w.label ? waveLabel(w.label, ru) : t(`Wave ${i + 1}`, `Волна ${i + 1}`)}</span>}
-          {w.monsters.map((m, j) => <MonsterRow monster={m} key={j} />)}
+          {w.monsters.map((m, j) => <MonsterRow monster={m} guide={guides.find((g) => g.monster_id === m.id)} key={j} />)}
         </div>
       ))}
     </div>
@@ -101,53 +139,23 @@ function Half({ chamber }: { chamber: Chamber }) {
 }
 
 // Floor 12: three chambers, each in two halves side by side.
-export function Chambers({ chambers }: { chambers: Chamber[] }) {
-  const { lang } = useLang();
+export function Chambers({ chambers, guides }: { chambers: Chamber[]; guides: Guide[] }) {
+  const { lang, t } = useLang();
   const ru = lang === "ru";
   const byRoom = [1, 2, 3].map((n) => chambers.filter((c) => c.index === n).sort((a, b) => a.half - b.half));
   return (
     <div className="abyss-chambers">
+      {guides.length > 0 && <p className="player-note abyss-tip">{t("Press an enemy marked + to see its mechanics.", "Нажмите на врага с «+», чтобы открыть его механики.")}</p>}
       {byRoom.map((halves, i) => halves.length > 0 && (
         <section className="player-box abyss-chamber" key={i}>
           <h3 className="player-box-title abyss-chamber-title">
             <span>12-{i + 1}</span>
             <span className="player-label">HP {hpShort(halves.reduce((s, c) => s + c.hp, 0), ru)}</span>
           </h3>
-          <div className="abyss-halves">{halves.map((c) => <Half chamber={c} key={c.half} />)}</div>
+          <div className="abyss-halves">{halves.map((c) => <Half chamber={c} guides={guides} key={c.half} />)}</div>
         </section>
       ))}
     </div>
-  );
-}
-
-function Guides({ guides }: { guides: Guide[] }) {
-  const { t } = useLang();
-  const tx = useText();
-  const [open, setOpen] = useState<string | null>(null);
-  if (!guides.length) return null;
-  return (
-    <section className="player-box">
-      <h2 className="player-box-title">{t("Boss mechanics", "Механики боссов")}</h2>
-      {guides.map((g) => (
-        <div className="abyss-guide" key={g.monster}>
-          <button type="button" className="abyss-guide-head" aria-expanded={open === g.monster} onClick={() => setOpen(open === g.monster ? null : g.monster)}>
-            {g.icon ? <img src={g.icon} alt="" width={28} height={28} loading="lazy" /> : <span />}
-            <b>{g.monster}</b>
-            <span className="abyss-guide-toggle" aria-hidden>{open === g.monster ? "−" : "+"}</span>
-          </button>
-          {open === g.monster && (
-            <div className="abyss-guide-body">
-              {g.mechanics.map((m, i) => (
-                <div key={i}>
-                  <b>{tx(m.title)}</b>
-                  {m.lines.map((l, j) => <p key={j}>{tx(l)}</p>)}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      ))}
-    </section>
   );
 }
 
@@ -184,8 +192,7 @@ export function PhaseBody({ phase }: { phase: PhaseDetail }) {
   return (
     <>
       <PhaseRules phase={phase} />
-      <Chambers chambers={phase.chambers} />
-      <Guides guides={phase.guides} />
+      <Chambers chambers={phase.chambers} guides={phase.guides} />
     </>
   );
 }

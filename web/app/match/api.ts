@@ -23,6 +23,8 @@ export type MatchDetail = {
   challonge_only: boolean;
   // That bracket on Challonge; null for one entered by hand
   challonge_url: string | null;
+  // The Abyss phase running on the match's day
+  abyss_phase: number | null;
 };
 
 export function fetchMatch(id: string, signal?: AbortSignal) {

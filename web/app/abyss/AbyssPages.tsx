@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router";
 import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
 import { useLang } from "../i18n";
-import { fetchPhase, fetchPhases, type PhaseDetail, type PhaseSummary } from "./api";
-import { Credit, hpShort, MonsterIcon, PhaseBody, useText } from "./AbyssView";
+import { fetchPhases, type PhaseDetail, type PhaseSummary } from "./api";
+import { Credit, hpShort, MonsterIcon, PhaseBody, usePhase, useText } from "./AbyssView";
 import { abyssCard } from "./shareImage";
 
 // Saves the phase as a 1920×1080 picture (shareImage.ts).
@@ -45,21 +45,6 @@ function Frame({ children }: { children: React.ReactNode }) {
       </div>
     </main>
   );
-}
-
-function usePhase(id: string) {
-  const [phase, setPhase] = useState<PhaseDetail | null>(null);
-  const [error, setError] = useState("");
-  const { t } = useLang();
-  useEffect(() => {
-    const controller = new AbortController();
-    setPhase(null);
-    setError("");
-    fetchPhase(id, controller.signal).then(setPhase)
-      .catch((err) => { if (!controller.signal.aborted) setError(err instanceof Error ? err.message : t("Couldn't load the Abyss.", "Не удалось загрузить Бездну.")); });
-    return () => controller.abort();
-  }, [id]);
-  return { phase, error };
 }
 
 function PhaseHeader({ phase }: { phase: PhaseDetail }) {
@@ -104,29 +89,73 @@ function PhaseTournaments({ phase }: { phase: PhaseDetail }) {
   );
 }
 
+type ArchiveSort = "date" | "hp" | "matches";
+const ARCHIVE_SORTS: { key: ArchiveSort; label: [string, string] }[] = [
+  { key: "date", label: ["Date", "Дата"] },
+  { key: "hp", label: ["HP", "HP"] },
+  { key: "matches", label: ["Matches", "Матчи"] },
+];
+
+function archiveValue(r: PhaseSummary, sort: ArchiveSort) {
+  return sort === "hp" ? r.total_hp : sort === "matches" ? r.matches : r.starts_on;
+}
+
 function Archive({ current }: { current: number | null }) {
   const { t, date, lang } = useLang();
   const [rows, setRows] = useState<PhaseSummary[] | null>(null);
   const [all, setAll] = useState(false);
+  const [params, setParams] = useSearchParams();
+  const sortParam = params.get("sort");
+  const sort: ArchiveSort = sortParam === "hp" || sortParam === "matches" ? sortParam : "date";
+  const ascending = params.get("dir") === "asc";
   useEffect(() => {
     const controller = new AbortController();
     fetchPhases(controller.signal).then(setRows).catch(() => {});
     return () => controller.abort();
   }, []);
-  if (!rows) return null;
   // Phases with tournament matches first in mind: the rest (before 2023) on request.
-  const shown = all ? rows : rows.filter((r) => r.matches > 0 || r.current || r.upcoming);
+  const shown = useMemo(() => {
+    const kept = (rows ?? []).filter((r) => all || r.matches > 0 || r.current || r.upcoming);
+    // Phases without the value go last; equal ones newest first.
+    return [...kept].sort((a, b) => {
+      const x = archiveValue(a, sort), y = archiveValue(b, sort);
+      if (x == null || y == null) return x == null ? (y == null ? 0 : 1) : -1;
+      if (x === y) return b.starts_on.localeCompare(a.starts_on);
+      return (x < y ? -1 : 1) * (ascending ? 1 : -1);
+    });
+  }, [rows, all, sort, ascending]);
+  if (!rows) return null;
+
+  function sortBy(key: ArchiveSort) {
+    const asc = key === sort && !ascending;
+    setParams(() => {
+      const next = new URLSearchParams(window.location.search);
+      if (key === "date") next.delete("sort"); else next.set("sort", key);
+      if (asc) next.set("dir", "asc"); else next.delete("dir");
+      return next;
+    }, { replace: true, preventScrollReset: true });
+  }
+
   return (
     <section className="player-box">
-      <h2 className="player-box-title">{t("All phases", "Все сезоны")}</h2>
+      <h2 className="player-box-title abyss-archive-title">
+        <span>{t("All phases", "Все сезоны")}</span>
+        <span className="player-segment" role="group" aria-label={t("Sort the phases", "Сортировка сезонов")}>
+          {ARCHIVE_SORTS.map((s) => (
+            <button type="button" key={s.key} className={`player-control${sort === s.key ? " active" : ""}`} aria-pressed={sort === s.key} onClick={() => sortBy(s.key)}>
+              {t(...s.label)}{sort === s.key ? (ascending ? " ↑" : " ↓") : ""}
+            </button>
+          ))}
+        </span>
+      </h2>
       {shown.map((r) => (
         <Link className={`abyss-archive-row${r.id === current ? " is-current" : ""}`} to={`/abyss/${r.id}`} key={r.id}>
           <span className="abyss-archive-ver">{r.version}{r.upcoming && <span className="match-tag abyss-next">{t("Next", "Следующая")}</span>}</span>
           <span className="gitv-date">{date(r.starts_on)} – {date(r.ends_on)}</span>
           <span className="abyss-archive-bosses" aria-hidden>{r.bosses.map((b, i) => <MonsterIcon monster={b} size={26} key={i} />)}</span>
           <span className="abyss-archive-moon player-ellipsis">{r.blessings.join(" · ")}</span>
-          <span className="hide-xs">HP {hpShort(r.total_hp, lang === "ru")}</span>
-          <span className="player-label hide-xs">{r.matches ? t(`${r.matches} matches`, `${r.matches} матчей`) : ""}</span>
+          <span>HP {hpShort(r.total_hp, lang === "ru")}</span>
+          <span className="abyss-archive-matches">{r.matches ? t(`${r.matches} matches`, `${r.matches} матчей`) : ""}</span>
         </Link>
       ))}
       {!all && rows.length > shown.length && (

@@ -13,10 +13,13 @@ drafted for, a game played elsewhere): Elo and match records count them too.
 
 import json
 import threading
-from collections import Counter, defaultdict
-from dataclasses import dataclass, field
+import time as clock
+from collections import Counter, OrderedDict, defaultdict
+from collections.abc import Callable, Hashable
+from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, time, timedelta
 
+from fastapi import Response
 from sqlmodel import Session, func, select
 
 from ...models import (
@@ -121,6 +124,13 @@ class Snapshot:
 _cache: dict[str, Snapshot] = {}
 MAX_CACHED = 8
 _lock = threading.Lock()
+# Ready-made JSON of the heaviest public lists, for as long as the data stands: {name: (written at, body)}.
+_responses: OrderedDict[Hashable, tuple[float, bytes]] = OrderedDict()
+_responses_key: tuple | None = None
+_responses_lock = threading.Lock()
+MAX_RESPONSES = 64
+# Some of what the lists show isn't in data_key (an organizer's name, who counts as active), so nothing stays for long.
+RESPONSE_SECONDS = 600
 
 
 def warm_up(engine) -> None:
@@ -176,17 +186,52 @@ def data_key(session: Session) -> tuple:
     )
 
 
+def tournament_starts(session: Session) -> list[tuple[str, datetime]]:
+    """Every tournament with its first match (Challonge-only ones: their start), in UTC."""
+    rows = session.exec(select(Match.tournament_id, func.min(Match.created_at)).group_by(Match.tournament_id)).all()
+    rows += session.exec(select(ChallongeTournament.tournament_id, ChallongeTournament.started_at)).all()
+    return [(tid, first if first.tzinfo else first.replace(tzinfo=UTC)) for tid, first in rows if first]
+
+
 def tournaments_since(session: Session, since: date) -> set[str]:
     """Tournaments whose first match is on or after the date: whole tournaments only, so places and titles
     aren't counted from half a tournament."""
     start = datetime.combine(since, time.min, tzinfo=UTC)
-    rows = session.exec(select(Match.tournament_id, func.min(Match.created_at)).group_by(Match.tournament_id)).all()
-    rows += session.exec(select(ChallongeTournament.tournament_id, ChallongeTournament.started_at)).all()
-    return {tid for tid, first in rows if first and (first if first.tzinfo else first.replace(tzinfo=UTC)) >= start}
+    return {tid for tid, first in tournament_starts(session) if first >= start}
 
 
-def snapshot(session: Session, scope: str = "all", since: date | None = None) -> Snapshot:
-    """scope: "all" or "major"; since: count only tournaments that started on or after this date."""
+def tournaments_until(session: Session, until: date) -> set[str]:
+    """Tournaments whose first match is on or before the date, whole like tournaments_since's."""
+    end = datetime.combine(until + timedelta(days=1), time.min, tzinfo=UTC)
+    return {tid for tid, first in tournament_starts(session) if first < end}
+
+
+def cached_json(session: Session, name: Hashable, body: Callable[[], str | bytes]) -> Response:
+    """The response under this name, made by body() only when the data has changed since or it's too old."""
+    global _responses_key
+    key = data_key(session)
+    now = clock.monotonic()
+    with _responses_lock:
+        if _responses_key != key:
+            _responses.clear()
+            _responses_key = key
+        kept = _responses.get(name)
+        if kept and now - kept[0] < RESPONSE_SECONDS:
+            _responses.move_to_end(name)
+            return Response(kept[1], media_type="application/json")
+    made = body()
+    made = made.encode() if isinstance(made, str) else made
+    with _responses_lock:
+        if _responses_key == key:
+            _responses[name] = (now, made)
+            while len(_responses) > MAX_RESPONSES:
+                _responses.popitem(last=False)
+    return Response(made, media_type="application/json")
+
+
+def snapshot(session: Session, scope: str = "all", since: date | None = None, until: date | None = None) -> Snapshot:
+    """scope: "all" or "major"; since, until: count only tournaments that started on or after, on or before these
+    dates."""
     key = data_key(session)
     # One build at a time: a page fires several requests at once, and without the lock each of them would build
     # the same snapshot in parallel. The others wait, then find it ready.
@@ -194,15 +239,18 @@ def snapshot(session: Session, scope: str = "all", since: date | None = None) ->
         if "all:" not in _cache or _cache["all:"].key != key:
             _cache.clear()
             _cache["all:"] = build(session, key)
-        return _scoped(session, scope, since)
+        return _scoped(session, scope, since, until)
 
 
-def _scoped(session: Session, scope: str, since: date | None) -> Snapshot:
-    name = f"{scope}:{since.isoformat() if since else ''}"
+def _scoped(session: Session, scope: str, since: date | None, until: date | None) -> Snapshot:
+    name = f"{scope}:{since.isoformat() if since else ''}{f':{until.isoformat()}' if until else ''}"
     if name not in _cache:
         only = major_tournament_ids(session) if scope == "major" else None
         if since:
             dated = tournaments_since(session, since)
+            only = dated if only is None else only & dated
+        if until:
+            dated = tournaments_until(session, until)
             only = dated if only is None else only & dated
         # Cut from the full snapshot in memory: a new date costs milliseconds, not a pass over the database.
         _cache[name] = restrict(_cache["all:"], only)
@@ -246,6 +294,36 @@ def restrict(base: Snapshot, only: set[str]) -> Snapshot:
         live=base.live & only,
         decided=base.decided & only,
     )
+
+
+def played_during(base: Snapshot, spans: list[tuple[date, date]]) -> Snapshot:
+    """The snapshot counting only matches played within these [start, end) days. Unlike restrict this can cut a
+    tournament in two, which is right for what was played on an Abyss phase but not for places and titles."""
+
+    def within(when: date | datetime) -> bool:
+        day = when.date() if isinstance(when, datetime) else when
+        return any(start <= day < end for start, end in spans)
+
+    kept = {m for m, (when, _) in base.match_info.items() if within(when)}
+    narrowed = restrict(base, {base.match_tournament[m] for m in kept if m in base.match_tournament})
+    players: dict[str, PlayerData] = {}
+    for pid, pd in narrowed.players.items():
+        games = [g for g in pd.games if g.match_id in kept]
+        matches = {m: o for m, o in pd.matches.items() if m in kept}
+        if not games and not matches:
+            continue
+        drafts = {g.draft_id for g in games}
+        played = {base.match_tournament[m] for m in matches} | {base.match_tournament[g.match_id] for g in games}
+        players[pid] = PlayerData(
+            id=pid,
+            name=pd.name,
+            names=Counter(g.name for g in games),
+            games=games,
+            tournaments=pd.tournaments & played,
+            matches=matches,
+            bans_by_draft=defaultdict(Counter, {d: c for d, c in pd.bans_by_draft.items() if d in drafts}),
+        )
+    return replace(narrowed, players=players)
 
 
 def detached(row):

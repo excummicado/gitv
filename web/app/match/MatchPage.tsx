@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
 import { OrganizerName } from "./OrganizerName";
+import { PhaseBody, usePhase } from "../abyss/AbyssView";
 import { fetchMatch, type Character, type DraftMove, type Game, type GamePlayer, type MatchDetail, type Result } from "./api";
 import "./match-page.css";
 import { useLang } from "../i18n";
@@ -36,6 +37,57 @@ function Portrait({ character, size = 44 }: { character: Character; size?: numbe
   return character.icon
     ? <img className={`match-portrait rarity-${character.rarity ?? 4}`} src={character.icon} alt="" width={size} height={size} loading="lazy" />
     : <span className="match-portrait match-portrait-empty" style={{ width: size, height: size }} />;
+}
+
+// A heading that opens and closes what's under it; the content is only made while open.
+function Fold({ title, open: startOpen = false, className = "", children }: { title: React.ReactNode; open?: boolean; className?: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(startOpen);
+  return (
+    <>
+      <button type="button" className={`match-fold ${className}`} aria-expanded={open} onClick={() => setOpen(!open)}>
+        <span>{title}</span>
+        <span className="match-fold-toggle" aria-hidden>{open ? "−" : "+"}</span>
+      </button>
+      {open && children}
+    </>
+  );
+}
+
+// How far apart two times are, with the arrow towards the faster side.
+function Gap({ left, right }: { left: number; right: number }) {
+  const { t } = useLang();
+  const gap = Math.abs(left - right);
+  return (
+    <span className="match-gap-value">
+      {left < right && <i className="match-gap-arrow" aria-hidden>◀</i>}
+      {gap ? `${gap}${t("s", " с")}` : "="}
+      {left > right && <i className="match-gap-arrow" aria-hidden>▶</i>}
+    </span>
+  );
+}
+
+// Between the two players: the game's time gap (with penalties, as it decides the game) and each room's.
+function GameGap({ a, b }: { a: GamePlayer; b: GamePlayer }) {
+  const { t } = useLang();
+  const penalties = a.adjusted_time - a.clear_time !== b.adjusted_time - b.clear_time;
+  const rooms = (a.rooms ?? []).map((time, i) => [time, b.rooms?.[i] ?? 0]);
+  return (
+    <div className="match-gap">
+      <span className="player-label">{t("Time gap", "Разница")}</span>
+      <strong><Gap left={a.adjusted_time} right={b.adjusted_time} /></strong>
+      {penalties && <small className="player-label">{t("no penalty", "без штрафа")} <Gap left={a.clear_time} right={b.clear_time} /></small>}
+      {rooms.some(([x, y]) => x > 0 && y > 0) && (
+        <div className="match-gap-rooms">
+          {rooms.map(([x, y], i) => x > 0 && y > 0 && (
+            <span className="match-gap-room" key={i}>
+              <span className="player-label">{t("Room", "Комн.")} {i + 1}</span>
+              <Gap left={x} right={y} />
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function PlayerPanel({ player, game }: { player: GamePlayer; game: Game }) {
@@ -73,9 +125,9 @@ function PlayerPanel({ player, game }: { player: GamePlayer; game: Game }) {
         {player.team.map((member, index) => (
           <div className="match-member" key={index} title={`${name(member.character)}${member.constellation == null ? "" : ` C${member.constellation}`}${member.weapon ? ` · ${name(member.weapon)} R${member.refinement ?? "?"}` : ""}`}>
             <div className="match-member-art">
-              <Portrait character={member.character} />
+              <Portrait character={member.character} size={88} />
               {member.constellation != null && <span className="match-badge">C{member.constellation}</span>}
-              {member.weapon?.icon && <img className="match-weapon" src={member.weapon.icon} alt="" width={22} height={22} loading="lazy" />}
+              {member.weapon?.icon && <img className="match-weapon" src={member.weapon.icon} alt="" width={32} height={32} loading="lazy" />}
             </div>
             <span className="match-member-name">{name(member.character)}</span>
             {member.weapon && <span className="match-member-weapon">{name(member.weapon)} · R{member.refinement ?? "?"}</span>}
@@ -117,6 +169,9 @@ function DraftMoves({ game }: { game: Game }) {
 function GameSection({ game }: { game: Game }) {
   const { t } = useLang();
   const duration = durationMinutes(game.started_at, game.finished_at);
+  const [a, b] = game.players;
+  // A technical game's times don't count, and a game without times has nothing to compare.
+  const gap = a && b && game.players.length === 2 && a.clear_time > 0 && b.clear_time > 0 && !game.technical;
   return (
     <section className="player-box match-game">
       <h2 className="player-box-title match-game-title">
@@ -134,11 +189,40 @@ function GameSection({ game }: { game: Game }) {
                 "Игра не доиграна, и проигравшего определить нельзя: результата нет, а время не учитывается в статистике игроков.")}
         </p>
       )}
-      <div className="match-sides">
-        {game.players.map((player) => <PlayerPanel player={player} game={game} key={player.slot} />)}
+      <div className={`match-sides${gap ? " has-gap" : ""}`}>
+        {gap
+          ? <><PlayerPanel player={a} game={game} /><GameGap a={a} b={b} /><PlayerPanel player={b} game={game} /></>
+          : game.players.map((player) => <PlayerPanel player={player} game={game} key={player.slot} />)}
       </div>
-      <h3 className="match-subtitle">{t("Draft", "Драфт")}</h3>
-      <DraftMoves game={game} />
+      <Fold title={t("Draft", "Драфт")} open className="match-subtitle"><DraftMoves game={game} /></Fold>
+    </section>
+  );
+}
+
+function PhaseContent({ id }: { id: number }) {
+  const { phase, error } = usePhase(String(id));
+  const { t } = useLang();
+  return (
+    <div className="match-abyss-body">
+      {error ? <p className="match-empty">{error}</p>
+        : !phase ? <p className="match-empty">{t("Loading the Abyss…", "Загрузка Бездны…")}</p>
+        : <>
+            <Link className="player-match-link match-abyss-link" to={`/abyss/${phase.id}`}>{t("Version", "Версия")} {phase.version} ↗</Link>
+            <PhaseBody phase={phase} />
+          </>}
+    </div>
+  );
+}
+
+// The Abyss the match was played on, opened on request.
+function MatchAbyss({ match }: { match: MatchDetail }) {
+  const { t } = useLang();
+  if (match.abyss_phase == null) return null;
+  return (
+    <section className="player-box match-abyss">
+      <Fold title={<>{match.challonge_only ? "≈ " : ""}{t("Spiral Abyss of this match", "Бездна этого матча")}</>} className="player-box-title">
+        <PhaseContent id={match.abyss_phase} />
+      </Fold>
     </section>
   );
 }
@@ -161,7 +245,10 @@ function MatchHeader({ match }: { match: MatchDetail }) {
       {a && b && (
         <div className="match-score">
           <span className={`match-score-name${match.winner === 0 ? " is-winner" : ""}`}>{a.user_id ? <Link className="match-player-link" to={`/player/${a.user_id}`}><Nick id={a.user_id} name={a.name} /></Link> : a.name}</span>
-          <span className="match-score-value">{a.games_won} – {b.games_won}</span>
+          <span className="match-score-center">
+            <span className="match-score-value">{a.games_won} – {b.games_won}</span>
+            {a.total_time != null && b.total_time != null && <small className="player-label">{t("Time gap", "Разница")} <Gap left={a.total_time} right={b.total_time} /></small>}
+          </span>
           <span className={`match-score-name right${match.winner === 1 ? " is-winner" : ""}`}>{b.user_id ? <Link className="match-player-link" to={`/player/${b.user_id}`}><Nick id={b.user_id} name={b.name} /></Link> : b.name}</span>
         </div>
       )}
@@ -213,6 +300,7 @@ export function MatchPage({ matchId }: { matchId: string }) {
               : !match ? <p className="player-box match-empty">{t("Loading match…", "Загрузка матча…")}</p>
               : <>
                   <MatchHeader match={match} />
+                  <MatchAbyss match={match} />
                   {match.games.map((game) => <GameSection game={game} key={game.id} />)}
                 </>}
           </div>

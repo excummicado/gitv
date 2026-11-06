@@ -569,3 +569,96 @@ class TestPlayerCount:
         )
         session.commit()
         assert client.get("/api/v1/tournaments/t1").json()["players"] == 3
+
+
+def test_characters_between_dates_and_on_abyss_phases(client, session):
+    import importlib
+    import json
+    from datetime import date, datetime
+
+    from app.models import AbyssPhase, Match, MatchDraft, MatchPick, MatchPlayer, Tournament
+
+    # One tournament across two phases, and a later one on the second.
+    played = [
+        ("t0", "m0", datetime(2026, 3, 10, tzinfo=UTC), "pyro"),
+        ("t0", "m1", datetime(2026, 4, 20, tzinfo=UTC), "cryo"),
+        ("t1", "m2", datetime(2026, 4, 25, tzinfo=UTC), "geo"),
+    ]
+    for tid in ("t0", "t1"):
+        session.add(Tournament(id=tid, title=f"Abyss Fast Soup {tid}"))
+    for tid, mid, when, agent in played:
+        session.add(Match(id=mid, tournament_id=tid, created_at=when, raw="{}"))
+        session.add(MatchDraft(id=f"d{mid}", match_id=mid, game_no=1, status="FINISHED"))
+        for slot, name in enumerate("AB"):
+            p = MatchPlayer(
+                draft_id=f"d{mid}", match_id=mid, slot=slot, user_id=name, full_name=name, clear_time=100 + slot
+            )
+            session.add(p)
+            session.flush()
+            session.add(MatchPick(player_id=p.id, draft_id=f"d{mid}", position=0, agent_id=agent, agent_mindscape=0))
+    for pid, start, end in ((1, date(2026, 3, 1), date(2026, 4, 1)), (2, date(2026, 4, 1), date(2026, 5, 1))):
+        session.add(
+            AbyssPhase(
+                id=pid,
+                version=f"{pid}.0",
+                starts_on=start,
+                ends_on=end,
+                blessings="[]",
+                chambers="[]",
+                monsters=json.dumps({}),
+                guides=json.dumps({}),
+                fetched_at=datetime.now(UTC),
+            )
+        )
+    session.commit()
+    importlib.import_module("app.services.stats.snapshot")._cache.clear()
+
+    def agents(query):
+        return {c["character"]["id"] for c in client.get(f"/api/v1/characters?{query}").json()["characters"]}
+
+    assert agents("") == {"pyro", "cryo", "geo"}
+    # Dates keep tournaments whole: t0 started in March, so its April game stays with it
+    assert agents("until=2026-03-31") == {"pyro", "cryo"}
+    assert agents("since=2026-04-01") == {"geo"}
+    assert agents("since=2026-03-01&until=2026-04-24") == {"pyro", "cryo"}
+    # A phase cuts the tournament in two
+    assert agents("abyss=1") == {"pyro"}
+    assert agents("abyss=2") == {"cryo", "geo"}
+    assert agents("abyss=1&abyss=2") == {"pyro", "cryo", "geo"}
+    assert agents("abyss=99") == set()
+    table = client.get("/api/v1/characters?abyss=1").json()
+    assert table["games"] == 1 and table["tournaments"] == 1
+    # The hovered and opened details follow the same filters
+    assert client.get("/api/v1/characters/cryo/players?abyss=1").json() == []
+    assert client.get("/api/v1/characters/cryo/constellations?abyss=2").json()[0]["picks"] == 2
+    # The phase is on the match page
+    assert client.get("/api/v1/matches/m1").json()["abyss_phase"] == 2
+
+
+def test_lists_answer_from_cache_until_the_data_changes(client, session):
+    import importlib
+    from datetime import datetime
+
+    from app.models import Match, MatchDraft, MatchPlayer, Tournament
+
+    def play(n):
+        session.add(Match(id=f"m{n}", tournament_id="t", created_at=datetime(2026, 5, n, tzinfo=UTC), raw="{}"))
+        session.add(MatchDraft(id=f"d{n}", match_id=f"m{n}", game_no=1, status="FINISHED"))
+        for slot, name in enumerate("AB"):
+            session.add(
+                MatchPlayer(
+                    draft_id=f"d{n}", match_id=f"m{n}", slot=slot, user_id=name, full_name=name, clear_time=100 + slot
+                )
+            )
+        session.commit()
+
+    session.add(Tournament(id="t", title="Abyss Fast Soup 1"))
+    play(1)
+    module = importlib.import_module("app.services.stats.snapshot")
+    module._cache.clear()
+    assert next(p for p in client.get("/api/v1/players").json() if p["id"] == "A")["matches"] == 1
+    first = module._responses[("players", "all")]
+    assert client.get("/api/v1/players").content == first[1]
+    assert module._responses[("players", "all")] is first  # not made again
+    play(2)
+    assert next(p for p in client.get("/api/v1/players").json() if p["id"] == "A")["matches"] == 2

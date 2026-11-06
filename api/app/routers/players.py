@@ -4,7 +4,7 @@ from datetime import date, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 from sqlmodel import func, select
 
 from ..database import SessionDep
@@ -26,7 +26,7 @@ from ..services.stats import (
     summary,
     tournament_standings,
 )
-from ..services.stats.snapshot import major_tournament_ids
+from ..services.stats.snapshot import cached_json, major_tournament_ids
 from .matches import Character
 from .tournaments import rows as tournament_rows
 
@@ -248,11 +248,20 @@ Scope = Annotated[
 @router.get("", response_model=list[PlayerSummary])
 def list_players(session: SessionDep, scope: Scope = "all"):
     """Everyone who played an imported match (in the scope), most matches first; the page sorts and filters it."""
-    snap = snapshot(session, scope)
-    elo = elo_ratings(session, snapshot(session))
-    return sorted(
-        ({**summary(p), "elo": elo_info(elo.get(p.id))} for p in snap.players.values()), key=lambda p: -p["matches"]
-    )
+
+    def body() -> bytes:
+        snap = snapshot(session, scope)
+        elo = elo_ratings(session, snapshot(session))
+        rows = sorted(
+            ({**summary(p), "elo": elo_info(elo.get(p.id))} for p in snap.players.values()),
+            key=lambda p: -p["matches"],
+        )
+        return PLAYER_LIST.dump_json(PLAYER_LIST.validate_python(rows))
+
+    return cached_json(session, ("players", scope), body)
+
+
+PLAYER_LIST = TypeAdapter(list[PlayerSummary])
 
 
 def elo_info(r: Rating | None) -> dict | None:

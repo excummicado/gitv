@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
@@ -8,6 +8,7 @@ import { distinctNames, fetchPlayers, type PlayerSummary } from "./api";
 import "./player-page.css";
 import "./players-page.css";
 import { useLang } from "../i18n";
+import { useCached } from "../cached";
 import { Nick } from "../components/PlayerNick";
 
 type SortKey = "name" | "elo" | "tournaments" | "matches" | "match_winrate" | "games" | "winrate" | "avg_time" | "best_time" | "avg_restarts" | "tech_losses" | "tech_loss_rate" | "last_played";
@@ -74,19 +75,9 @@ export function PlayersPage() {
   const withInactive = params.get("inactive") === "1";
   const bounds = FILTERS.map((f) => ({ ...f, value: params.get(f.param) ?? "" }));
   const filtersOn = Boolean(active) || bounds.some((b) => b.value !== "");
-  const [players, setPlayers] = useState<PlayerSummary[] | null>(null);
-  const [error, setError] = useState("");
   const { t, date } = useLang();
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setPlayers(null);
-    setError("");
-    fetchPlayers(controller.signal, major ? "major" : "all")
-      .then(setPlayers)
-      .catch((err) => { if (!controller.signal.aborted) setError(err instanceof Error ? err.message : t("Couldn't load the players.", "Не удалось загрузить игроков.")); });
-    return () => controller.abort();
-  }, [major]);
+  const scope = major ? "major" : "all";
+  const { data: players, error } = useCached(`players?${scope}`, (signal) => fetchPlayers(signal, scope), t("Couldn't load the players.", "Не удалось загрузить игроков."));
 
   // Applied to the live URL, not the one from this render, so quick successive changes all stick.
   function update(changes: Record<string, string>) {
