@@ -192,6 +192,14 @@ class TestFeaturedTournament:
         )
         assert client.get("/api/v1/tournaments/featured").json()["image"] == "/banners/fast-soup.svg"
 
+    def test_fast_beer_banner_replaces_its_own_image(self, client, session, monkeypatch):
+        self.setup(session)
+        monkeypatch.setattr(
+            "app.routers.tournaments.live_tournaments",
+            lambda: [{"_id": "live1", "title": "Abyss Fast Beer 6", "image": "a.webp", "createdAt": "2026-06-01"}],
+        )
+        assert client.get("/api/v1/tournaments/featured").json()["image"] == "/banners/fast-beer.jpg"
+
     def test_new_gen_all_star_has_its_banner_but_not_their_other_events(self, client, session, monkeypatch):
         self.setup(session)
         live = {"_id": "live1", "title": "New Gen All-Star", "image": "tiny.webp", "createdAt": "2026-06-01T10:00Z"}
