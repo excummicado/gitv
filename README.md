@@ -62,7 +62,11 @@ Challonge embed page ─┘     (api/app/services)
 
 ## Running in production
 
-- On every deploy, with the API stopped, run `venv/bin/alembic upgrade head` in `api/` before starting it.
+- A push to `main` deploys by itself once CI passes (`.github/workflows/ci.yml`, secrets `DEPLOY_SSH_KEY` and
+  `DEPLOY_KNOWN_HOSTS`): the server takes the build through `tools/deploy/gitv-deploy`, which is all that key can run,
+  and puts the previous version back if the site doesn't come up. A change to that script is installed by hand.
+- New migrations and dependencies stop the deploy. Do them by hand first: with the API stopped and a copy of the
+  database made, run `venv/bin/alembic upgrade head` in `api/` before starting it.
 - One API process (`fastapi run app/main.py`, no extra workers): syncing, the stream poll and the rate limits
   live in it. Behind a proxy, set `TRUST_FORWARDED_FOR=true`; the proxy sends `/api/*` to the API (allow 100 MB
   bodies for news imports) and the rest to the web server.

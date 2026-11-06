@@ -3,6 +3,7 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   api:
@@ -46,3 +47,33 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build
+      - uses: actions/upload-artifact@v4
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        with:
+          name: web-build
+          path: web/build
+          retention-days: 1
+
+  # What passed above goes to the server, which takes it through tools/deploy/gitv-deploy: the only thing this key can run.
+  deploy:
+    needs: [api, web]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    concurrency: deploy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: web/build
+      - name: Send to the server
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printenv DEPLOY_SSH_KEY > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printenv DEPLOY_KNOWN_HOSTS > ~/.ssh/known_hosts
+          tar -czf - --exclude __pycache__ api/app api/migrations/versions api/requirements.txt web/build web/package-lock.json \
+            | ssh -i ~/.ssh/deploy_key -o BatchMode=yes gitv-deploy@gitv.xyz

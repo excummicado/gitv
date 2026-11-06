@@ -1,0 +1,87 @@
+#!/bin/bash
+# Puts a new version of the site on the server: takes a tar.gz on stdin (see .github/workflows/ci.yml) and is all the
+# deploy key can run. Installed as root:root 755 in /usr/local/bin; a change here has to be installed by hand.
+#
+# New dependencies and migrations stop it: they're done by hand, migrations with a copy of the database first. The
+# database, .env, media and brackets aren't in the archive and aren't touched. If the site doesn't come back, the
+# previous version is put back.
+set -euo pipefail
+
+API=/opt/gitv/app/api
+WEB=/opt/gitv/app/web
+PREVIOUS=/opt/gitv/previous
+MAX_ARCHIVE=$((200 * 1024 * 1024))
+STARTUP_SECONDS=120
+
+fail() {
+  echo "Deploy stopped: $*" >&2
+  exit 1
+}
+
+exec 9>/run/gitv-deploy.lock
+flock -n 9 || fail "another deploy is running."
+
+WORK=$(mktemp -d /var/tmp/gitv-deploy.XXXXXX)
+trap 'rm -rf "$WORK"' EXIT
+head -c "$MAX_ARCHIVE" | tar -xz --no-same-owner --no-same-permissions -C "$WORK"
+
+[[ -f $WORK/api/app/main.py && -f $WORK/web/build/server/index.js && -d $WORK/web/build/client ]] \
+  || fail "the archive has no api/app or web/build."
+cmp -s "$WORK/api/requirements.txt" "$API/requirements.txt" \
+  || fail "api/requirements.txt changed: install the dependencies by hand first."
+cmp -s "$WORK/web/package-lock.json" "$WEB/package-lock.json" \
+  || fail "web/package-lock.json changed: install the dependencies by hand first."
+for migration in "$WORK"/api/migrations/versions/*.py; do
+  [[ -e $API/migrations/versions/$(basename "$migration") ]] \
+    || fail "new migration $(basename "$migration"): run it by hand with a copy of the database first."
+done
+# CI runs a newer Python than the server's: what it can't even read must not get as far as the restart.
+PYTHONPYCACHEPREFIX="$WORK/pycache" "$API/venv/bin/python" -m compileall -q "$WORK/api/app" >/dev/null \
+  || fail "the server's Python can't read api/app."
+
+copy() { # from, to, then rsync's options
+  local from=$1 to=$2
+  shift 2
+  rsync -rtc --owner --group --chown=gitv:gitv --chmod=D755,F644 --exclude __pycache__ --exclude .DS_Store "$@" "$from/" "$to/"
+}
+
+changes=$(
+  copy "$WORK/api/app" "$API/app" --dry-run --itemize-changes
+  copy "$WORK/web/build" "$WEB/build" --dry-run --itemize-changes --delete
+)
+if ! grep -q '^[<>c*]' <<<"$changes"; then
+  echo "Nothing changed: the server already has this version."
+  exit 0
+fi
+
+healthy() {
+  local until=$((SECONDS + STARTUP_SECONDS))
+  while ((SECONDS < until)); do
+    if curl -fsS -o /dev/null -m 30 http://127.0.0.1:8000/api/v1/tournaments \
+      && curl -fsS -o /dev/null -m 30 http://127.0.0.1:3000/; then
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
+}
+
+mkdir -p "$PREVIOUS"
+copy "$API/app" "$PREVIOUS/api-app" --delete
+copy "$WEB/build" "$PREVIOUS/web-build" --delete
+
+copy "$WORK/api/app" "$API/app"
+copy "$WORK/web/build" "$WEB/build" --delete
+systemctl restart gitv-api gitv-web
+if healthy; then
+  echo "Deployed."
+  exit 0
+fi
+
+# What went wrong is in journalctl on the server: its lines hold visitors' addresses, and the CI log is public.
+echo "The new version didn't come up, putting the previous one back." >&2
+copy "$PREVIOUS/api-app" "$API/app" --delete
+copy "$PREVIOUS/web-build" "$WEB/build" --delete
+systemctl restart gitv-api gitv-web
+healthy || fail "the previous version didn't come up either: look at the server now."
+fail "the new version didn't come up; the previous one is back."
