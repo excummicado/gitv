@@ -184,3 +184,39 @@ def test_stored_results_use_discord_names_and_aliases(session):
     r = results["t1"]
     assert r.places["u1"] == (1, 1) and r.places["u2"] == (2, 2) and r.places["u3"] == (3, 4)
     assert sorted(r.unmatched) == ["D", "E", "F", "G", "H"]
+
+
+def test_fetching_the_same_bracket_again_keeps_its_date(session, monkeypatch):
+    import httpx
+
+    from app.models import Tournament, TournamentInfo
+    from app.services import challonge
+
+    session.add(Tournament(id="t", title="Abyss Fast Soup 1"))
+    session.add(TournamentInfo(tournament_id="t", challonge_url="https://challonge.com/soup1", is_finished=True))
+    session.add(TournamentPlayer(tournament_id="t", user_id="a", full_name="a"))
+    session.add(
+        ChallongeBracket(
+            tournament_id="t",
+            url="https://challonge.com/soup1",
+            raw='{"tournament": {"state": "underway"}}',
+            fetched_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+    )
+    session.commit()
+    store = {"tournament": {"state": "underway"}}
+    monkeypatch.setattr(challonge, "parse_store", lambda text: store)
+    real = httpx.Client
+    monkeypatch.setattr(
+        challonge.httpx,
+        "Client",
+        lambda **kw: real(transport=httpx.MockTransport(lambda request: httpx.Response(200, text="page"))),
+    )
+
+    challonge.fetch_challonge(session, running={"t"})
+    assert session.get(ChallongeBracket, "t").fetched_at.replace(tzinfo=UTC) == datetime(2026, 1, 1, tzinfo=UTC)
+
+    store = {"tournament": {"state": "complete"}}
+    challonge.fetch_challonge(session, running={"t"})
+    row = session.get(ChallongeBracket, "t")
+    assert row.state == "complete" and row.fetched_at.replace(tzinfo=UTC) > datetime(2026, 1, 2, tzinfo=UTC)

@@ -1,3 +1,4 @@
+import importlib
 import json
 from datetime import UTC, date, datetime
 
@@ -151,3 +152,34 @@ def test_only_the_next_phase_ahead_is_shown(session):
     shown = phases(session)
     assert [p.id for p in shown] == [1, 2, 3]  # 4 is two ahead
     assert current_id(shown) == 2
+
+
+def test_phases_answer_from_cache_and_unknown_ones_stay_not_found(session):
+    from datetime import timedelta
+
+    from fastapi.testclient import TestClient
+
+    from app.database import get_session
+    from app.main import app
+
+    module = importlib.import_module("app.services.stats.snapshot")
+    module._responses.clear()
+    today = date.today()
+    session.add(phase_row(7, today - timedelta(days=5), today + timedelta(days=5)))
+    session.commit()
+    app.dependency_overrides[get_session] = lambda: session
+    try:
+        client = TestClient(app)
+        listed = client.get("/api/v1/abyss").json()
+        assert [(p["id"], p["current"]) for p in listed] == [(7, True)]
+        current = client.get("/api/v1/abyss/current")
+        assert current.json()["id"] == 7 and current.json()["chambers"]
+        phase = client.get("/api/v1/abyss/7")
+        assert phase.json() == current.json()
+        kept = module._responses[("abyss", 7)]
+        assert client.get("/api/v1/abyss/7").content == kept[1]
+        assert module._responses[("abyss", 7)] is kept  # not made again
+        assert client.get("/api/v1/abyss/999").status_code == 404
+        assert ("abyss", 999) not in module._responses
+    finally:
+        app.dependency_overrides.clear()

@@ -12,6 +12,7 @@ drafted for, a game played elsewhere): Elo and match records count them too.
 """
 
 import json
+import logging
 import threading
 import time as clock
 from collections import Counter, OrderedDict, defaultdict
@@ -53,6 +54,8 @@ from ..match_checks import (
     technical_drafts,
 )
 from ..player_names import display_names, merges, name_overrides, player_key
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -124,17 +127,23 @@ class Snapshot:
 _cache: dict[str, Snapshot] = {}
 MAX_CACHED = 8
 _lock = threading.Lock()
+# In the API (see warm_up) new data is built in the background and the snapshot at hand keeps answering until it's
+# ready, as a build takes seconds. Scripts and tests have nobody to keep waiting and get the new data at once.
+_build_behind = False
+_building_behind = threading.Lock()
 # Ready-made JSON of the heaviest public lists, for as long as the data stands: {name: (written at, body)}.
 _responses: OrderedDict[Hashable, tuple[float, bytes]] = OrderedDict()
 _responses_key: tuple | None = None
 _responses_lock = threading.Lock()
-MAX_RESPONSES = 64
+MAX_RESPONSES = 128
 # Some of what the lists show isn't in data_key (an organizer's name, who counts as active), so nothing stays for long.
 RESPONSE_SECONDS = 600
 
 
 def warm_up(engine) -> None:
     """Builds the snapshot right after the API starts, so the first visitors don't wait for it."""
+    global _build_behind
+    _build_behind = True
     with Session(engine) as session:
         snapshot(session)
 
@@ -209,7 +218,8 @@ def tournaments_until(session: Session, until: date) -> set[str]:
 def cached_json(session: Session, name: Hashable, body: Callable[[], str | bytes]) -> Response:
     """The response under this name, made by body() only when the data has changed since or it's too old."""
     global _responses_key
-    key = data_key(session)
+    # The snapshot's key, not the database's: until a new snapshot is ready, the responses made from this one stand.
+    key = snapshot(session).key
     now = clock.monotonic()
     with _responses_lock:
         if _responses_key != key:
@@ -229,17 +239,40 @@ def cached_json(session: Session, name: Hashable, body: Callable[[], str | bytes
     return Response(made, media_type="application/json")
 
 
-def snapshot(session: Session, scope: str = "all", since: date | None = None, until: date | None = None) -> Snapshot:
+def snapshot(
+    session: Session,
+    scope: str = "all",
+    since: date | None = None,
+    until: date | None = None,
+    *,
+    fresh: bool = False,
+) -> Snapshot:
     """scope: "all" or "major"; since, until: count only tournaments that started on or after, on or before these
-    dates."""
+    dates. fresh: what was just written must be in it (an import going on from it), even if that takes a build."""
     key = data_key(session)
     # One build at a time: a page fires several requests at once, and without the lock each of them would build
     # the same snapshot in parallel. The others wait, then find it ready.
     with _lock:
-        if "all:" not in _cache or _cache["all:"].key != key:
+        kept = _cache.get("all:")
+        if kept is None or (kept.key != key and (fresh or not _build_behind)):
             _cache.clear()
             _cache["all:"] = build(session, key)
+        elif kept.key != key and _building_behind.acquire(blocking=False):
+            threading.Thread(target=_build_in_background, args=(session.get_bind(), key), daemon=True).start()
         return _scoped(session, scope, since, until)
+
+
+def _build_in_background(engine, key: tuple) -> None:
+    try:
+        with Session(engine) as session:
+            built = build(session, key)
+        with _lock:
+            _cache.clear()
+            _cache["all:"] = built
+    except Exception:  # noqa: BLE001 - the snapshot at hand keeps answering, and the next request tries again
+        log.exception("building the statistics failed")
+    finally:
+        _building_behind.release()
 
 
 def _scoped(session: Session, scope: str, since: date | None, until: date | None) -> Snapshot:

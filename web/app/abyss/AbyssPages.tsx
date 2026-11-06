@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
 import { useLang } from "../i18n";
+import { useCached } from "../cached";
 import { fetchPhases, type PhaseDetail, type PhaseSummary } from "./api";
 import { Credit, hpShort, MonsterIcon, PhaseBody, usePhase, useText } from "./AbyssView";
 import { abyssCard } from "./shareImage";
@@ -102,17 +103,12 @@ function archiveValue(r: PhaseSummary, sort: ArchiveSort) {
 
 function Archive({ current }: { current: number | null }) {
   const { t, date, lang } = useLang();
-  const [rows, setRows] = useState<PhaseSummary[] | null>(null);
+  const { data: rows } = useCached("abyss-phases", fetchPhases, "");
   const [all, setAll] = useState(false);
   const [params, setParams] = useSearchParams();
   const sortParam = params.get("sort");
   const sort: ArchiveSort = sortParam === "hp" || sortParam === "matches" ? sortParam : "date";
   const ascending = params.get("dir") === "asc";
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchPhases(controller.signal).then(setRows).catch(() => {});
-    return () => controller.abort();
-  }, []);
   // Phases with tournament matches first in mind: the rest (before 2023) on request.
   const shown = useMemo(() => {
     const kept = (rows ?? []).filter((r) => all || r.matches > 0 || r.current || r.upcoming);

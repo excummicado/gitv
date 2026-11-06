@@ -47,7 +47,7 @@ def import_manual_games(session: Session, spec: dict) -> dict[str, int]:
     for tid in tournaments:
         if session.get(Tournament, tid) is None:
             raise ValueError(f"no tournament {tid}: add its bracket first (add-manual-tournament)")
-    snap = snapshot(session)
+    snap = snapshot(session, fresh=True)
     for tid in tournaments:
         old = [m.id for m in session.exec(select(Match).where(Match.tournament_id == tid))]
         if spec.get("keep_site_matches"):

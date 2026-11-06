@@ -171,7 +171,7 @@ def import_hub(session: Session, matches: list[dict]) -> HubResult:
     match_ids = [r.id for rows in site_matches.values() for r in rows]
     for p in session.exec(select(MatchPlayer).where(MatchPlayer.match_id.in_(match_ids))):
         players[p.match_id].append(p)
-    snap = snapshot(session)
+    snap = snapshot(session, fresh=True)
     everyone = known_players(session, snap)
     merged = merges(session)
 

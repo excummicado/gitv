@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 // Raise when a kept list's shape changes: copies from before would break the page until the fresh one came.
 const STORAGE = "gitv-cache:1:";
 const INDEX = "gitv-cache-index";
-const MAX_STORED = 6;
+const MAX_STORED = 10;
 const MAX_IN_MEMORY = 30;
 
 const memory = new Map<string, unknown>();

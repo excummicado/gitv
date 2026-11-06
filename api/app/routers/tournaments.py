@@ -4,7 +4,7 @@ import json
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 from sqlmodel import func, select
 
 from ..database import SessionDep
@@ -23,6 +23,7 @@ from ..services.stats import (
     tournament_table,
 )
 from ..services.stats.elo import live_weights
+from ..services.stats.snapshot import cached_json
 from ..services.stream import streams
 from ..services.sync import live_tournaments
 from ..services.tournament_info import series_key
@@ -393,7 +394,10 @@ def challonge_only_rows(session: SessionDep, snap, ids: list[str]) -> list[tuple
 @router.get("", response_model=list[TournamentRow])
 def list_tournaments(session: SessionDep):
     """Every tournament with imported matches, newest first; the page filters it."""
-    return rows(session)
+    return cached_json(session, "tournaments", lambda: TOURNAMENT_LIST.dump_json(rows(session)))
+
+
+TOURNAMENT_LIST = TypeAdapter(list[TournamentRow])
 
 
 class FeaturedTournament(BaseModel):

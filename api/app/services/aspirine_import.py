@@ -111,7 +111,7 @@ def import_aspirine(session: Session, folder: Path = OUT) -> dict[str, dict[str,
         for stage in json.loads(path.read_text())["stages"]:
             if stage_title in (None, stage["title"]):
                 stages.setdefault(tid, []).append((slug, stage))
-    snap = snapshot(session)
+    snap = snapshot(session, fresh=True)
     everyone = known_players(session, snap)
     for tid in stages:
         old = [m.id for m in session.exec(select(Match).where(Match.tournament_id == tid))]

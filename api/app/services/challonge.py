@@ -419,16 +419,21 @@ def fetch_challonge(session: Session, refetch: bool = False, running: set[str] |
                         )
                     )
             tournament = store.get("tournament") or {}
-            session.merge(
-                ChallongeBracket(
-                    tournament_id=info.tournament_id,
-                    url=info.challonge_url,
-                    state=tournament.get("state"),
-                    tournament_type=tournament.get("tournament_type"),
-                    raw=json.dumps(store, ensure_ascii=False),
-                    fetched_at=datetime.now(UTC),
+            raw = json.dumps(store, ensure_ascii=False)
+            known = stored.get(info.tournament_id)
+            # The same bracket again leaves the row alone: a new date would have all the statistics rebuilt (data_key),
+            # and the live poll fetches running tournaments' brackets every five minutes.
+            if not known or known.raw != raw or known.url != info.challonge_url:
+                session.merge(
+                    ChallongeBracket(
+                        tournament_id=info.tournament_id,
+                        url=info.challonge_url,
+                        state=tournament.get("state"),
+                        tournament_type=tournament.get("tournament_type"),
+                        raw=raw,
+                        fetched_at=datetime.now(UTC),
+                    )
                 )
-            )
             session.commit()
             result.fetched.append(info.tournament_id)
     return result

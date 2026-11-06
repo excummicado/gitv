@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useLang } from "../i18n";
+import { useCached } from "../cached";
 import { fetchPhase, type AbyssMonster, type Chamber, type Guide, type PhaseDetail, type Shield, type Text } from "./api";
 import "./abyss.css";
 
@@ -18,18 +19,10 @@ export function useText() {
 }
 
 export function usePhase(id: string) {
-  const [phase, setPhase] = useState<PhaseDetail | null>(null);
-  const [error, setError] = useState("");
   const { t } = useLang();
-  useEffect(() => {
-    const controller = new AbortController();
-    setPhase(null);
-    setError("");
-    fetchPhase(id, controller.signal).then(setPhase)
-      .catch((err) => { if (!controller.signal.aborted) setError(err instanceof Error ? err.message : t("Couldn't load the Abyss.", "Не удалось загрузить Бездну.")); });
-    return () => controller.abort();
-  }, [id]);
-  return { phase, error };
+  const { data, error } = useCached(`abyss-phase:${id}`, (signal) => fetchPhase(id, signal), t("Couldn't load the Abyss.", "Не удалось загрузить Бездну."));
+  // The phase left behind stays in the hook until the next one is there, and isn't to be shown under the next one's address.
+  return { phase: data && (id === "current" || String(data.id) === id) ? data : null, error };
 }
 
 export function hpShort(hp: number | null, ru: boolean) {

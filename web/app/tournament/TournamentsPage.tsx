@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
 import { OrganizerName } from "../match/OrganizerName";
 import { MajorToggle } from "../player/MajorToggle";
 import { useLang } from "../i18n";
+import { useCached } from "../cached";
 import { fetchTournamentList, type TournamentKind, type TournamentRow } from "./api";
 import { DateRange, KIND_LABELS, Prize } from "./common";
 import "./tournaments.css";
@@ -18,18 +19,9 @@ export function TournamentsPage() {
   const kind = (params.get("kind") ?? "") as "" | TournamentKind;
   const major = params.get("major") === "1";
   const organizer = params.get("organizer") ?? "";
-  const [rows, setRows] = useState<TournamentRow[] | null>(null);
-  const [error, setError] = useState("");
   const navigate = useNavigate();
   const { t, count } = useLang();
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchTournamentList(controller.signal)
-      .then(setRows)
-      .catch((err) => { if (!controller.signal.aborted) setError(err instanceof Error ? err.message : t("Couldn't load the tournaments.", "Не удалось загрузить турниры.")); });
-    return () => controller.abort();
-  }, []);
+  const { data: rows, error } = useCached("tournaments", fetchTournamentList, t("Couldn't load the tournaments.", "Не удалось загрузить турниры."));
 
   // Applied to the live URL: React Router hands the function the params of the last render.
   function update(changes: Record<string, string>) {

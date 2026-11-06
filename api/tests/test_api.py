@@ -662,3 +662,39 @@ def test_lists_answer_from_cache_until_the_data_changes(client, session):
     assert module._responses[("players", "all")] is first  # not made again
     play(2)
     assert next(p for p in client.get("/api/v1/players").json() if p["id"] == "A")["matches"] == 2
+
+
+def test_new_data_is_built_behind_the_answers(client, session, monkeypatch):
+    import importlib
+    from datetime import datetime
+
+    from app.models import Match, MatchDraft, MatchPlayer, Tournament
+
+    def play(n):
+        session.add(Match(id=f"m{n}", tournament_id="t", created_at=datetime(2026, 5, n, tzinfo=UTC), raw="{}"))
+        session.add(MatchDraft(id=f"d{n}", match_id=f"m{n}", game_no=1, status="FINISHED"))
+        for slot, name in enumerate("AB"):
+            session.add(
+                MatchPlayer(
+                    draft_id=f"d{n}", match_id=f"m{n}", slot=slot, user_id=name, full_name=name, clear_time=100 + slot
+                )
+            )
+        session.commit()
+
+    def matches():
+        return next(p for p in client.get("/api/v1/players").json() if p["id"] == "A")["matches"]
+
+    session.add(Tournament(id="t", title="Abyss Fast Soup 1"))
+    play(1)
+    module = importlib.import_module("app.services.stats.snapshot")
+    module._cache.clear()
+    assert matches() == 1
+    monkeypatch.setattr(module, "_build_behind", True)
+    play(2)
+    assert matches() == 1  # answered from what's at hand, the build goes on behind it
+    with module._building_behind:
+        pass  # held until the build is done
+    assert matches() == 2
+    assert client.get("/api/v1/tournaments").json()[0]["matches"] == 2
+    play(3)
+    assert module.snapshot(session, fresh=True).key == module.data_key(session)

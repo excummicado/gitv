@@ -7,7 +7,7 @@ from collections import Counter, defaultdict
 from datetime import date, datetime
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 from sqlmodel import Session, select
 
 from ..config import settings
@@ -16,6 +16,7 @@ from ..models import AbyssPhase, ChallongeTournament, Tournament
 from ..services.abyss import ru_texts
 from ..services.stats import snapshot
 from ..services.stats.player import timed
+from ..services.stats.snapshot import cached_json
 
 router = APIRouter(prefix="/abyss", tags=["abyss"])
 
@@ -268,23 +269,36 @@ def current_id(ordered: list[AbyssPhase]) -> int | None:
 @router.get("", response_model=list[PhaseSummary])
 def list_phases(session: SessionDep):
     """Every phase, newest first, with the tournament matches played during it."""
-    ordered = phases(session)
-    used = usage(session, ordered)
-    now = current_id(ordered)
-    return [summary(p, now, used.get(p.id, Counter())) for p in reversed(ordered)]
+
+    def body() -> bytes:
+        ordered = phases(session)
+        used = usage(session, ordered)
+        now = current_id(ordered)
+        return PHASE_LIST.dump_json([summary(p, now, used.get(p.id, Counter())) for p in reversed(ordered)])
+
+    return cached_json(session, ("abyss", "list"), body)
+
+
+PHASE_LIST = TypeAdapter(list[PhaseSummary])
 
 
 @router.get("/current", response_model=PhaseDetail)
 def read_current(session: SessionDep):
-    ordered = phases(session)
-    now = current_id(ordered)
-    if now is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No Abyss phases imported yet.")
-    return read_phase(now, session)
+    def body() -> str:
+        now = current_id(phases(session))
+        if now is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No Abyss phases imported yet.")
+        return phase_detail(now, session).model_dump_json()
+
+    return cached_json(session, ("abyss", "current"), body)
 
 
 @router.get("/{phase_id}", response_model=PhaseDetail)
 def read_phase(phase_id: int, session: SessionDep):
+    return cached_json(session, ("abyss", phase_id), lambda: phase_detail(phase_id, session).model_dump_json())
+
+
+def phase_detail(phase_id: int, session: Session) -> PhaseDetail:
     ordered = phases(session)
     p = next((x for x in ordered if x.id == phase_id), None)
     if p is None:
