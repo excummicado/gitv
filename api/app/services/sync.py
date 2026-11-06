@@ -5,7 +5,7 @@ database yet (ignored ones, deleted or tests, are skipped), then fetches the new
 draft data, the tournaments' details and their Challonge brackets. A tournament the live poll brought in while
 it ran is finished the same way: its remaining matches, details and bracket.
 
-The live poll (every LIVE_INTERVAL, five minutes) asks for the matches of the tournaments running now and
+The live poll (every LIVE_INTERVAL, two minutes) asks for the matches of the tournaments running now and
 imports the newly finished ones with their drafts, so a tournament's games show up while it's played. The
 others are kept apart (LiveMatch, outside all statistics) with their drafts' status and spectator links, so the
 site can send people to a draft being played on the tournament site. It also
@@ -54,10 +54,10 @@ API = "https://abyss.darte.gg/api/abyss"
 # The site is someone else's: nothing automatic asks it for anything more often than once an hour,
 # whatever SYNC_INTERVAL or --watch say.
 MIN_INTERVAL = 3600
-# The one exception: the matches of the tournaments running now, asked for every five minutes (one request per
+# The one exception: the matches of the tournaments running now, asked for every two minutes (one request per
 # tournament, plus the links and socket data of matches that finished since), and their Challonge brackets
 # until the final has a winner.
-LIVE_INTERVAL = 300
+LIVE_INTERVAL = 120
 # The rosters in a live match's drafts (the draft socket, one connection per match) are read again at most this often.
 LIVE_ROSTER_INTERVAL = 3600
 # How long after a match was set up its times are still compared with the site, once a tournament no longer runs.

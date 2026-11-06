@@ -168,7 +168,7 @@ On a server, set `SYNC_INTERVAL=3600` in `.env`: the API then syncs in the backg
 run a single worker). A lock file (`.sync.lock`) keeps two syncs from running at once, so a manual `sync`
 during a background one is skipped.
 
-With background syncing on, the API also polls running tournaments every five minutes (`LIVE_INTERVAL`):
+With background syncing on, the API also polls running tournaments every two minutes (`LIVE_INTERVAL`):
 it asks for the matches of each tournament on the running list and imports the ones that finished since, with
 their draft links, drafts and rosters, so statistics and the tournament page follow a tournament while it's
 played. A tournament gets its details from the running list when its first match comes in, marked not
@@ -194,7 +194,7 @@ automatic asks the site for anything more often than once an hour (`MIN_INTERVAL
 `.sync-state.json` so API restarts don't reset it, and a failed request also waits an hour. The home page's
 running tournaments (`GET /api/v1/matches/live-tournaments`) come from the site's list cached the same way,
 so they can be up to an hour old, and so can the live poll's idea of which tournaments are running: a new one
-is picked up within an hour of starting, then followed every five minutes.
+is picked up within an hour of starting, then followed every two minutes.
 
 ### News
 

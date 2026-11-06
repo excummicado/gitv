@@ -104,7 +104,7 @@ export type LiveMatch = {
   started: boolean;
 };
 
-// Unfinished matches of the running tournaments (at most five minutes old), the ones being played first.
+// Unfinished matches of the running tournaments (at most two minutes old), the ones being played first.
 export function fetchLiveMatches(tournament?: string, signal?: AbortSignal) {
   const query = tournament ? `?tournament=${encodeURIComponent(tournament)}` : "";
   return getJson<LiveMatch[]>(`/api/v1/matches/live-matches${query}`, { signal });

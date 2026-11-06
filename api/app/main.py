@@ -43,7 +43,7 @@ async def lifespan(app: FastAPI):
     # Statistics are built in the background straight away instead of on the first request.
     warming = asyncio.create_task(asyncio.to_thread(warm_up, engine))
     # Background sync with the tournament site, when SYNC_INTERVAL is set (off by default): the hourly one and the
-    # live poll of running tournaments every five minutes, and the stream (Telegram channel, Twitch) every minute.
+    # live poll of running tournaments every two minutes, and the stream (Telegram channel, Twitch) every minute.
     tasks = (
         [
             asyncio.create_task(run_forever(engine, settings.sync_interval)),

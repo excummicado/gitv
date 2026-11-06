@@ -574,7 +574,7 @@ STALLED = timedelta(minutes=30)
 
 @router.get("/live-matches", response_model=list[LiveMatchOut])
 def list_live_matches(session: SessionDep, tournament: str | None = None):
-    """Unfinished matches of the tournaments running now (kept by the live poll, at most five minutes old), the
+    """Unfinished matches of the tournaments running now (kept by the live poll, at most two minutes old), the
     ones being played first, then by when they were set up; each game links to its draft on the tournament site.
     A match begun that hasn't moved on for STALLED is left out."""
     query = select(LiveMatch)

@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
     # Seconds between background syncs with the tournament site (new finished tournaments); 0 turns it off.
     # Never less than an hour: lower values are raised to 3600. When on, the matches of running tournaments are
-    # also polled every five minutes (services/sync.py, LIVE_INTERVAL).
+    # also polled every two minutes (services/sync.py, LIVE_INTERVAL).
     # Run the API as a single worker when it's on (the sync lock also keeps two passes from overlapping).
     sync_interval: int = 0
     # Behind a reverse proxy: tell clients apart by X-Forwarded-For (rate limits). Only with a proxy that sets it.
