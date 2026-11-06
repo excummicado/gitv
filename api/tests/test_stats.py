@@ -364,6 +364,62 @@ def test_character_roster_history(world):
     assert second["pyro"]["constellation"] == 2 and second["pyro"]["previous_constellation"] == 0
 
 
+def test_character_roster_accounts_and_team_events(world):
+    """Rosters whose 5-stars clash are separate accounts, each with its own history; a team event is in neither."""
+    from app.models import Agent, PlayerRoster, RosterCharacter
+    from app.services.roster_stats import character_roster
+
+    for agent in "abcd":
+        world.s.add(Agent(id=agent, rarity=5))
+    world.s.add(Agent(id="four", rarity=4))
+    main = {"a": 2, "b": 2, "c": 2, "d": 0, "four": 6}
+    rosters = [
+        ("Abyss Fast Soup 200", 1, main),
+        # Three 5-stars lower: another account. A 4-star doesn't count.
+        ("Abyss Fast Soup 201", 2, {"a": 0, "b": 0, "c": 0, "d": 3, "four": 0}),
+        # No clash with the first account, one with the second: the first's, with d up.
+        ("Abyss Fast Soup 202", 3, {"a": 2, "b": 2, "c": 3, "d": 1}),
+        ("Abyss Fast Soup 203", 4, {"a": 0, "b": 1, "c": 0}),
+        ("HotH: 2x2", 5, {"a": 6, "b": 6, "c": 6, "d": 6}),
+    ]
+    ids = {}
+    for title, day, chars in rosters:
+        tid = ids[title] = world.tournament(title)
+        world.win(tid, "A", "B")
+        r = PlayerRoster(
+            player_id="A",
+            tournament_id=tid,
+            hash=title,
+            version=1,
+            first_draft_id="x",
+            last_draft_id="x",
+            first_seen=datetime(2026, 6, day, tzinfo=UTC),
+            last_seen=datetime(2026, 6, day, tzinfo=UTC),
+            games=2,
+            characters=len(chars),
+            weapons=0,
+        )
+        world.s.add(r)
+        world.s.flush()
+        for agent, cons in chars.items():
+            world.s.add(RosterCharacter(roster_id=r.id, agent_id=agent, constellation=cons))
+    snap = world.snap()
+
+    latest = character_roster(world.s, snap, "A")
+    assert [a["number"] for a in latest["accounts"]] == [1, 2]
+    assert ids["HotH: 2x2"] not in {t["id"] for t in latest["tournaments"]}
+    # Soup 203 clashes with the first account on three, so it's the second one's, used last.
+    assert latest["account"] == 2
+    assert {t["id"] for t in latest["tournaments"]} == {ids["Abyss Fast Soup 201"], ids["Abyss Fast Soup 203"]}
+    assert latest["games"] == 4
+
+    first = character_roster(world.s, snap, "A", account=1)
+    assert {t["id"] for t in first["tournaments"]} == {ids["Abyss Fast Soup 200"], ids["Abyss Fast Soup 202"]}
+    assert [h["constellation"] for r in first["characters"] if r["character"] == "d" for h in r["history"]] == [0, 1]
+    # A tournament picks the account that played it.
+    assert character_roster(world.s, snap, "A", ids["Abyss Fast Soup 200"])["account"] == 1
+
+
 def test_character_stats_players_and_versus(world):
     """players: only their picks and bans and the games they played; versus: only games between two of them."""
     import sqlmodel

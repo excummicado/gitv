@@ -530,7 +530,17 @@ class OwnedCharacter(BaseModel):
     games: list[PickedGame]  # newest first
 
 
+class RosterAccount(BaseModel):
+    number: int  # 1-based, by first use
+    tournaments: int
+    first_seen: datetime
+    last_seen: datetime
+
+
 class CharacterRoster(BaseModel):
+    # The player's game accounts, told apart by their rosters (services.roster_stats.split_accounts)
+    accounts: list[RosterAccount]
+    account: int | None  # the one everything below is about
     tournaments: list[RosterTournament]
     tournament: str | None
     games: int
@@ -586,14 +596,14 @@ def player_elo(player_id: str, session: SessionDep):
 
 
 @router.get("/{player_id}/characters", response_model=CharacterRoster)
-def read_characters(player_id: str, session: SessionDep, tournament: str | None = None):
-    """Every character ever in the player's roster (or in one tournament's roster) with the player's
-    statistics on it and its constellation changes."""
+def read_characters(player_id: str, session: SessionDep, tournament: str | None = None, account: int | None = None):
+    """Every character ever in the roster of one of the player's game accounts (or in one tournament's roster) with
+    the player's statistics on it and its constellation changes."""
     player_id = merges(session).get(player_id, player_id)
     snap = snapshot(session)
     if player_id not in snap.players:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such player.")
-    data = character_roster(session, snap, player_id, tournament)
+    data = character_roster(session, snap, player_id, tournament, account)
     if tournament and not any(t["id"] == tournament for t in data["tournaments"]):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="No roster for this player in that tournament."

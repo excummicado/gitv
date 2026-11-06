@@ -9,21 +9,56 @@ from collections import defaultdict
 
 from sqlmodel import Session, select
 
-from ..models import LiveRoster, PlayerRoster, RosterCharacter
+from ..models import Agent, LiveRoster, PlayerRoster, RosterCharacter, Tournament
+from .match_checks import TEAM_EVENT
 from .player_names import display_names, merges
 from .stats.player import avg, pct
 from .stats.snapshot import Snapshot
 
+# A constellation never goes down on one account, but a player's rosters differ in who they enter, so only a clash
+# says anything: a roster with this many 5-star characters below what an account already had is another account.
+ACCOUNT_CLASHES = 3
+
 
 def _rosters(session: Session, player_id: str) -> tuple[list[PlayerRoster], dict[int, list[RosterCharacter]]]:
+    """The player's roster versions in order, without team events (2x2): a teammate's account may be behind those."""
     ids = [player_id] + [alias for alias, into in merges(session).items() if into == player_id]
-    versions = list(session.exec(select(PlayerRoster).where(PlayerRoster.player_id.in_(ids))))
+    team = {tid for tid, title in session.exec(select(Tournament.id, Tournament.title)) if TEAM_EVENT.search(title)}
+    versions = [
+        v
+        for v in session.exec(select(PlayerRoster).where(PlayerRoster.player_id.in_(ids)))
+        if v.tournament_id not in team
+    ]
     versions.sort(key=lambda v: (v.first_seen, v.version))
     chars: dict[int, list[RosterCharacter]] = defaultdict(list)
     if versions:
         for c in session.exec(select(RosterCharacter).where(RosterCharacter.roster_id.in_([v.id for v in versions]))):
             chars[c.roster_id].append(c)
     return versions, chars
+
+
+def split_accounts(
+    versions: list[PlayerRoster], chars: dict[int, list[RosterCharacter]], five_stars: set[str]
+) -> list[list[PlayerRoster]]:
+    """The roster versions (in order) by game account: each goes to the account it clashes with least, of those it
+    clashes with fewer than ACCOUNT_CLASHES times (the one sharing most characters on a tie), else starts a new one."""
+    accounts: list[tuple[dict[str, int], list[PlayerRoster]]] = []
+    for v in versions:
+        roster = {c.agent_id: c.constellation for c in chars[v.id] if c.agent_id in five_stars}
+        best, best_key = None, None
+        for account in accounts:
+            owned = account[0]
+            clashes = sum(c < owned[a] for a, c in roster.items() if a in owned)
+            key = (clashes, -sum(a in owned for a in roster))
+            if clashes < ACCOUNT_CLASHES and (best_key is None or key < best_key):
+                best, best_key = account, key
+        if best is None:
+            best = ({}, [])
+            accounts.append(best)
+        best[1].append(v)
+        for a, c in roster.items():
+            best[0][a] = max(best[0].get(a, c), c)
+    return [account[1] for account in accounts]
 
 
 def roster_tournaments(snap: Snapshot, versions: list[PlayerRoster]) -> list[dict]:
@@ -41,11 +76,36 @@ def roster_tournaments(snap: Snapshot, versions: list[PlayerRoster]) -> list[dic
     )
 
 
-def character_roster(session: Session, snap: Snapshot, player_id: str, tournament: str | None = None) -> dict:
+def character_roster(
+    session: Session, snap: Snapshot, player_id: str, tournament: str | None = None, account: int | None = None
+) -> dict:
     """All characters ever in the player's roster (or, with tournament, the ones in that tournament's roster),
     each with: its constellation now (or in that tournament) and every change of it; the tournaments it was in
-    the roster for; and the player's games with it: picks, winrate, average time, bans against it."""
+    the roster for; and the player's games with it: picks, winrate, average time, bans against it.
+
+    All of it for one game account (split_accounts): the given one (1-based), else the one that played the
+    tournament, else the one used last. A player with several gets the games of the account's tournaments only."""
     versions, chars = _rosters(session, player_id)
+    five_stars = set(session.exec(select(Agent.id).where(Agent.rarity == 5)))
+    accounts = split_accounts(versions, chars, five_stars)
+    numbers = range(1, len(accounts) + 1)
+    played_it = [i for i in numbers if any(v.tournament_id == tournament for v in accounts[i - 1])]
+    if account in (played_it if tournament else numbers):
+        number = account
+    elif played_it:
+        number = played_it[-1]
+    else:
+        number = max(numbers, key=lambda i: max(v.last_seen for v in accounts[i - 1]), default=None)
+    versions = accounts[number - 1] if number else []
+    account_list = [
+        {
+            "number": i,
+            "tournaments": len({v.tournament_id for v in a}),
+            "first_seen": a[0].first_seen,
+            "last_seen": max(v.last_seen for v in a),
+        }
+        for i, a in enumerate(accounts, start=1)
+    ]
     pd = snap.players.get(player_id)
     tournaments = roster_tournaments(snap, versions)
     titles = {t["id"]: t["title"] for t in tournaments}
@@ -76,8 +136,12 @@ def character_roster(session: Session, snap: Snapshot, player_id: str, tournamen
         shown = {c.agent_id: c for v in versions for c in chars[v.id]}
         cut = None
 
+    played = {v.tournament_id for v in versions}
     games = [
-        g for g in (pd.games if pd else []) if tournament is None or snap.match_tournament[g.match_id] == tournament
+        g
+        for g in (pd.games if pd else [])
+        if (tournament is None or snap.match_tournament[g.match_id] == tournament)
+        and (len(accounts) < 2 or snap.match_tournament[g.match_id] in played)
     ]
     drafts = {g.draft_id for g in games}
     banned: dict[str, int] = defaultdict(int)
@@ -138,7 +202,14 @@ def character_roster(session: Session, snap: Snapshot, player_id: str, tournamen
             }
         )
     rows.sort(key=lambda r: (-r["picks"], -r["banned_against"], -r["constellation"], r["character"]))
-    return {"tournaments": tournaments, "tournament": tournament, "games": len(games), "characters": rows}
+    return {
+        "accounts": account_list,
+        "account": number,
+        "tournaments": tournaments,
+        "tournament": tournament,
+        "games": len(games),
+        "characters": rows,
+    }
 
 
 def tournament_pool(session: Session, tournaments: list[str]) -> dict:

@@ -146,12 +146,16 @@ export type OwnedCharacter = {
     result: "W" | "L" | "D" | "—"; clear_time: number | null; technical: boolean; constellation: number | null }[];
 };
 export type CharacterRoster = {
+  accounts: { number: number; tournaments: number; first_seen: string; last_seen: string }[]; account: number | null;
   tournaments: { id: string; title: string; date: string; versions: number }[];
   tournament: string | null; games: number; characters: OwnedCharacter[];
 };
 
-export function fetchCharacterRoster(playerId: string, tournament?: string, signal?: AbortSignal) {
-  const query = tournament ? `?tournament=${encodeURIComponent(tournament)}` : "";
+export function fetchCharacterRoster(playerId: string, tournament?: string, account?: number, signal?: AbortSignal) {
+  const params = new URLSearchParams();
+  if (tournament) params.set("tournament", tournament);
+  if (account) params.set("account", String(account));
+  const query = params.size ? `?${params}` : "";
   return getJson<CharacterRoster>(`/api/v1/players/${encodeURIComponent(playerId)}/characters${query}`, {
     signal, notFound: ["No roster for this tournament.", "Нет ростера на этом турнире."],
   });

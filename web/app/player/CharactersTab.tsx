@@ -84,6 +84,7 @@ export function CharactersTab({ playerId }: { playerId: string }) {
   const l = useLang();
   const { t, name, date, count } = l;
   const [tournament, setTournament] = useState("");
+  const [account, setAccount] = useState<number | undefined>();
   const [data, setData] = useState<CharacterRoster | null>(null);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -94,11 +95,11 @@ export function CharactersTab({ playerId }: { playerId: string }) {
   useEffect(() => {
     const controller = new AbortController();
     setError("");
-    fetchCharacterRoster(playerId, tournament || undefined, controller.signal)
+    fetchCharacterRoster(playerId, tournament || undefined, account, controller.signal)
       .then(setData)
       .catch((err) => { if (!controller.signal.aborted) setError(err instanceof Error ? err.message : t("Couldn't load the roster.", "Не удалось загрузить ростер.")); });
     return () => controller.abort();
-  }, [playerId, tournament]);
+  }, [playerId, tournament, account]);
 
   const rows = useMemo(() => {
     if (!data) return [];
@@ -117,6 +118,19 @@ export function CharactersTab({ playerId }: { playerId: string }) {
     <section className="player-box">
       <h2 className="player-box-title">{t("Characters", "Персонажи")}{data ? ` · ${data.characters.length}` : ""}</h2>
       <div className="chars-toolbar">
+        {data && data.accounts.length > 1 && (
+          <label className="chars-roster chars-account">
+            <span className="player-label">{t("Game account", "Игровой аккаунт")}</span>
+            <select className="match-input" value={data.account ?? ""} aria-label={t("Game account", "Игровой аккаунт")}
+              onChange={(e) => { setTournament(""); setAccount(Number(e.target.value)); }}>
+              {data.accounts.map((a) => (
+                <option key={a.number} value={a.number}>
+                  {t(`Account ${a.number}`, `Аккаунт ${a.number}`)} · {count(a.tournaments, ["tournament", "tournaments"], ["турнир", "турнира", "турниров"])} · {date(a.first_seen)} – {date(a.last_seen)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="chars-roster">
           <span className="player-label">{t("Roster", "Ростер")}</span>
           <select className="match-input" value={tournament} onChange={(e) => setTournament(e.target.value)} aria-label={t("Roster of", "Ростер на")}>
