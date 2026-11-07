@@ -453,7 +453,7 @@ function RecentChampions() {
                   <Link to={`/player/${c.player.id}`} className="gitv-row-link"><Nick id={c.player.id} name={c.player.name} /></Link>
                   {c.elo && <EloBadge rating={c.elo.rating} rank={c.elo.rank} tier={c.elo.tier} active={c.elo.active} />}
                 </span>
-                <Link to={`/match/${c.final_match_id}`} className="gitv-row-link gitv-champion-tournament">{c.tournament.title}</Link>
+                <Link to={`/tournament/${c.tournament.id}`} className="gitv-row-link gitv-champion-tournament">{c.tournament.title}</Link>
               </span>
             </div>
           ))}
