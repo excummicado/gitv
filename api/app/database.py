@@ -11,7 +11,10 @@ from .config import settings
 # SQLite only for the time being; check_same_thread is a SQLite-only option.
 # timeout: wait up to 30 s for another process's write (sync running while the API reads) instead of 5 s.
 connect_args = {"check_same_thread": False, "timeout": 30}
-engine = create_engine(settings.database_url, connect_args=connect_args)
+# No ceiling on connections: with SQLite each is just an open file. Under a crowd the default 15 ran out: requests that
+# had one waited for a worker thread while the threads waited for a connection, until the pool's 30 s failed them.
+pool = {"pool_size": 20, "max_overflow": -1} if settings.database_url != "sqlite://" else {}
+engine = create_engine(settings.database_url, connect_args=connect_args, **pool)
 
 
 @event.listens_for(engine, "connect")

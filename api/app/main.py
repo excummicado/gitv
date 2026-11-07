@@ -40,8 +40,13 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Statistics are built in the background straight away instead of on the first request.
-    warming = asyncio.create_task(asyncio.to_thread(warm_up, engine))
+    # Statistics are built before the API takes requests (about 10 s): requests arriving during the first build would
+    # each hold a database connection while waiting for it, and a crowd after a restart used them all up. Meanwhile
+    # nginx answers from its cache. A failed build doesn't keep the API down: the first request tries again.
+    try:
+        await asyncio.to_thread(warm_up, engine)
+    except Exception:  # noqa: BLE001
+        logging.getLogger("gitv").exception("building the statistics at startup failed")
     # Background sync with the tournament site, when SYNC_INTERVAL is set (off by default): the hourly one and the
     # live poll of running tournaments every two minutes, and the stream (Telegram channel, Twitch) every minute.
     tasks = (
@@ -54,7 +59,6 @@ async def lifespan(app: FastAPI):
         else []
     )
     yield
-    warming.cancel()
     for task in tasks:
         task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
