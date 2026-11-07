@@ -462,7 +462,7 @@ export function CharactersPage() {
                       title={t("Show constellations", "Показать по констам")}
                       onClick={(e) => { if (!(e.target as HTMLElement).closest("a, .chars-players")) setOpenId(openId === c.character.id ? null : c.character.id); }}
                       onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) { e.preventDefault(); setOpenId(openId === c.character.id ? null : c.character.id); } }}>
-                      {c.character.icon ? <img src={c.character.icon} alt="" width={30} height={30} loading="lazy" className={`chars-table-icon rarity-${c.character.rarity ?? 4}`} /> : <span className="chars-table-icon" />}
+                      {c.character.icon ? <img src={c.character.icon} alt="" width={48} height={48} loading="lazy" className={`chars-table-icon rarity-${c.character.rarity ?? 4}`} /> : <span className="chars-table-icon" />}
                       <span className="chars-table-name">
                         <span className="chars-expand" aria-hidden />
                         <b className="player-ellipsis">{name(c.character)}</b>
