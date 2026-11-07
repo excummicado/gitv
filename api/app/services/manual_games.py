@@ -14,7 +14,9 @@ three rooms], [b's]], "penalty": [a's restart seconds, b's]}], "winner": a or b,
 themselves are known, a match has "free_restarts" (per game) and "paid_restarts" (seconds for each one beyond, the last
 repeating, e.g. [5, 10]) and each game "restarts": [a's, b's] in place of "penalty". A game may also have "teams":
 [a's eight characters, b's] (site agent ids in team order, null for one not known), stored as picks, and
-"constellations" in the same shape when they're known. Importing a file again replaces the matches of its tournaments.
+"constellations" in the same shape when they're known. A game whose teams are known but not its times leaves out
+"rooms": it has no result and no room times, so it counts for picks only. Importing a file again replaces the matches
+of its tournaments.
 
 A tournament the site has its own matches for, whose last ones were played off it, takes "keep_site_matches": true at
 the top of the file: only the matches entered by hand before are replaced.
@@ -85,7 +87,7 @@ def import_manual_games(session: Session, spec: dict) -> dict[str, int]:
         for game_no, game in enumerate(m["games"] or [None], start=1):
             draft_id = f"{mid}-g{game_no}"
             session.add(MatchDraft(id=draft_id, match_id=mid, game_no=game_no, status="FINISHED"))
-            rooms = game["rooms"] if game else [[0, 0, 0], [0, 0, 0]]
+            rooms = game.get("rooms") if game else None
             penalty = game.get("penalty", [0, 0]) if game else [0, 0]
             restarts = game.get("restarts") if game else None
             teams = game.get("teams") if game else None
@@ -98,7 +100,7 @@ def import_manual_games(session: Session, spec: dict) -> dict[str, int]:
                     user_id=ids.get(normalize(name)),
                     full_name=name,
                     restarts=restarts[slot] if restarts else penalty[slot] // PENALTY_STEP,
-                    clear_time=sum(rooms[slot]),
+                    clear_time=sum(rooms[slot]) if rooms else 0,
                 )
                 session.add(player)
                 if teams and teams[slot]:
@@ -116,7 +118,7 @@ def import_manual_games(session: Session, spec: dict) -> dict[str, int]:
                                     else UNKNOWN_CONSTELLATION,
                                 )
                             )
-            if game:
+            if rooms:
                 players = [{f"clearTimeRoom{i + 1}": t for i, t in enumerate(r)} for r in rooms]
                 session.add(
                     DraftState(

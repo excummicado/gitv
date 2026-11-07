@@ -8593,6 +8593,165 @@
     5,
     10
    ]
+  },
+  {
+   "tournament": "challonge-afc_fast_4",
+   "date": "2025-06-08T12:00",
+   "players": [
+    "exelv2",
+    "xoyira"
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ],
+   "winner": "exelv2",
+   "source": "https://docs.google.com/spreadsheets/d/1CztJCBstHwyu8N-DC6gzgQWE6HYC-UpsByCLR6N9Y2s/edit",
+   "games": [
+    {
+     "rooms": [
+      [
+       121,
+       145,
+       113
+      ],
+      [
+       157,
+       134,
+       114
+      ]
+     ],
+     "restarts": [
+      1,
+      3
+     ]
+    },
+    {
+     "rooms": [
+      [
+       138,
+       113,
+       139
+      ],
+      [
+       148,
+       128,
+       117
+      ]
+     ],
+     "restarts": [
+      3,
+      1
+     ]
+    }
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_1",
+   "date": "2025-07-20T12:00",
+   "players": [
+    "Alex_Shiba",
+    "xoyira^"
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ],
+   "winner": "xoyira^",
+   "source": "https://docs.google.com/spreadsheets/d/1xzDEP_ucNi5MDBsf5s-UnAYvLZ6Np-fMPzwet-sNUVM/edit",
+   "games": [
+    {
+     "rooms": [
+      [
+       131,
+       144,
+       173
+      ],
+      [
+       136,
+       155,
+       190
+      ]
+     ],
+     "restarts": [
+      1,
+      3
+     ]
+    },
+    {
+     "rooms": [
+      [
+       143,
+       123,
+       224
+      ],
+      [
+       112,
+       147,
+       138
+      ]
+     ],
+     "restarts": [
+      2,
+      0
+     ]
+    }
+   ]
+  },
+  {
+   "tournament": "challonge-afc_4_1",
+   "date": "2025-07-20T12:30",
+   "players": [
+    "xoyira^",
+    "Meji"
+   ],
+   "free_restarts": 2,
+   "paid_restarts": [
+    5,
+    10
+   ],
+   "winner": "Meji",
+   "source": "https://docs.google.com/spreadsheets/d/1KFvw0QAD8B0iJtSYquL_FoB9GPVoB8pH3hUVCRYke7I/edit",
+   "games": [
+    {
+     "rooms": [
+      [
+       108,
+       152,
+       160
+      ],
+      [
+       134,
+       138,
+       153
+      ]
+     ],
+     "restarts": [
+      3,
+      2
+     ]
+    },
+    {
+     "rooms": [
+      [
+       0,
+       0,
+       0
+      ],
+      [
+       106,
+       109,
+       104
+      ]
+     ],
+     "restarts": [
+      5,
+      2
+     ]
+    }
+   ]
   }
  ]
 }

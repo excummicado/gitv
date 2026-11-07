@@ -139,6 +139,21 @@ def test_teams_become_picks(session):
     assert len(session.exec(select(MatchPick)).all()) == 3  # importing again replaces them
 
 
+def test_a_game_known_by_its_teams_only_has_no_result(session):
+    import importlib
+
+    from app.models import DraftState, MatchPick
+
+    add_manual_tournament(session, BRACKET)
+    importlib.import_module("app.services.stats.snapshot")._cache.clear()
+    spec = {"matches": [GAMES["matches"][0] | {"games": [{"teams": [["x"], ["y"]]}]}]}
+    import_manual_games(session, spec)
+    assert len(session.exec(select(MatchPick)).all()) == 2
+    assert session.exec(select(DraftState)).all() == []  # no room times, so not a technical game either
+    games = [g for pd in snapshot(session).players.values() for g in pd.games]
+    assert sorted((g.name, g.result, g.technical) for g in games) == [("A", "—", False), ("B", "—", False)]
+
+
 def test_games_added_to_a_tournament_of_the_site_leave_its_matches_alone(session):
     import importlib
 
