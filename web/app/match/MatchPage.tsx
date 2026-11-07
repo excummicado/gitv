@@ -194,7 +194,7 @@ function GameSection({ game }: { game: Game }) {
           ? <><PlayerPanel player={a} game={game} /><GameGap a={a} b={b} /><PlayerPanel player={b} game={game} /></>
           : game.players.map((player) => <PlayerPanel player={player} game={game} key={player.slot} />)}
       </div>
-      <Fold title={t("Draft", "Драфт")} open className="match-subtitle"><DraftMoves game={game} /></Fold>
+      <Fold title={t("Draft", "Драфт")} className="match-subtitle"><DraftMoves game={game} /></Fold>
     </section>
   );
 }
