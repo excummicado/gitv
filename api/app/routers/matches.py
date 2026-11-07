@@ -306,7 +306,8 @@ def score_match(
     snap: Snapshot,
 ) -> ScoredMatch:
     """Scores a match from its drafts (in game order), players and room times by (draft, slot), by the shared rule
-    (match_checks.match_outcome): Challonge first, then technical defeats, then total time."""
+    (match_checks.match_outcome): a winner set by hand first, then Challonge, then technical defeats, then total
+    time."""
     paid = json.loads(m.paid_restarts or "[]")
 
     def adj(p: MatchPlayer) -> int:
@@ -339,7 +340,8 @@ def score_match(
 
     known = snap.outcomes.get(m.id)
     challonge = side_of.get(known.winner) if known and known.source == "challonge" else None
-    outcome = match_outcome(side_games, challonge)
+    by_hand = side_of.get(known.winner) if known and known.source == "manual" else None
+    outcome = match_outcome(side_games, challonge, by_hand)
     # Totals mean something only when every game has a time and nobody took a technical defeat.
     if outcome.technical or any(g.result == NO_RESULT for g in side_games) or len(side_of) != 2:
         totals = [None] * len(first)

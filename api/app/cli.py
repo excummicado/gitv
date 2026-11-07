@@ -44,6 +44,7 @@ from .database import engine
 from .models import (
     Match,
     MatchPlayer,
+    MatchWinner,
     PlayerName,
     Role,
     StreamMatch,
@@ -400,6 +401,40 @@ def set_tournament_winner(tournament: str, player: str | None, source: str | Non
         session.add(row)
         session.commit()
         print(f"{found.title}: winner is {player} ({user_id}). Used only when the final has no result.")
+
+
+def set_match_winner(match_id: str, player: str | None, source: str | None) -> None:
+    """match_id: the match's id (its page's address); player: site user id or a nickname they played under in it.
+    player None removes the winner set by hand."""
+    from datetime import datetime
+
+    with Session(engine) as session:
+        if session.get(Match, match_id) is None:
+            raise SystemExit(f"No match {match_id!r}.")
+        current = session.get(MatchWinner, match_id)
+        if player is None:
+            if current:
+                session.delete(current)
+                session.commit()
+            print(f"{match_id}: winner set by hand removed.")
+            return
+        ids = set(
+            session.exec(
+                select(MatchPlayer.user_id).where(
+                    MatchPlayer.match_id == match_id,
+                    (MatchPlayer.user_id == player) | (func.lower(MatchPlayer.full_name) == player.lower()),
+                )
+            )
+        )
+        ids.discard(None)
+        if len(ids) != 1:
+            raise SystemExit(f"{player!r} isn't exactly one player of {match_id}.")
+        user_id = ids.pop()
+        row = current or MatchWinner(match_id=match_id, player_id=user_id, created_at=datetime.now(UTC))
+        row.player_id, row.source = user_id, source
+        session.add(row)
+        session.commit()
+        print(f"{match_id}: winner is {player} ({user_id}), whatever its games say.")
 
 
 def add_challonge_tournament(
@@ -807,6 +842,13 @@ def main() -> None:
     winner_cmd.add_argument("player", nargs="?", help="Site user id or nickname of the winner")
     winner_cmd.add_argument("--source", help="Where the result comes from, e.g. a Challonge page")
     winner_cmd.add_argument("--clear", action="store_true", help="Remove the winner set by hand")
+    match_winner_cmd = commands.add_parser(
+        "set-match-winner", help="Set a match's winner when its stored games say otherwise"
+    )
+    match_winner_cmd.add_argument("match", help="Match id (from its page's address)")
+    match_winner_cmd.add_argument("player", nargs="?", help="Site user id or nickname of the winner")
+    match_winner_cmd.add_argument("--source", help="Where the result comes from")
+    match_winner_cmd.add_argument("--clear", action="store_true", help="Remove the winner set by hand")
     add_ch_cmd = commands.add_parser(
         "add-challonge-tournament", help="Add a tournament played only on Challonge, with its bracket"
     )
@@ -913,6 +955,10 @@ def main() -> None:
         if not args.clear and not args.player:
             parser.error("set-tournament-winner needs a player or --clear")
         set_tournament_winner(args.tournament, None if args.clear else args.player, args.source)
+    elif args.command == "set-match-winner":
+        if not args.clear and not args.player:
+            parser.error("set-match-winner needs a player or --clear")
+        set_match_winner(args.match, None if args.clear else args.player, args.source)
     elif args.command == "add-challonge-tournament":
         add_challonge_tournament(
             args.url, args.title, args.organizer, args.date, args.ended, args.team, args.major, args.page

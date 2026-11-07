@@ -139,6 +139,22 @@ def test_teams_become_picks(session):
     assert len(session.exec(select(MatchPick)).all()) == 3  # importing again replaces them
 
 
+def test_winner_set_by_hand_overrides_the_bracket(session, client):
+    from app.models import MatchWinner
+
+    setup(session)  # the bracket says B won
+    for p in session.exec(select(MatchPlayer)):
+        p.user_id = f"user-{p.full_name}"  # players of the site
+        session.add(p)
+    a = "user-A"
+    session.add(MatchWinner(match_id="manual-cup-m1", player_id=a, created_at=datetime.now(UTC)))
+    session.commit()
+    outcome = snapshot(session).outcomes["manual-cup-m1"]
+    assert (outcome.winner, outcome.source) == (a, "manual")
+    page = client.get("/api/v1/matches/manual-cup-m1").json()
+    assert page["result_source"] == "manual" and page["sides"][page["winner"]]["name"] == "A"
+
+
 def test_a_game_known_by_its_teams_only_has_no_result(session):
     import importlib
 

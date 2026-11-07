@@ -34,6 +34,7 @@ from ...models import (
     MatchDraft,
     MatchPick,
     MatchPlayer,
+    MatchWinner,
     OffsitePlayer,
     Tournament,
     TournamentInfo,
@@ -174,6 +175,7 @@ def data_key(session: Session) -> tuple:
         tuple(sorted(name_overrides(session).items())),
         tuple(sorted(merges(session).items())),
         tuple(sorted(session.exec(select(TournamentWinner.tournament_id, TournamentWinner.player_id)).all())),
+        tuple(sorted(session.exec(select(MatchWinner.match_id, MatchWinner.player_id)).all())),
         tuple(sorted(session.exec(select(OffsitePlayer.id, OffsitePlayer.name)).all())),
         # Tournament titles (a rename), and characters' names (import-catalog, the Travelers' element names): both
         # cached in the snapshot
@@ -500,6 +502,10 @@ def build(session: Session, key: tuple, only: set[str] | None = None) -> Snapsho
         if len(sides) == 2 and match_id in matches:
             pairs[match_id] = (matches[match_id][0], matches[match_id][1], *sides)
     challonge_winners = site_match_winners(challonge, pairs)
+    # Winners set by hand, as the players' sides (an account merged into another counts as that one)
+    set_match_winners = {
+        mid: merged.get(pid, pid) for mid, pid in session.exec(select(MatchWinner.match_id, MatchWinner.player_id))
+    }
 
     match_sides: dict[str, dict[str, int]] = {}
     outcomes: dict[str, MatchOutcome] = {}
@@ -510,9 +516,11 @@ def build(session: Session, key: tuple, only: set[str] | None = None) -> Snapsho
             continue
         if cm := challonge_matches.get(match_id):
             match_sides[match_id] = cm.games_won
-            o = outcomes[match_id] = match_outcome(rows, cm.winner)
+            o = outcomes[match_id] = match_outcome(rows, cm.winner, set_match_winners.get(match_id))
         else:
-            o = outcomes[match_id] = match_outcome(rows, challonge_winners.get(match_id))
+            o = outcomes[match_id] = match_outcome(
+                rows, challonge_winners.get(match_id), set_match_winners.get(match_id)
+            )
         for pid in sides:
             if pid not in data:
                 continue  # a Challonge-only player who isn't on the site

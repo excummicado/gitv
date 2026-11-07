@@ -11,13 +11,13 @@ export type Game = {
   id: string; game_no: number; status: string; first_pick_slot: number | null; started_at: string | null; finished_at: string | null; url: string | null;
   technical: boolean; technical_reasons: string[]; winner_slot: number | null; players: GamePlayer[]; moves: DraftMove[];
 };
-export type ResultSource = "challonge" | "technical" | "time" | null;
+export type ResultSource = "manual" | "challonge" | "technical" | "time" | null;
 export type Organizer = { id: string; name: string; played: boolean };
 export type MatchSide = { name: string; user_id: string | null; games_won: number; total_time: number | null };
 export type MatchDetail = {
   id: string; tournament_id: string; tournament: string; organizer: Organizer | null; created_at: string; system: string | null; mode: string | null; is_official: boolean;
   free_restarts: number | null; paid_restarts: number[]; sides: MatchSide[]; winner: number | null; technical: boolean;
-  // How the winner is known: the tournament's Challonge bracket, a technical defeat or the total time
+  // How the winner is known: set by hand, the tournament's Challonge bracket, a technical defeat or the total time
   result_source: ResultSource; games: Game[];
   // A match of a tournament played only on Challonge: the result, no games
   challonge_only: boolean;

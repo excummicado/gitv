@@ -254,7 +254,9 @@ function MatchHeader({ match }: { match: MatchDetail }) {
       )}
       <div className="match-summary">
         {match.winner != null && a && b
-          ? <>{t("Winner", "Победитель")}: <strong>{match.sides[match.winner].name}</strong>{match.result_source === "challonge"
+          ? <>{t("Winner", "Победитель")}: <strong>{match.sides[match.winner].name}</strong>{match.result_source === "manual"
+            ? <span title={t("The games' data says otherwise; the result was set by hand.", "Данные игр говорят иначе, итог задан вручную.")}>{t(" (set by hand)", " (задан вручную)")}</span>
+            : match.result_source === "challonge"
             ? (match.challonge_only && !match.challonge_url
               ? <span>{t(" (tournament bracket)", " (по сетке турнира)")}</span>
               : <span title={t("The result as entered on the tournament's Challonge bracket.", "Результат из сетки турнира на Challonge.")}>{t(" (Challonge bracket)", " (по сетке Challonge)")}</span>)

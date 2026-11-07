@@ -382,6 +382,18 @@ class TournamentWinner(SQLModel, table=True):
     created_at: datetime
 
 
+class MatchWinner(SQLModel, table=True):
+    """A match's winner set by hand (app.cli set-match-winner), when its stored data says otherwise, e.g. a time never
+    entered on the draft site made a technical defeat of a match the player won. It comes first in the rule
+    (match_checks.match_outcome); kept apart from imported tables so re-importing never undoes it."""
+
+    match_id: str = Field(primary_key=True, foreign_key="match.id")
+    player_id: str  # the site's user id (matchplayer.user_id)
+    # Where the result comes from, e.g. who told it
+    source: str | None = None
+    created_at: datetime
+
+
 class IgnoredTournament(SQLModel, table=True):
     """Tournaments sync never imports: deleted ones (delete-tournaments adds them), test events and the like."""
 

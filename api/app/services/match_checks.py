@@ -296,20 +296,25 @@ class MatchOutcome:
     winner: Hashable | None  # the winning side; None for a draw or no result
     decided: bool  # False: no result
     technical: bool  # a technical defeat in some game
-    source: str | None  # "challonge", "technical" or "time"; None without a result
+    source: str | None  # "manual", "challonge", "technical" or "time"; None without a result
 
 
-def match_outcome(games: list[SideGame], challonge_winner: Hashable | None = None) -> MatchOutcome:
+def match_outcome(
+    games: list[SideGame], challonge_winner: Hashable | None = None, set_winner: Hashable | None = None
+) -> MatchOutcome:
     """The one rule for who won a match, used by the site, the player statistics and export-xlsx.
 
-    1. The match's result on the tournament's Challonge bracket (see services.challonge), when there is one.
-    2. A technical defeat in any game loses the match; no result if both players took one.
-    3. Otherwise the lower total adjusted time wins, once every game has a result; equal totals are a draw.
+    1. The winner set by hand (models.MatchWinner, app.cli set-match-winner), when there is one.
+    2. The match's result on the tournament's Challonge bracket (see services.challonge), when there is one.
+    3. A technical defeat in any game loses the match; no result if both players took one.
+    4. Otherwise the lower total adjusted time wins, once every game has a result; equal totals are a draw.
     """
     sides = list(dict.fromkeys(g.side for g in games))
     tech = {g.side for g in games if g.tech_loss}
     if len(sides) != 2:
         return MatchOutcome(None, False, bool(tech), None)
+    if set_winner is not None and set_winner in sides:
+        return MatchOutcome(set_winner, True, bool(tech), "manual")
     if challonge_winner is not None and challonge_winner in sides:
         return MatchOutcome(challonge_winner, True, bool(tech), "challonge")
     if tech:

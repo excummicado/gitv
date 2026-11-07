@@ -183,6 +183,19 @@ class TestMatchOutcome:
         o = match_outcome(self.games(("a", "W", False, 100), ("b", "L", True, 900)), challonge_winner="b")
         assert (o.winner, o.source, o.technical) == ("b", "challonge", True)
 
+    def test_winner_set_by_hand_comes_before_everything(self):
+        # The bracket says "b" and "a" took a technical defeat; the winner set by hand is "a".
+        o = match_outcome(
+            self.games(("a", "W", False, 100), ("a", "L", True, 0), ("b", "L", False, 120), ("b", "W", False, 125)),
+            challonge_winner="b",
+            set_winner="a",
+        )
+        assert (o.winner, o.decided, o.source, o.technical) == ("a", True, "manual", True)
+
+    def test_winner_set_by_hand_not_in_the_match_is_ignored(self):
+        o = match_outcome(self.games(("a", "W", False, 100), ("b", "L", False, 120)), set_winner="z")
+        assert (o.winner, o.source) == ("a", "time")
+
     def test_challonge_winner_not_in_the_match_is_ignored(self):
         o = match_outcome(self.games(("a", "W", False, 100), ("b", "L", False, 120)), challonge_winner="z")
         assert (o.winner, o.source) == ("a", "time")

@@ -228,13 +228,15 @@ def export_xlsx(session: Session, path: str) -> dict[str, int]:
             continue
         (k1, t1), (k2, t2) = totals.items()
         challonge = known[m.id].winner if m.id in known and known[m.id].source == "challonge" else None
+        by_hand = known[m.id].winner if m.id in known and known[m.id].source == "manual" else None
         o = match_outcome(
             [SideGame(key(p), result.get(p.id, NO_RESULT), tech_loser.get(p.draft_id) is p, adj(p)) for p in mp],
             challonge,
+            by_hand,
         )
         match_result[m.id] = o.winner
         match_decided[m.id] = o.decided
-        mark = {"challonge": " (Challonge)", "technical": " (тех.)"}.get(o.source, "")
+        mark = {"manual": " (вручную)", "challonge": " (Challonge)", "technical": " (тех.)"}.get(o.source, "")
         label = names[o.winner] + mark if o.winner else ("ничья" if o.decided else "нет результата")
         show_totals = o.decided and not o.technical and all(result.get(p.id) not in (None, NO_RESULT) for p in mp)
         match_rows.append(
