@@ -467,6 +467,11 @@
     "Xoyira",
     "Jaba_Jab"
    ],
+   "free_restarts": 3,
+   "paid_restarts": [
+    5,
+    10
+   ],
    "winner": "Jaba_Jab",
    "source": "screenshots of both games' picks, sent by xoyira (no times)",
    "games": [
