@@ -47,6 +47,7 @@ from .match_checks import (
 from .organizers import organizer_resolver
 from .player_names import display_names, merges, player_key, shown_name
 from .stats import snapshot, tournament_standings
+from .stats.snapshot import waiting
 
 
 def pct(part: int, whole: int) -> float | None:
@@ -212,7 +213,8 @@ def export_xlsx(session: Session, path: str) -> dict[str, int]:
 
     # Matches, by the shared rule (match_checks.match_outcome): Challonge first, then technical defeats, then
     # the total adjusted time.
-    known = snapshot(session).outcomes
+    snap = snapshot(session)
+    known = snap.outcomes
     players_by_match: dict[str, list[MatchPlayer]] = defaultdict(list)
     for p in players:
         players_by_match[p.match_id].append(p)
@@ -233,6 +235,7 @@ def export_xlsx(session: Session, path: str) -> dict[str, int]:
             [SideGame(key(p), result.get(p.id, NO_RESULT), tech_loser.get(p.draft_id) is p, adj(p)) for p in mp],
             challonge,
             by_hand,
+            **waiting(snap.live, snap.challonge, m.tournament_id),
         )
         match_result[m.id] = o.winner
         match_decided[m.id] = o.decided

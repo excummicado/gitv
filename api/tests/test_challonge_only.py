@@ -320,6 +320,37 @@ def test_a_site_tournaments_bracket_matches_without_drafts_count(world):
     assert tech in {s.match_id for s in elo_ratings(world.s, snap)["C"].history}
 
 
+def test_a_bracket_match_played_off_the_site_by_two_known_players_counts(world):
+    """Neither played this tournament on the site (another draft site), but both are the site's players."""
+    site_players(world, "C", "D")
+    tid = world.tournament("Abyss Fast Soup 98")
+    world.win(tid, "A", "B")
+    site_bracket(world, tid, [m(1, "A", "B", "A", (1, 0)), m(1, "C", "D", "C", (1, 0)), m(1, "E", "F", "E", (1, 0))])
+    snap = world.snap()
+    pairs = {frozenset(snap.match_sides[mid]) for mid, t in snap.match_tournament.items() if t == tid}
+    assert frozenset("CD") in pairs  # E and F are tied to no one: left out
+    assert len(pairs) == 2
+
+
+def test_a_running_tournaments_match_waits_for_its_bracket(world):
+    """Times say A won, but until the bracket has the result the match has none (a late time can still change it)."""
+    tid = world.tournament("Abyss Fast Soup 97")
+    mid = world.win(tid, "A", "B")
+    url = "https://challonge.com/soup97"
+    world.s.add(TournamentInfo(tournament_id=tid, is_finished=False, challonge_url=url))
+    raw = store([m(1, "A", "B"), m(2, "A", None)], state="underway")
+    bracket = ChallongeBracket(tournament_id=tid, url=url, raw=json.dumps(raw), fetched_at=datetime.now(UTC))
+    world.s.add(bracket)
+    snap = world.snap()
+    assert tid in snap.live and not snap.outcomes[mid].decided
+    assert mid not in snap.players["A"].matches or snap.players["A"].matches[mid][0] == "—"
+    bracket.raw = json.dumps(store([m(1, "A", "B", "B", (0, 1)), m(2, "B", None)], state="underway"))
+    bracket.fetched_at = datetime.now(UTC) + timedelta(minutes=2)  # fetched again by the live poll
+    world.s.add(bracket)
+    snap = world.snap()
+    assert (snap.outcomes[mid].winner, snap.outcomes[mid].source) == ("B", "challonge")
+
+
 def test_a_bracket_shared_by_site_tournaments_or_their_own_group_stage_is_not_added(world):
     # A qualifier's groups as tournaments of their own, on one bracket: neither gets the whole bracket
     groups = [world.tournament(f"Qualification Stage Group {g}") for g in "AB"]

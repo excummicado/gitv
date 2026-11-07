@@ -149,6 +149,15 @@ def warm_up(engine) -> None:
         snapshot(session)
 
 
+def waiting(live: set[str], challonge: dict, tid: str) -> dict[str, bool]:
+    """match_outcome's rule 3 for a stored match of tournament tid: while it runs, a match waits for its bracket, or
+    with no bracket a technical defeat waits for the tournament's end."""
+    if tid not in live:
+        return {}
+    ch = challonge.get(tid)
+    return {"awaiting_bracket": True} if ch and ch.bracket else {"holding_technical": True}
+
+
 def major_tournament_ids(session: Session) -> set[str]:
     """Abyss Cup qualifiers and playoffs (needs fetch-tournaments, which stores each tournament's system), and
     Challonge-only tournaments marked major (the numbered Abyss Fight Club events)."""
@@ -502,6 +511,7 @@ def build(session: Session, key: tuple, only: set[str] | None = None) -> Snapsho
         if len(sides) == 2 and match_id in matches:
             pairs[match_id] = (matches[match_id][0], matches[match_id][1], *sides)
     challonge_winners = site_match_winners(challonge, pairs)
+    live = unfinished - decided
     # Winners set by hand, as the players' sides (an account merged into another counts as that one)
     set_match_winners = {
         mid: merged.get(pid, pid) for mid, pid in session.exec(select(MatchWinner.match_id, MatchWinner.player_id))
@@ -519,7 +529,10 @@ def build(session: Session, key: tuple, only: set[str] | None = None) -> Snapsho
             o = outcomes[match_id] = match_outcome(rows, cm.winner, set_match_winners.get(match_id))
         else:
             o = outcomes[match_id] = match_outcome(
-                rows, challonge_winners.get(match_id), set_match_winners.get(match_id)
+                rows,
+                challonge_winners.get(match_id),
+                set_match_winners.get(match_id),
+                **waiting(live, challonge, matches[match_id][0]) if match_id in matches else {},
             )
         for pid in sides:
             if pid not in data:
@@ -558,7 +571,7 @@ def build(session: Session, key: tuple, only: set[str] | None = None) -> Snapsho
         set_winners=dict(session.exec(select(TournamentWinner.tournament_id, TournamentWinner.player_id)).all()),
         challonge_only=only_rows,
         challonge_matches=challonge_matches,
-        live=unfinished - decided,
+        live=live,
         decided=decided,
     )
 
@@ -650,8 +663,9 @@ def add_challonge_only(
             end = row.ended_at if row.ended_at.tzinfo else row.ended_at.replace(tzinfo=UTC)
             step = max(end - start, timedelta(0)) / (len(steps) - 1)
         on_site = getattr(row, "on_site", False)
-        # Who played the site's matches of it: one of them in every bracket match added (a no-show's technical
-        # loss to someone who came)
+        # Who played the site's matches of it. A bracket match with a name tied to no one is added only when the
+        # other player is one of them (a no-show's technical loss to someone who came); one between two players the
+        # site knows is added either way: played somewhere else (another draft site), not a no-show.
         entrants = {p for ids, _ in left.get(tid, []) for p in ids}
 
         # A group stage the site keeps as tournaments of its own (a league's rounds before its play-off) isn't this
@@ -671,7 +685,8 @@ def add_challonge_only(
             if a == b:
                 continue
             done = left.get(tid, [])
-            if on_site and (a not in entrants and b not in entrants or m.group and not groups_here):
+            unknown = a.startswith("?") or b.startswith("?")
+            if on_site and (a not in entrants and b not in entrants and unknown or m.group and not groups_here):
                 continue
             if (
                 on_site

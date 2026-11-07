@@ -53,6 +53,7 @@ from ..services.stats import (
     tournament_standings,
 )
 from ..services.stats.elo import live_weights
+from ..services.stats.snapshot import waiting
 from ..services.sync import live_tournaments
 from ..services.tournament_info import discord_link
 from .abyss import current_id, phase_on, phases
@@ -306,8 +307,8 @@ def score_match(
     snap: Snapshot,
 ) -> ScoredMatch:
     """Scores a match from its drafts (in game order), players and room times by (draft, slot), by the shared rule
-    (match_checks.match_outcome): a winner set by hand first, then Challonge, then technical defeats, then total
-    time."""
+    (match_checks.match_outcome): a winner set by hand first, then Challonge, then a running tournament's wait for
+    its bracket, then technical defeats, then total time."""
     paid = json.loads(m.paid_restarts or "[]")
 
     def adj(p: MatchPlayer) -> int:
@@ -341,7 +342,7 @@ def score_match(
     known = snap.outcomes.get(m.id)
     challonge = side_of.get(known.winner) if known and known.source == "challonge" else None
     by_hand = side_of.get(known.winner) if known and known.source == "manual" else None
-    outcome = match_outcome(side_games, challonge, by_hand)
+    outcome = match_outcome(side_games, challonge, by_hand, **waiting(snap.live, snap.challonge, m.tournament_id))
     # Totals mean something only when every game has a time and nobody took a technical defeat.
     if outcome.technical or any(g.result == NO_RESULT for g in side_games) or len(side_of) != 2:
         totals = [None] * len(first)

@@ -300,14 +300,22 @@ class MatchOutcome:
 
 
 def match_outcome(
-    games: list[SideGame], challonge_winner: Hashable | None = None, set_winner: Hashable | None = None
+    games: list[SideGame],
+    challonge_winner: Hashable | None = None,
+    set_winner: Hashable | None = None,
+    *,
+    awaiting_bracket: bool = False,
+    holding_technical: bool = False,
 ) -> MatchOutcome:
     """The one rule for who won a match, used by the site, the player statistics and export-xlsx.
 
     1. The winner set by hand (models.MatchWinner, app.cli set-match-winner), when there is one.
     2. The match's result on the tournament's Challonge bracket (see services.challonge), when there is one.
-    3. A technical defeat in any game loses the match; no result if both players took one.
-    4. Otherwise the lower total adjusted time wins, once every game has a result; equal totals are a draw.
+    3. A running tournament's match isn't over until its bracket says so: awaiting_bracket (the tournament has a
+       bracket) leaves it without a result, and holding_technical (it has none) does the same to a technical defeat.
+       Players enter their times after a game is marked finished, so a missing time is often only a late one.
+    4. A technical defeat in any game loses the match; no result if both players took one.
+    5. Otherwise the lower total adjusted time wins, once every game has a result; equal totals are a draw.
     """
     sides = list(dict.fromkeys(g.side for g in games))
     tech = {g.side for g in games if g.tech_loss}
@@ -317,6 +325,8 @@ def match_outcome(
         return MatchOutcome(set_winner, True, bool(tech), "manual")
     if challonge_winner is not None and challonge_winner in sides:
         return MatchOutcome(challonge_winner, True, bool(tech), "challonge")
+    if awaiting_bracket or holding_technical and tech:
+        return MatchOutcome(None, False, bool(tech), None)
     if tech:
         if len(tech) == 1:
             return MatchOutcome(next(s for s in sides if s not in tech), True, True, "technical")

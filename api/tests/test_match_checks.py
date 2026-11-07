@@ -192,6 +192,19 @@ class TestMatchOutcome:
         )
         assert (o.winner, o.decided, o.source, o.technical) == ("a", True, "manual", True)
 
+    def test_a_running_tournaments_match_waits_for_its_bracket(self):
+        games = self.games(("a", "W", False, 100), ("b", "L", False, 120))
+        assert not match_outcome(games, awaiting_bracket=True).decided
+        o = match_outcome(games, challonge_winner="b", awaiting_bracket=True)
+        assert (o.winner, o.source) == ("b", "challonge")
+
+    def test_a_running_tournament_without_bracket_holds_technical_defeats_only(self):
+        tech = self.games(("a", "W", False, 100), ("b", "L", True, 0))
+        o = match_outcome(tech, holding_technical=True)
+        assert (o.decided, o.technical) == (False, True)
+        o = match_outcome(self.games(("a", "W", False, 100), ("b", "L", False, 120)), holding_technical=True)
+        assert (o.winner, o.source) == ("a", "time")
+
     def test_winner_set_by_hand_not_in_the_match_is_ignored(self):
         o = match_outcome(self.games(("a", "W", False, 100), ("b", "L", False, 120)), set_winner="z")
         assert (o.winner, o.source) == ("a", "time")
