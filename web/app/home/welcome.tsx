@@ -349,7 +349,8 @@ function TodaysMatches() {
   );
 }
 
-// The latest stored matches: who played, the score, the tournament and the day, each opening its page.
+// The last played matches: who played, the score, the tournament and the day, each opening its page. Asked for again
+// every minute, like the live ones.
 function RecentMatches() {
   const [items, setItems] = useState<MatchSummary[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -357,10 +358,12 @@ function RecentMatches() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchMatches({ limit: RECENT_MATCHES, offset: 0 }, controller.signal)
-      .then((page) => setItems(page.items))
+    const load = () => fetchMatches({ limit: RECENT_MATCHES, offset: 0 }, controller.signal)
+      .then((page) => { setItems(page.items); setFailed(false); })
       .catch(() => { if (!controller.signal.aborted) setFailed(true); });
-    return () => controller.abort();
+    load();
+    const timer = setInterval(load, 60000);
+    return () => { clearInterval(timer); controller.abort(); };
   }, []);
 
   return (
@@ -377,7 +380,7 @@ function RecentMatches() {
               </span>
               <span className="gitv-recent-meta">
                 <small className="gitv-recent-tournament">{m.tournament}</small>
-                <small className="gitv-date">{date(m.created_at)}</small>
+                <small className="gitv-date">{date(m.played_at)}</small>
               </span>
             </Link>
           ))}

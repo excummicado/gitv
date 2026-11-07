@@ -35,7 +35,7 @@ export function fetchMatch(id: string, signal?: AbortSignal) {
   });
 }
 
-export type MatchSummary = { id: string; tournament_id: string; tournament: string; created_at: string; sides: MatchSide[]; winner: number | null; technical: boolean; result_source: ResultSource; games: number };
+export type MatchSummary = { id: string; tournament_id: string; tournament: string; created_at: string; played_at: string; sides: MatchSide[]; winner: number | null; technical: boolean; result_source: ResultSource; games: number };
 export type MatchList = { items: MatchSummary[]; total: number };
 export type TournamentItem = { id: string; title: string; organizer?: Organizer | null; matches: number; last_match: string | null };
 

@@ -438,6 +438,26 @@ def test_split_accounts_one_clash_with_most_of_the_roster_gone():
     assert [[v.id for v in a] for a in split_accounts(versions, chars, five_stars)] == [[0, 1], [2]]
 
 
+def test_match_list_is_by_last_game(world):
+    """A match set up long ago but played last comes first; one without a game time goes by its set-up."""
+    from app.models import DraftState, Match, MatchDraft
+    from app.routers.matches import list_matches
+
+    tid = world.tournament("Abyss Fast Soup 300")
+    set_up_first = world.win(tid, "A", "B")
+    set_up_last = world.win(tid, "C", "D")
+    world.s.get(Match, set_up_first).created_at = datetime(2026, 6, 1, tzinfo=UTC)
+    world.s.get(Match, set_up_last).created_at = datetime(2026, 6, 2, tzinfo=UTC)
+    played = datetime(2026, 6, 10, tzinfo=UTC)
+    draft = world.s.exec(__import__("sqlmodel").select(MatchDraft).where(MatchDraft.match_id == set_up_first)).first()
+    world.s.add(DraftState(draft_id=draft.id, match_id=set_up_first, status="FINISHED", finished_at=played, raw="{}"))
+    world.s.commit()
+    items = list_matches(world.s, q="", tournament=tid, limit=5, offset=0).items
+    assert [m.id for m in items] == [set_up_first, set_up_last]
+    assert items[0].played_at.replace(tzinfo=UTC) == played
+    assert items[1].played_at.replace(tzinfo=UTC) == datetime(2026, 6, 2, tzinfo=UTC)
+
+
 def test_character_stats_players_and_versus(world):
     """players: only their picks and bans and the games they played; versus: only games between two of them."""
     import sqlmodel

@@ -184,6 +184,7 @@ class MatchSummary(BaseModel):
     tournament_id: str
     tournament: str
     created_at: datetime
+    played_at: datetime  # when its last game ended (or began); a match is often set up days before it's played
     sides: list[MatchSide]
     winner: int | None
     technical: bool
@@ -212,12 +213,18 @@ def list_matches(
     limit: Annotated[int, Query(ge=1, le=100)] = 30,
     offset: Annotated[int, Query(ge=0, le=MAX_ROW_ID)] = 0,
 ):
-    """Newest first. q matches a player's name (any nickname they played under) or the tournament title."""
+    """Last played first. q matches a player's name (any nickname they played under) or the tournament title."""
     query = filtered(
         select(Match).join(Tournament, Tournament.id == Match.tournament_id), q, stage_tournaments(session, tournament)
     )
     total = session.exec(select(func.count()).select_from(query.subquery())).one()
-    page = session.exec(query.order_by(Match.created_at.desc()).offset(offset).limit(limit)).all()
+    played = select(DraftState.match_id, LAST_GAME.label("at")).group_by(DraftState.match_id).subquery()
+    page = session.exec(
+        query.outerjoin(played, played.c.match_id == Match.id)
+        .order_by(func.coalesce(played.c.at, Match.created_at).desc())
+        .offset(offset)
+        .limit(limit)
+    ).all()
     snap = snapshot(session)
     return MatchPage(items=summaries(session, list(page), snap), total=total)
 
@@ -239,6 +246,10 @@ class GroupedPage(BaseModel):
     # Tournaments with at least one match matching the filters
     total: int
     matches: int
+
+
+# A match's last game: the end of its latest draft, or its start while that's all there is.
+LAST_GAME = func.max(func.coalesce(DraftState.finished_at, DraftState.started_at))
 
 
 def filtered(query, q: str, tournament: str | list[str] | None):
@@ -347,6 +358,11 @@ def summaries(session: SessionDep, matches: list[Match], snap: Snapshot) -> list
     for p in session.exec(select(MatchPlayer).where(MatchPlayer.match_id.in_(ids))):
         players[p.match_id].append(p)
     rooms = room_times(session, [d.id for ds in drafts.values() for d in ds])
+    played = dict(
+        session.exec(
+            select(DraftState.match_id, LAST_GAME).where(DraftState.match_id.in_(ids)).group_by(DraftState.match_id)
+        ).all()
+    )
     titles = dict(
         session.exec(
             select(Tournament.id, Tournament.title).where(Tournament.id.in_({m.tournament_id for m in matches}))
@@ -363,6 +379,7 @@ def summaries(session: SessionDep, matches: list[Match], snap: Snapshot) -> list
                 tournament_id=m.tournament_id,
                 tournament=titles.get(m.tournament_id, ""),
                 created_at=m.created_at,
+                played_at=played.get(m.id) or m.created_at,
                 sides=scored.sides(names, merged),
                 winner=scored.winner,
                 technical=scored.outcome.technical,
