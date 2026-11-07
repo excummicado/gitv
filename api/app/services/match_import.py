@@ -4,7 +4,8 @@ Each URL is a matches endpoint that returns {"items": [...], "count": N}. The si
 items, so matches are fetched 100 at a time through skip until count is reached (the URL's own limit
 and skip are replaced). Only matches whose drafts are all FINISHED are stored. A match that is already
 in the database is replaced with the fresh copy (its draft links and socket data go with it), unless
-only_new is set: then it's left as it is.
+only_new is set: then it's left as it is, unless it has more games now (one stored as settled by its bracket
+before all were played, see sync.settled_by_bracket).
 """
 
 import json
@@ -13,7 +14,7 @@ from datetime import datetime
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
-from sqlmodel import Session, delete, select
+from sqlmodel import Session, delete, func, select
 
 from ..models import DraftAction, DraftLink, DraftState, Match, MatchDraft, MatchPick, MatchPlayer, Tournament
 from .match_checks import tidy_title
@@ -150,13 +151,22 @@ def save_match(session: Session, m: dict) -> None:
 
 
 def import_matches(session: Session, matches: list[dict], result: ImportResult, only_new: bool = False) -> None:
-    stored = set(session.exec(select(Match.id).where(Match.id.in_([m["_id"] for m in matches])))) if only_new else set()
+    stored: dict[str, int] = {}
+    if only_new:
+        ids = [m["_id"] for m in matches]
+        stored = dict(
+            session.exec(
+                select(MatchDraft.match_id, func.count())
+                .where(MatchDraft.match_id.in_(ids))
+                .group_by(MatchDraft.match_id)
+            ).all()
+        )
     for m in matches:
         result.fetched += 1
         if not is_finished(m):
             result.skipped_unfinished += 1
             continue
-        if m["_id"] in stored:
+        if stored.get(m["_id"], 0) >= len(m["drafts"]):
             result.skipped_existing += 1
             continue
         save_match(session, m)

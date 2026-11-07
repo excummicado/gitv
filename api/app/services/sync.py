@@ -26,6 +26,7 @@ import json
 import logging
 import re
 import time
+from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -38,13 +39,14 @@ from sqlmodel import Session, delete, select
 from ..models import IgnoredTournament, LiveMatch, LiveRoster, Match, MatchPlayer, Tournament, TournamentInfo
 from . import match_import
 from .abyss import maybe_fetch_abyss
-from .challonge import challonge_link, fetch_challonge
+from .challonge import challonge_link, fetch_challonge, site_match_winners, stored_results
 from .draft_actions import TimesResult, fetch_draft_actions, fetch_init, refresh_times
 from .draft_links import fetch_draft_links, fetch_match
 from .draft_systems import fetch_draft_systems
 from .hoth_hub import sync_hub
 from .match_checks import tidy_title
 from .match_import import ImportResult, import_from_urls, import_matches, is_finished, parse_date
+from .player_names import merges
 from .rosters import build_rosters
 from .tournament_info import fetch_tournament_info, links
 
@@ -191,6 +193,39 @@ def live_tournaments() -> list[dict]:
     return items
 
 
+def settled_by_bracket(session: Session, fetched: dict[str, list[dict]]) -> dict[str, list[dict]]:
+    """fetched, with the matches their tournament's Challonge bracket has decided though not all of their games were
+    played cut down to the finished games: to the rest of the poll they're finished matches. Matches no game of which
+    is finished stay as they are, and don't count when pairing a player's matches with the bracket's."""
+    merged = merges(session)
+    candidates: dict[str, dict[str, set[str]]] = defaultdict(dict)
+    meetings = {}
+    unfinished = False
+    for tid, matches in fetched.items():
+        for m in matches:
+            played = [d for d in m.get("drafts") or [] if d.get("status") == "FINISHED"]
+            ids = [merged.get(u, u) for u in (m.get("users") or [])[:2]]
+            players = m["drafts"][0].get("players") or [] if played else []
+            if not played or len(set(ids)) != 2 or len(players) < 2:
+                continue
+            for user, player in zip(ids, players, strict=False):
+                candidates[tid].setdefault(user, set()).add(player["fullName"])
+            meetings[m["_id"]] = (tid, m["createdAt"], ids[0], ids[1])
+            unfinished = unfinished or not is_finished(m)
+    if not unfinished:
+        return fetched
+    winners = site_match_winners(stored_results(session, candidates, only=set(candidates)), meetings)
+    return {
+        tid: [
+            {**m, "drafts": [d for d in m["drafts"] if d.get("status") == "FINISHED"]}
+            if m["_id"] in winners and not is_finished(m)
+            else m
+            for m in matches
+        ]
+        for tid, matches in fetched.items()
+    }
+
+
 def poll_live(session: Session) -> SyncResult:
     """Imports the newly finished matches of the tournaments running now, with their draft links and drafts, and
     reads their Challonge brackets until the final has a winner. The list of running tournaments is the
@@ -205,6 +240,7 @@ def poll_live(session: Session) -> SyncResult:
                 fetched[t["_id"]] = match_import.fetch_matches(client, MATCHES_URL.format(id=t["_id"]))
             except (httpx.HTTPError, ValueError) as e:
                 result.errors.append(f"{t.get('title') or t['_id']}: {e}")
+        fetched = settled_by_bracket(session, fetched)
         imported = ImportResult()
         import_matches(session, [m for ms in fetched.values() for m in ms], imported, only_new=True)
         result.matches_saved = imported.saved

@@ -318,9 +318,11 @@ def site_match_winners(
     return winners
 
 
-def stored_results(session: Session, candidates: dict[str, dict[str, set[str]]]) -> dict[str, ChallongeResult]:
-    """{tournament id: ChallongeResult} for every stored bracket. candidates: {tournament id: {player id: names}};
-    each player's Discord names are added to them."""
+def stored_results(
+    session: Session, candidates: dict[str, dict[str, set[str]]], only: set[str] | None = None
+) -> dict[str, ChallongeResult]:
+    """{tournament id: ChallongeResult} for every stored bracket (or those of the only tournaments). candidates:
+    {tournament id: {player id: names}}; each player's Discord names are added to them."""
     merged = dict(session.exec(select(PlayerMerge.user_id, PlayerMerge.into_id)).all())
     discord: dict[str, set[str]] = defaultdict(set)
     for user_id, name in session.exec(select(TournamentPlayer.user_id, TournamentPlayer.discord_name)):
@@ -343,7 +345,10 @@ def stored_results(session: Session, candidates: dict[str, dict[str, set[str]]])
         for pid, nicks in players.items():
             everyone[pid] |= nicks
     results = {}
-    for row in session.exec(select(ChallongeBracket)):
+    rows = select(ChallongeBracket)
+    if only is not None:
+        rows = rows.where(ChallongeBracket.tournament_id.in_(only))
+    for row in session.exec(rows):
         try:
             bracket = bracket_from_store(json.loads(row.raw))
         except (ValueError, KeyError, TypeError):

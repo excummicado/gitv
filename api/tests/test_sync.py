@@ -8,10 +8,23 @@ from sqlmodel import select
 
 from app.database import get_session
 from app.main import app
-from app.models import DraftLink, DraftState, LiveMatch, Match, MatchDraft, MatchPlayer, TournamentInfo
+from app.models import (
+    ChallongeBracket,
+    DraftLink,
+    DraftState,
+    LiveMatch,
+    Match,
+    MatchDraft,
+    MatchPlayer,
+    TournamentInfo,
+)
 from app.services import sync as sync_service
 from app.services.draft_actions import refresh_times
 from app.services.roster_stats import tournament_pool
+from app.services.stats import snapshot
+
+from .challonge_data import m as bracket_match
+from .challonge_data import store
 
 
 @pytest.fixture
@@ -299,6 +312,67 @@ def test_the_live_poll_reads_again_a_game_whose_time_changed(session, site, monk
     monkeypatch.setattr(sync_service, "fetch_init", lambda draft_id, key: fresh)
     assert sync_service.poll_live(session).times == 1
     assert session.exec(select(MatchPlayer).where(MatchPlayer.slot == 0)).one().clear_time == 215
+
+
+def two_game_match(match_id: str, a: str, b: str, game2: str = "NOT_STARTED") -> dict:
+    """a against b, game 1 finished."""
+    match = site_match(match_id)
+    players = [{"fullName": a, "clearTime": 100}, {"fullName": b, "clearTime": 200}]
+    match["users"] = [f"id-{a}", f"id-{b}"]
+    match["drafts"] = [
+        {"_id": f"{match_id}-d1", "status": "FINISHED", "players": players},
+        {"_id": f"{match_id}-d2", "status": game2, "players": players},
+    ]
+    return match
+
+
+def add_bracket(session, matches: list[dict]) -> None:
+    session.add(
+        ChallongeBracket(
+            tournament_id="live1",
+            url="https://challonge.com/live1",
+            state="underway",
+            raw=json.dumps(store(matches, state="underway")),
+            fetched_at=datetime(2026, 11, 6, tzinfo=UTC),
+        )
+    )
+    session.commit()
+
+
+def test_a_match_its_bracket_decided_counts_with_the_games_played(session, site):
+    """Game 2 never started but the bracket has a winner: stored with game 1, out of the live list, and only once."""
+    site["live1"] = [two_game_match("m1", "a", "b"), two_game_match("m2", "c", "d")]
+    add_bracket(session, [bracket_match(1, "b", "a", "b", (1, 0)), bracket_match(1, "c", "d")])
+    assert sync_service.poll_live(session).matches_saved == 1
+
+    assert [d.id for d in session.exec(select(MatchDraft).where(MatchDraft.match_id == "m1"))] == ["m1-d1"]
+    assert session.get(Match, "m2") is None  # undecided: still under way
+    assert [row.id for row in session.exec(select(LiveMatch))] == ["m2"]
+
+    snap = snapshot(session, fresh=True)
+    assert snap.outcomes["m1"].winner == "id-b" and snap.outcomes["m1"].source == "challonge"
+    assert not [mid for mid in snap.outcomes if mid.startswith("ch-")]  # not again from the bracket
+
+    assert sync_service.poll_live(session).matches_saved == 0  # stored already
+
+
+def test_a_match_settled_by_its_bracket_gets_the_games_played_later(session, site):
+    site["live1"] = [two_game_match("m1", "a", "b")]
+    add_bracket(session, [bracket_match(1, "a", "b", "a", (1, 0))])
+    sync_service.poll_live(session)
+
+    site["live1"] = [two_game_match("m1", "a", "b", game2="FINISHED")]
+    assert sync_service.poll_live(session).matches_saved == 1
+    assert len(session.exec(select(MatchDraft).where(MatchDraft.match_id == "m1")).all()) == 2
+
+
+def test_a_match_with_no_finished_game_waits_whatever_its_bracket_says(session, site):
+    match = two_game_match("m1", "a", "b")
+    match["drafts"][0]["status"] = "NOT_STARTED"
+    site["live1"] = [match]
+    add_bracket(session, [bracket_match(1, "a", "b", "a", (1, 0))])
+    assert sync_service.poll_live(session).matches_saved == 0
+    assert session.get(Match, "m1") is None and session.get(LiveMatch, "m1") is not None
 
 
 def test_tournaments_the_site_doesnt_have_are_not_asked_for(session, monkeypatch):
