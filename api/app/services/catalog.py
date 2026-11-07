@@ -21,6 +21,11 @@ NAMES = {
 ELEMENT_LETTERS = {11: "A", 12: "C", 13: "D", 14: "E", 15: "G", 16: "H", 17: "P"}
 
 
+# Travelers of an unknown element, from posts that show only who it is (the site has no such characters): id -> icon id.
+UNKNOWN_TRAVELERS = {"traveler-unknown-lumine": "10000007", "traveler-unknown-aether": "10000005"}
+GENSHIN_ART = "https://static.darte.gg/genshin/characters"
+
+
 def traveler_name(name_en: str | None, attribute: int | None) -> str | None:
     """A Traveler's name by element ("PMC" for the Pyro one); None for anyone else."""
     if name_en == "Traveler" and attribute in ELEMENT_LETTERS:
@@ -71,6 +76,19 @@ def import_catalog(session: Session) -> dict[str, int]:
                 icon=a.get("iconSrc"),
                 splash=a.get("gachaSplash"),
                 card=a.get("gachaCard"),
+            )
+        )
+    for agent_id, art in UNKNOWN_TRAVELERS.items():
+        session.merge(
+            Agent(
+                id=agent_id,
+                name_ru="?MC",
+                name_en="?MC",
+                rarity=5,
+                specialty=5,
+                icon=f"{GENSHIN_ART}/icons/{art}.webp",
+                splash=f"{GENSHIN_ART}/gacha-splash/{art}.webp",
+                card=f"{GENSHIN_ART}/gacha-card/{art}.webp",
             )
         )
     for e in engines:
