@@ -15,9 +15,11 @@ from .player_names import display_names, merges
 from .stats.player import avg, pct
 from .stats.snapshot import Snapshot
 
-# A constellation never goes down on one account, but a player's rosters differ in who they enter, so only a clash
-# says anything: a roster with this many 5-star characters below what an account already had is another account.
+# A constellation never goes down on one account, but a player's rosters differ in who they enter, so a clash (a 5-star
+# below what the account already had) is what counts: this many make another account, and so does a single one with
+# this many of the 5-stars of the account's last roster gone.
 ACCOUNT_CLASHES = 3
+ACCOUNT_GONE = 7
 
 
 def _rosters(session: Session, player_id: str) -> tuple[list[PlayerRoster], dict[int, list[RosterCharacter]]]:
@@ -40,25 +42,28 @@ def _rosters(session: Session, player_id: str) -> tuple[list[PlayerRoster], dict
 def split_accounts(
     versions: list[PlayerRoster], chars: dict[int, list[RosterCharacter]], five_stars: set[str]
 ) -> list[list[PlayerRoster]]:
-    """The roster versions (in order) by game account: each goes to the account it clashes with least, of those it
-    clashes with fewer than ACCOUNT_CLASHES times (the one sharing most characters on a tie), else starts a new one."""
-    accounts: list[tuple[dict[str, int], list[PlayerRoster]]] = []
+    """The roster versions (in order) by game account: each goes to the account it clashes with least (with the fewest
+    of its last roster gone on a tie), of those it may belong to by ACCOUNT_CLASHES and ACCOUNT_GONE, else starts a
+    new one."""
+    accounts: list[dict] = []
     for v in versions:
         roster = {c.agent_id: c.constellation for c in chars[v.id] if c.agent_id in five_stars}
         best, best_key = None, None
         for account in accounts:
-            owned = account[0]
+            owned = account["owned"]
             clashes = sum(c < owned[a] for a, c in roster.items() if a in owned)
-            key = (clashes, -sum(a in owned for a in roster))
-            if clashes < ACCOUNT_CLASHES and (best_key is None or key < best_key):
+            gone = sum(a not in roster for a in account["last"])
+            key = (clashes, gone)
+            if clashes < ACCOUNT_CLASHES and not (clashes and gone >= ACCOUNT_GONE) and (not best or key < best_key):
                 best, best_key = account, key
         if best is None:
-            best = ({}, [])
+            best = {"owned": {}, "versions": []}
             accounts.append(best)
-        best[1].append(v)
+        best["versions"].append(v)
+        best["last"] = roster
         for a, c in roster.items():
-            best[0][a] = max(best[0].get(a, c), c)
-    return [account[1] for account in accounts]
+            best["owned"][a] = max(best["owned"].get(a, c), c)
+    return [account["versions"] for account in accounts]
 
 
 def roster_tournaments(snap: Snapshot, versions: list[PlayerRoster]) -> list[dict]:

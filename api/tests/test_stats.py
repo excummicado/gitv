@@ -420,6 +420,24 @@ def test_character_roster_accounts_and_team_events(world):
     assert character_roster(world.s, snap, "A", ids["Abyss Fast Soup 200"])["account"] == 1
 
 
+def test_split_accounts_one_clash_with_most_of_the_roster_gone():
+    """One 5-star lower is another account when most of the last roster is gone too, not when it's still there."""
+    from types import SimpleNamespace as Row
+
+    from app.services.roster_stats import split_accounts
+
+    first = {f"old{i}": 0 for i in range(8)} | {"shared": 3}
+    rosters = [
+        first,
+        first | {"new": 0, "shared": 2},  # one clash, nothing gone: the same account
+        {"other": 0, "shared": 2},  # one clash, eight gone: another
+    ]
+    versions = [Row(id=i) for i in range(len(rosters))]
+    chars = {i: [Row(agent_id=a, constellation=c) for a, c in r.items()] for i, r in enumerate(rosters)}
+    five_stars = {a for r in rosters for a in r}
+    assert [[v.id for v in a] for a in split_accounts(versions, chars, five_stars)] == [[0, 1], [2]]
+
+
 def test_character_stats_players_and_versus(world):
     """players: only their picks and bans and the games they played; versus: only games between two of them."""
     import sqlmodel
