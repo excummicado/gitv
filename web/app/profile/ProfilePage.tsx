@@ -105,11 +105,15 @@ function useNicknameAction(onEdit?: () => void) {
   return { run, saving, field, result, nickname: nickname.trim(), setMessage };
 }
 
-// Mirrors the API: admins move people between member, writer and event organizer; super admins can also give admin.
+// Mirrors the API: admins move people between member, writer and the organizer roles; super admins can also give
+// admin.
+const ORGANIZERS: AssignableRole[] = ["event_organizer", "organizer_abyss_cup", "organizer_hoth", "organizer_newgen", "organizer_icephoenix", "organizer_abyss_ascend"];
 const ASSIGNABLE: Record<"admin" | "super_admin", AssignableRole[]> = {
-  admin: ["user", "writer", "event_organizer"],
-  super_admin: ["user", "writer", "event_organizer", "admin"],
+  admin: ["user", "writer", ...ORGANIZERS],
+  super_admin: ["user", "writer", ...ORGANIZERS, "admin"],
 };
+// "Event organizer" -> "event organizer", but "HotH organizer" keeps its capitals.
+const lowerFirst = (label: string) => label.charAt(0).toLowerCase() + label.slice(1);
 
 function RolesForm({ actorRole }: { actorRole: "admin" | "super_admin" }) {
   const { t, role: roleLabel } = useProfileText();
@@ -130,8 +134,8 @@ function RolesForm({ actorRole }: { actorRole: "admin" | "super_admin" }) {
     setConfirming(false);
     run(async (target) => {
       const user = await setRole(target, role);
-      return t(`${user.nickname} is now ${ROLE_LABELS[user.role].toLowerCase()}. They need to sign in again.`,
-               `${user.nickname} теперь ${ROLE_LABELS_RU[user.role].toLowerCase()}. Ему нужно войти заново.`);
+      return t(`${user.nickname} is now ${lowerFirst(ROLE_LABELS[user.role])}. They need to sign in again.`,
+               `${user.nickname} теперь ${lowerFirst(ROLE_LABELS_RU[user.role])}. Ему нужно войти заново.`);
     });
   }
 

@@ -2,7 +2,7 @@
 // event organizers and admins.
 
 import { getJson } from "../api";
-import { authRequest, type Role } from "../auth/client";
+import { authRequest, PLAYER_EDITOR_ROLES, type Role } from "../auth/client";
 
 // author: as given when importing, else who imported it (imported_by)
 export type Article = {
@@ -21,7 +21,7 @@ export function inLang(post: Article, lang: string) {
   return { title: translated ? post.title_tr ?? post.title : post.title, body: translated ? post.body_html_tr! : post.body_html, translated };
 }
 
-export const NEWS_WRITER_ROLES: Role[] = ["writer", "event_organizer", "admin", "super_admin"];
+export const NEWS_WRITER_ROLES: Role[] = ["writer", ...PLAYER_EDITOR_ROLES];
 
 export function listArticles(limit = 10, signal?: AbortSignal) {
   return getJson<Article[]>(`/api/v1/articles?limit=${limit}`, { signal, failed: ["Couldn't load the articles.", "Не удалось загрузить статьи."] });

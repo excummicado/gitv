@@ -47,7 +47,7 @@ from ..services.match_checks import (
     technical_game,
     tidy_title,
 )
-from ..services.organizers import organizer_resolver
+from ..services.organizers import can_run_tournament, organizer_resolver, tournament_operator
 from ..services.player_names import display_names, merges, player_key, shown_name
 from ..services.stats import (
     Snapshot,
@@ -174,6 +174,9 @@ class MatchDetail(BaseModel):
     result_source: str | None = None
     # Who set the winner by hand, when it was set on the site
     winner_set_by: str | None = None
+    # The organizer role of the tournament's operator (e.g. "organizer_hoth"), whose members may fill in its results
+    # along with event organizers and admins; None for a tournament of no such operator
+    operator: str | None = None
     games: list[Game]
     # A match of a tournament known only by its bracket: the result, no games
     challonge_only: bool = False
@@ -827,6 +830,7 @@ def match_detail(session: SessionDep, m: Match, snap: Snapshot | None = None) ->
         technical=scored.outcome.technical,
         result_source=scored.outcome.source if scored.outcome.decided else None,
         winner_set_by=site_setter(session.get(MatchWinner, m.id)),
+        operator=(op := tournament_operator(session, m.tournament_id)) and op.value,
         games=games,
         abyss_phase=phase_on(session, m.created_at.date()),
     )
@@ -862,10 +866,14 @@ def fresh_detail(session: SessionDep, m: Match) -> MatchDetail:
     return match_detail(session, m, snapshot(session, fresh=True))
 
 
-def editable_match(session: SessionDep, match_id: str) -> Match:
+def editable_match(session: SessionDep, match_id: str, editor: User) -> Match:
     m = session.get(Match, match_id)
     if m is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such match.")
+    if not can_run_tournament(session, editor, m.tournament_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="You can only fill in results of your own tournaments."
+        )
     return m
 
 
@@ -885,7 +893,7 @@ def fill_game_result(
     editor: Annotated[User, Depends(get_current_result_editor)],
 ):
     """Fills in a game's missing times: each player's room times (0 for one still unknown) and restarts."""
-    m = editable_match(session, match_id)
+    m = editable_match(session, match_id, editor)
     match_draft(session, m, draft_id)
     entries = [manual_results.Entry(slot=p.slot, rooms=p.rooms, restarts=p.restarts) for p in data.players]
     try:
@@ -898,10 +906,10 @@ def fill_game_result(
 
 @router.delete("/{match_id}/games/{draft_id}/result", response_model=MatchDetail)
 def clear_game_result(
-    match_id: str, draft_id: str, session: SessionDep, _: Annotated[User, Depends(get_current_result_editor)]
+    match_id: str, draft_id: str, session: SessionDep, editor: Annotated[User, Depends(get_current_result_editor)]
 ):
     """Removes the times filled in by hand: the game goes back to what the draft site has."""
-    m = editable_match(session, match_id)
+    m = editable_match(session, match_id, editor)
     match_draft(session, m, draft_id)
     if not manual_results.clear_game_result(session, draft_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="This game has no times filled in by hand.")
@@ -914,7 +922,7 @@ def set_winner(
 ):
     """Sets the match's winner by hand: only for a match without a result, decided by a technical defeat, or whose
     winner was set by hand before. The bracket's or the times' result can't be overridden here."""
-    m = editable_match(session, match_id)
+    m = editable_match(session, match_id, editor)
     current = session.get(MatchWinner, m.id)
     detail = match_detail(session, m)
     if current is None and detail.winner is not None and detail.result_source not in ("technical", "manual"):
@@ -938,9 +946,9 @@ def set_winner(
 
 
 @router.delete("/{match_id}/winner", response_model=MatchDetail)
-def clear_winner(match_id: str, session: SessionDep, _: Annotated[User, Depends(get_current_result_editor)]):
+def clear_winner(match_id: str, session: SessionDep, editor: Annotated[User, Depends(get_current_result_editor)]):
     """Removes the winner set by hand: the result comes from the bracket and the games again."""
-    m = editable_match(session, match_id)
+    m = editable_match(session, match_id, editor)
     current = session.get(MatchWinner, m.id)
     if current is not None:
         session.delete(current)

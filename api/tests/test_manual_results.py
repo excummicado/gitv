@@ -124,3 +124,55 @@ def test_winner_of_a_technical_defeat_can_be_set_and_removed(session, client):
     assert session.get(MatchWinner, MATCH).source == "gitv.xyz: orga"
     match = client.delete(f"/api/v1/matches/{MATCH}/winner").json()
     assert match["winner"] == 0 and match["result_source"] == "technical"
+
+
+def by_operator(session, organizer_id="hoth-account", alias="House of the Hearth"):
+    from app.models import OrganizerAlias, TournamentInfo
+
+    session.add(TournamentInfo(tournament_id="t", organizer_id=organizer_id, organizer_name="Astro"))
+    if alias:
+        session.add(OrganizerAlias(organizer_id=organizer_id, name=alias, created_at=datetime.now(UTC)))
+    session.commit()
+
+
+def test_an_operators_organizer_fills_in_only_its_own_tournaments(session, client):
+    setup(session)
+    by_operator(session)
+    assert client.get(f"/api/v1/matches/{MATCH}").json()["operator"] == "organizer_hoth"
+    sign_in(Role.organizer_abyss_cup)
+    response = fill(client)
+    assert response.status_code == 403 and "own tournaments" in response.json()["detail"]
+    assert client.put(f"/api/v1/matches/{MATCH}/winner", json={"side": 1}).status_code == 403
+    sign_in(Role.organizer_hoth)
+    assert fill(client).status_code == 200
+
+
+def test_a_tournament_of_no_operator_is_for_event_organizers_and_admins(session, client):
+    setup(session)
+    sign_in(Role.organizer_hoth)
+    assert fill(client).status_code == 403
+    sign_in(Role.event_organizer)
+    assert fill(client).status_code == 200
+
+
+def test_operators_are_told_by_the_organizers_name():
+    from app.services.organizers import operator_of_name
+
+    assert operator_of_name("House of the Hearth") == Role.organizer_hoth
+    assert operator_of_name("abyss new gen") == Role.organizer_newgen
+    assert operator_of_name("icephoenixxx") == Role.organizer_icephoenix
+    assert operator_of_name("Abyss Cup") == Role.organizer_abyss_cup
+    assert operator_of_name("Reverse Cup") is None and operator_of_name(None) is None
+
+
+def test_an_organizer_without_a_name_of_its_own_goes_by_its_site_name(session, client):
+    setup(session)
+    by_operator(session, organizer_id="ice-account", alias=None)
+    from app.models import TournamentInfo
+
+    info = session.get(TournamentInfo, "t")
+    info.organizer_name = "Icephoenixxx"
+    session.add(info)
+    session.commit()
+    sign_in(Role.organizer_icephoenix)
+    assert fill(client).status_code == 200

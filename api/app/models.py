@@ -14,8 +14,15 @@ class Role(StrEnum):
     user = "user"
     # Writes news (imports them from a Word or Google document).
     writer = "writer"
-    # Will run tournaments and events; no extra permissions yet.
+    # Runs tournaments: schedules matches and fills in missing results, in any tournament.
     event_organizer = "event_organizer"
+    # An organizer of one tournament operator: the same, only in that operator's tournaments
+    # (services/organizers.py, OPERATORS)
+    organizer_abyss_cup = "organizer_abyss_cup"
+    organizer_hoth = "organizer_hoth"
+    organizer_newgen = "organizer_newgen"
+    organizer_icephoenix = "organizer_icephoenix"
+    organizer_abyss_ascend = "organizer_abyss_ascend"
     admin = "admin"
     # Can make other users admins; can't be changed from the site, only with app.cli.
     super_admin = "super_admin"
@@ -25,14 +32,25 @@ class Role(StrEnum):
         return self in (Role.admin, Role.super_admin)
 
     @property
-    def can_edit_players(self) -> bool:
-        """May schedule the matches of the day."""
+    def is_operator(self) -> bool:
+        """An organizer of one tournament operator only."""
+        return self.value.startswith("organizer_")
+
+    @property
+    def runs_any_tournament(self) -> bool:
+        """May schedule and fill in results in every tournament."""
         return self in (Role.event_organizer, Role.admin, Role.super_admin)
+
+    @property
+    def can_edit_players(self) -> bool:
+        """May schedule the matches of the day and fill in missing results (an operator's organizer: of its own
+        tournaments)."""
+        return self.runs_any_tournament or self.is_operator
 
     @property
     def can_write_news(self) -> bool:
         """May add news to the home page (and remove their own; admins any)."""
-        return self in (Role.writer, Role.event_organizer, Role.admin, Role.super_admin)
+        return self == Role.writer or self.can_edit_players
 
 
 class UserBase(SQLModel):

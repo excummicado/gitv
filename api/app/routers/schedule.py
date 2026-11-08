@@ -16,6 +16,7 @@ from ..dependencies import get_current_player_editor
 from ..models import ScheduledMatch, StreamMatch, StreamStatus, StreamTeam, User
 from ..rate_limit import rate_limit
 from ..services.challonge import normalize
+from ..services.organizers import operator_of_organizer
 from ..services.player_names import display_names, known_players
 from ..services.stats import elo_ratings, snapshot
 from ..services.stream import streams, team_key
@@ -287,9 +288,19 @@ def live_streams(session: SessionDep):
 
 
 @router.get("/tournaments", response_model=list[TournamentOption])
-def schedule_tournaments(_: Annotated[User, Depends(get_current_player_editor)]):
-    """Running and upcoming tournaments on the site (its list, cached for an hour) to attach a match to."""
-    return [TournamentOption(id=t["_id"], title=t.get("title", "")) for t in live_tournaments()]
+def schedule_tournaments(session: SessionDep, editor: Annotated[User, Depends(get_current_player_editor)]):
+    """Running and upcoming tournaments on the site (its list, cached for an hour) to attach a match to; an
+    operator's organizer gets only that operator's."""
+    return [TournamentOption(id=t["_id"], title=t.get("title", "")) for t in own_tournaments(session, editor)]
+
+
+def own_tournaments(session: SessionDep, editor: User) -> list[dict]:
+    """The running tournaments the editor may schedule matches of (organizers.can_run_tournament): all of them, or
+    for an operator's organizer those its operator's accounts created (a new one has no details stored yet)."""
+    running = live_tournaments()
+    if editor.role.runs_any_tournament:
+        return running
+    return [t for t in running if operator_of_organizer(session, t.get("createdBy")) == editor.role]
 
 
 @router.post(
@@ -305,6 +316,12 @@ def add_scheduled(data: ScheduledIn, session: SessionDep, editor: Annotated[User
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Pick a time from today up to {MAX_DAYS_AHEAD} days ahead.",
+        )
+    if not editor.role.runs_any_tournament and data.tournament_id not in {
+        t["_id"] for t in own_tournaments(session, editor)
+    }:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="You can only schedule matches of your own tournaments."
         )
     p1, p2 = data.player1, data.player2
     if (p1.id and p1.id == p2.id) or p1.name.strip().lower() == p2.name.strip().lower():

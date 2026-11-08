@@ -5,12 +5,29 @@
 import { ApiError, errorFrom, tr, UNREACHABLE, type Message } from "../api";
 
 export type User = { id: string; nickname: string; discord_username: string | null; role: Role };
-export type Role = "user" | "writer" | "event_organizer" | "admin" | "super_admin";
-export const ROLE_LABELS: Record<Role, string> = { user: "Member", writer: "Writer", event_organizer: "Event organizer", admin: "Admin", super_admin: "Super admin" };
-export const ROLE_LABELS_RU: Record<Role, string> = { user: "Участник", writer: "Автор", event_organizer: "Организатор", admin: "Админ", super_admin: "Супер-админ" };
+export type Role =
+  | "user" | "writer" | "event_organizer"
+  | "organizer_abyss_cup" | "organizer_hoth" | "organizer_newgen" | "organizer_icephoenix" | "organizer_abyss_ascend"
+  | "admin" | "super_admin";
+// An organizer of one tournament operator: schedules and fills in results only in that operator's tournaments.
+export const OPERATOR_ROLES: Role[] = ["organizer_abyss_cup", "organizer_hoth", "organizer_newgen", "organizer_icephoenix", "organizer_abyss_ascend"];
+export const ROLE_LABELS: Record<Role, string> = {
+  user: "Member", writer: "Writer", event_organizer: "Event organizer",
+  organizer_abyss_cup: "Abyss Cup organizer", organizer_hoth: "HotH organizer", organizer_newgen: "NewGen organizer",
+  organizer_icephoenix: "Icephoenix organizer", organizer_abyss_ascend: "Abyss Ascend organizer",
+  admin: "Admin", super_admin: "Super admin",
+};
+export const ROLE_LABELS_RU: Record<Role, string> = {
+  user: "Участник", writer: "Автор", event_organizer: "Организатор",
+  organizer_abyss_cup: "Организатор Abyss Cup", organizer_hoth: "Организатор HotH", organizer_newgen: "Организатор NewGen",
+  organizer_icephoenix: "Организатор Icephoenix", organizer_abyss_ascend: "Организатор Abyss Ascend",
+  admin: "Админ", super_admin: "Супер-админ",
+};
 export const STAFF_ROLES: Role[] = ["admin", "super_admin"];
-// May schedule the matches of the day.
-export const PLAYER_EDITOR_ROLES: Role[] = ["event_organizer", "admin", "super_admin"];
+// May schedule matches and fill in missing results in every tournament.
+export const ALL_TOURNAMENTS_ROLES: Role[] = ["event_organizer", "admin", "super_admin"];
+// May schedule the matches of the day and fill in results (the operators' organizers in their own tournaments only).
+export const PLAYER_EDITOR_ROLES: Role[] = [...ALL_TOURNAMENTS_ROLES, ...OPERATOR_ROLES];
 type Session = { user: User };
 const AUTH_HEADER = { "X-GITV": "1" };
 

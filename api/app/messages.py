@@ -29,6 +29,8 @@ RU = {
     "No such game in this match.": "В этом матче нет такой игры.",
     "This game has no times filled in by hand.": "В этой игре нет времени, заполненного вручную.",
     "This match's winner comes from its bracket or its times: it can't be set by hand.": "Победитель этого матча определён по сетке или по времени: задать его вручную нельзя.",
+    "You can only fill in results of your own tournaments.": "Заполнять результаты можно только в турнирах своего оператора.",
+    "You can only schedule matches of your own tournaments.": "Расписывать можно только матчи турниров своего оператора.",
     "No such side in this match.": "В этом матче нет такой стороны.",
     "This player has no page on the site, so they can't be set as the winner.": "У этого игрока нет страницы на сайте, поэтому его нельзя сделать победителем.",
     # Admin

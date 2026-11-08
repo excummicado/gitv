@@ -1,4 +1,5 @@
-"""Staff tools: roles (admins: member/writer, super admins: up to admin) and bans (admins and super admins)."""
+"""Staff tools: roles (admins: up to the organizer roles, super admins: up to admin) and bans (admins and super
+admins)."""
 
 from typing import Annotated, Literal
 
@@ -15,7 +16,17 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 class RoleChange(BaseModel):
     # Super admin is deliberately missing: it can only be granted with app.cli.
-    role: Literal["user", "writer", "event_organizer", "admin"]
+    role: Literal[
+        "user",
+        "writer",
+        "event_organizer",
+        "organizer_abyss_cup",
+        "organizer_hoth",
+        "organizer_newgen",
+        "organizer_icephoenix",
+        "organizer_abyss_ascend",
+        "admin",
+    ]
 
 
 class Ban(BaseModel):
@@ -44,7 +55,7 @@ def set_role(
     if user.role == Role.super_admin:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This member is a super admin.")
     role = Role(data.role)
-    # Admins move people between member, writer and event organizer; anything touching the admin role is for
+    # Admins move people between member, writer and the organizer roles; anything touching the admin role is for
     # super admins.
     if actor.role != Role.super_admin:
         if role == Role.admin:
