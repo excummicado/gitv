@@ -44,6 +44,7 @@ from .draft_actions import TimesResult, fetch_draft_actions, fetch_init, refresh
 from .draft_links import fetch_draft_links, fetch_match
 from .draft_systems import fetch_draft_systems
 from .hoth_hub import sync_hub
+from .manual_results import apply_manual_results
 from .match_checks import tidy_title
 from .match_import import ImportResult, import_from_urls, import_matches, is_finished, parse_date
 from .player_names import merges
@@ -420,6 +421,8 @@ def sync_once(engine) -> SyncResult | None:
         write_state(last_sync=time.time())  # counted even if the pass fails, so a failure doesn't retry sooner
         with Session(engine) as session:
             result = sync(session)
+            # Times filled in by hand win over whatever the pass wrote into their games
+            apply_manual_results(session)
     log.info(
         "sync: imported %d new tournaments%s, %d matches, %d draft links, %d drafts",
         len(result.imported),
@@ -443,6 +446,8 @@ def poll_live_once(engine) -> SyncResult | None:
         write_state(last_live_poll=time.time())
         with Session(engine) as session:
             result = poll_live(session)
+            # Times filled in by hand win over whatever the pass wrote into their games
+            apply_manual_results(session)
     if result.matches_saved or result.times:
         log.info(
             "live poll: %d matches, %d draft links, %d drafts, %d games' times changed%s",

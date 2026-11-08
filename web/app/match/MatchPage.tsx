@@ -4,7 +4,12 @@ import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
 import { OrganizerName } from "./OrganizerName";
 import { PhaseBody, usePhase } from "../abyss/AbyssView";
-import { fetchMatch, type Character, type DraftMove, type Game, type GamePlayer, type MatchDetail, type Result } from "./api";
+import {
+  clearGameResult, clearMatchWinner, fetchMatch, fillGameResult, setMatchWinner,
+  type Character, type DraftMove, type Game, type GamePlayer, type MatchDetail, type Result,
+} from "./api";
+import { useAuth } from "../auth/useCurrentUser";
+import { PLAYER_EDITOR_ROLES } from "../auth/client";
 import "./match-page.css";
 import { useLang } from "../i18n";
 import { Nick } from "../components/PlayerNick";
@@ -166,7 +171,74 @@ function DraftMoves({ game }: { game: Game }) {
   );
 }
 
-function GameSection({ game }: { game: Game }) {
+// Room times filled in by hand: each player's rooms (empty for one still unknown) and restarts. Event organizers and
+// admins only, on a game with missing times or one filled in by hand before.
+function ResultForm({ match, game, onSaved, onClose }: { match: MatchDetail; game: Game; onSaved: (m: MatchDetail) => void; onClose: () => void }) {
+  const { t } = useLang();
+  const count = Math.max(...game.players.map((p) => p.rooms?.length ?? 0), 0) || 3;
+  const [values, setValues] = useState(() => game.players.map((p) => ({
+    rooms: Array.from({ length: count }, (_, i) => (p.rooms?.[i] ? String(p.rooms[i]) : "")),
+    restarts: String(p.restarts),
+  })));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const run = (request: Promise<MatchDetail>) => {
+    setSaving(true);
+    setError("");
+    request.then((m) => { onSaved(m); onClose(); })
+      .catch((err) => setError(err instanceof Error ? err.message : t("Couldn't save.", "Не удалось сохранить.")))
+      .finally(() => setSaving(false));
+  };
+  const save = (event: React.FormEvent) => {
+    event.preventDefault();
+    run(fillGameResult(match.id, game.id, game.players.map((p, i) => ({
+      slot: p.slot,
+      rooms: values[i].rooms.map((v) => Number(v) || 0),
+      restarts: Number(values[i].restarts) || 0,
+    }))));
+  };
+  const change = (i: number, update: (v: { rooms: string[]; restarts: string }) => { rooms: string[]; restarts: string }) =>
+    setValues(values.map((v, k) => (k === i ? update(v) : v)));
+
+  return (
+    <form className="match-result-form" onSubmit={save}>
+      <p className="player-note">{t(
+        "Enter the missing times in seconds; leave a room empty if its time is still unknown. Times entered here win over the draft site's.",
+        "Впишите недостающее время в секундах; комнату, время которой неизвестно, оставьте пустой. Время отсюда главнее времени с сайта драфтов.")}</p>
+      {game.players.map((p, i) => (
+        <div className="match-result-row" key={p.slot}>
+          <span className="match-result-name">{p.name}</span>
+          {values[i].rooms.map((v, r) => (
+            <label key={r}>
+              <span className="player-label">{t("Room", "Комн.")} {r + 1}</span>
+              <input className="match-input" type="number" min={0} max={300} inputMode="numeric" value={v} placeholder="—"
+                onChange={(e) => change(i, (x) => ({ ...x, rooms: x.rooms.map((y, k) => (k === r ? e.target.value : y)) }))} />
+            </label>
+          ))}
+          <label>
+            <span className="player-label">{t("Restarts", "Рестарты")}</span>
+            <input className="match-input" type="number" min={0} max={99} inputMode="numeric" value={values[i].restarts}
+              onChange={(e) => change(i, (x) => ({ ...x, restarts: e.target.value }))} />
+          </label>
+        </div>
+      ))}
+      {error && <p className="match-result-error" role="alert">{error}</p>}
+      <div className="match-result-actions">
+        <button type="submit" className="suggest-button" disabled={saving}>{saving ? t("Saving…", "Сохранение…") : t("Save", "Сохранить")}</button>
+        <button type="button" className="match-input" disabled={saving} onClick={onClose}>{t("Cancel", "Отмена")}</button>
+        {game.filled_by && (
+          <button type="button" className="match-input" disabled={saving} onClick={() => run(clearGameResult(match.id, game.id))}>
+            {t("Remove the times entered by hand", "Убрать время, внесённое вручную")}
+          </button>
+        )}
+      </div>
+    </form>
+  );
+}
+
+function GameSection({ game, match, editor, onSaved }: { game: Game; match: MatchDetail; editor: boolean; onSaved: (m: MatchDetail) => void }) {
+  const [editing, setEditing] = useState(false);
   const { t } = useLang();
   const duration = durationMinutes(game.started_at, game.finished_at);
   const [a, b] = game.players;
@@ -179,7 +251,14 @@ function GameSection({ game }: { game: Game }) {
         {game.technical && <span className="match-tag warn">{t("Technical", "Тех. поражение")}</span>}
         {duration && <span className="match-game-meta">{duration} {t("min", "мин")}</span>}
         {game.url && <a className="match-link" href={game.url} target="_blank" rel="noreferrer">{t("Open draft ↗", "Открыть драфт ↗")}</a>}
+        {editor && game.editable && !editing && (
+          <button type="button" className="match-input match-edit-button" onClick={() => setEditing(true)}>
+            {game.filled_by ? t("Edit times", "Изменить время") : t("Fill in times", "Заполнить время")}
+          </button>
+        )}
       </h2>
+      {game.filled_by && <p className="player-note match-filled">{t("Times filled in by hand by", "Время заполнено вручную:")} {game.filled_by}</p>}
+      {editing && <ResultForm match={match} game={game} onSaved={onSaved} onClose={() => setEditing(false)} />}
       {game.technical && (
         <p className="match-notice">
           {game.winner_slot != null
@@ -227,7 +306,37 @@ function MatchAbyss({ match }: { match: MatchDetail }) {
   );
 }
 
-function MatchHeader({ match }: { match: MatchDetail }) {
+// The match's winner set by hand: only without a result from the bracket or the times (none, a technical defeat, or
+// set by hand before).
+function WinnerControl({ match, onSaved }: { match: MatchDetail; onSaved: (m: MatchDetail) => void }) {
+  const { t } = useLang();
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  if (match.challonge_only || match.sides.length !== 2) return null;
+  if (match.winner != null && match.result_source !== "technical" && match.result_source !== "manual") return null;
+  const run = (request: Promise<MatchDetail>) => {
+    setSaving(true);
+    setError("");
+    request.then(onSaved)
+      .catch((err) => setError(err instanceof Error ? err.message : t("Couldn't save.", "Не удалось сохранить.")))
+      .finally(() => setSaving(false));
+  };
+  return (
+    <div className="match-winner-control">
+      <span className="player-label">{t("Set the winner by hand:", "Задать победителя вручную:")}</span>
+      {match.sides.map((side, i) => (
+        <button type="button" key={i} className={match.result_source === "manual" && match.winner === i ? "suggest-button" : "match-input"}
+          disabled={saving} onClick={() => run(setMatchWinner(match.id, i))}>{side.name}</button>
+      ))}
+      {match.result_source === "manual" && (
+        <button type="button" className="match-input" disabled={saving} onClick={() => run(clearMatchWinner(match.id))}>{t("Remove", "Убрать")}</button>
+      )}
+      {error && <span className="match-result-error" role="alert">{error}</span>}
+    </div>
+  );
+}
+
+function MatchHeader({ match, editor, onSaved }: { match: MatchDetail; editor: boolean; onSaved: (m: MatchDetail) => void }) {
   const [a, b] = match.sides;
   const { t, date, count } = useLang();
   const s = t("s", "с");
@@ -255,7 +364,9 @@ function MatchHeader({ match }: { match: MatchDetail }) {
       <div className="match-summary">
         {match.winner != null && a && b
           ? <>{t("Winner", "Победитель")}: <strong>{match.sides[match.winner].name}</strong>{match.result_source === "manual"
-            ? <span title={t("The games' data says otherwise; the result was set by hand.", "Данные игр говорят иначе, итог задан вручную.")}>{t(" (set by hand)", " (задан вручную)")}</span>
+            ? <span title={t("The result was set by hand.", "Итог задан вручную.")}>{match.winner_set_by
+              ? t(` (set by hand by ${match.winner_set_by})`, ` (задан вручную: ${match.winner_set_by})`)
+              : t(" (set by hand)", " (задан вручную)")}</span>
             : match.result_source === "challonge"
             ? (match.challonge_only && !match.challonge_url
               ? <span>{t(" (tournament bracket)", " (по сетке турнира)")}</span>
@@ -265,6 +376,7 @@ function MatchHeader({ match }: { match: MatchDetail }) {
         {a?.total_time != null && b?.total_time != null && <> · {t("Total time", "Общее время")} {a.total_time}{s} – {b.total_time}{s}</>}
         {!match.challonge_only && <> · {count(match.free_restarts ?? 0, ["free restart", "free restarts"], ["бесплатный рестарт", "бесплатных рестарта", "бесплатных рестартов"])}, {penalty}</>}
       </div>
+      {editor && <WinnerControl match={match} onSaved={onSaved} />}
       {match.challonge_only && (
         <p className="player-note">{match.challonge_url
           ? t("This tournament was played only on Challonge: the result is from its bracket, there are no games, times or drafts.",
@@ -280,6 +392,8 @@ export function MatchPage({ matchId }: { matchId: string }) {
   const [match, setMatch] = useState<MatchDetail | null>(null);
   const [error, setError] = useState("");
   const { t } = useLang();
+  const { user } = useAuth();
+  const editor = user ? PLAYER_EDITOR_ROLES.includes(user.role) : false;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -301,9 +415,9 @@ export function MatchPage({ matchId }: { matchId: string }) {
             {error ? <p className="player-box match-empty">{error}</p>
               : !match ? <p className="player-box match-empty">{t("Loading match…", "Загрузка матча…")}</p>
               : <>
-                  <MatchHeader match={match} />
+                  <MatchHeader match={match} editor={editor} onSaved={setMatch} />
                   <MatchAbyss match={match} />
-                  {match.games.map((game) => <GameSection game={game} key={game.id} />)}
+                  {match.games.map((game) => <GameSection game={game} match={match} editor={editor} onSaved={setMatch} key={game.id} />)}
                 </>}
           </div>
         </div>

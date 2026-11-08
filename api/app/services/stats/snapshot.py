@@ -30,6 +30,7 @@ from ...models import (
     ChallongeTournament,
     DraftAction,
     DraftState,
+    GameResult,
     Match,
     MatchDraft,
     MatchPick,
@@ -185,6 +186,11 @@ def data_key(session: Session) -> tuple:
         tuple(sorted(merges(session).items())),
         tuple(sorted(session.exec(select(TournamentWinner.tournament_id, TournamentWinner.player_id)).all())),
         tuple(sorted(session.exec(select(MatchWinner.match_id, MatchWinner.player_id)).all())),
+        tuple(
+            sorted(
+                session.exec(select(GameResult.draft_id, GameResult.slot, GameResult.rooms, GameResult.restarts)).all()
+            )
+        ),
         tuple(sorted(session.exec(select(OffsitePlayer.id, OffsitePlayer.name)).all())),
         # Tournament titles (a rename), and characters' names (import-catalog, the Travelers' element names): both
         # cached in the snapshot

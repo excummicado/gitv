@@ -90,3 +90,20 @@
 }
 .match-player-link { color: inherit; text-decoration: none; }
 .match-player-link:hover { text-decoration: underline; }
+
+/* Times and winner filled in by hand (event organizers and admins) */
+.match-edit-button { margin-left: auto; padding: 4px 10px; font-size: 12px; }
+.match-filled { margin: 0; padding: 8px 14px; border-bottom: 1px solid var(--gitv-border); }
+.match-result-form { display: grid; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--gitv-border); }
+.match-result-form .player-note { margin: 0; }
+.match-result-row { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+.match-result-row label { display: grid; gap: 2px; }
+.match-result-row .match-input { width: 78px; }
+.match-result-name { flex: 0 0 140px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; align-self: center; }
+.match-result-actions, .match-winner-control { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.match-winner-control { margin-top: 10px; }
+.match-result-error { margin: 0; color: var(--gitv-warn); font-size: 13px; }
+@media (max-width: 560px) {
+  .match-result-name { flex-basis: 100%; }
+  .match-result-row .match-input { width: 64px; }
+}

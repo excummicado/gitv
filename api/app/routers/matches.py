@@ -6,27 +6,32 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlmodel import func, or_, select
 
 from ..database import MAX_ROW_ID, SessionDep
+from ..dependencies import get_current_result_editor
 from ..models import (
     Agent,
     DraftAction,
     DraftLink,
     DraftState,
     Engine,
+    GameResult,
     IgnoredTournament,
     LiveMatch,
     Match,
     MatchDraft,
     MatchPick,
     MatchPlayer,
+    MatchWinner,
     PlayerName,
     Tournament,
     TournamentInfo,
+    User,
 )
+from ..services import manual_results
 from ..services.draft_links import draft_url
 from ..services.events import stage_members
 from ..services.match_checks import (
@@ -115,6 +120,10 @@ class Game(BaseModel):
     winner_slot: int | None
     players: list[GamePlayer]
     moves: list[DraftMove]
+    # Event organizers and admins may fill in its times: some are missing, or they were filled in by hand before
+    editable: bool = False
+    # Who filled in its times by hand, if anyone did
+    filled_by: str | None = None
 
 
 class Organizer(BaseModel):
@@ -161,8 +170,10 @@ class MatchDetail(BaseModel):
     sides: list[MatchSide]
     winner: int | None  # index into sides
     technical: bool
-    # How the winner is known: "challonge" (the tournament's bracket), "technical" or "time"
+    # How the winner is known: "manual" (set by hand), "challonge" (the tournament's bracket), "technical" or "time"
     result_source: str | None = None
+    # Who set the winner by hand, when it was set on the site
+    winner_set_by: str | None = None
     games: list[Game]
     # A match of a tournament known only by its bracket: the result, no games
     challonge_only: bool = False
@@ -739,6 +750,8 @@ def match_detail(session: SessionDep, m: Match, snap: Snapshot | None = None) ->
     scored = score_match(m, drafts, players, rooms, merged, snap or snapshot(session))
     sides = scored.sides(names, merged)
 
+    editable = manual_results.editable_drafts(session, m.id)
+    filled = {r.draft_id: r.set_by for r in session.exec(select(GameResult).where(GameResult.match_id == m.id))}
     games: list[Game] = []
     for d, dp, tech, results in scored.games:
         rooms = room_lists[d.id]
@@ -793,6 +806,8 @@ def match_detail(session: SessionDep, m: Match, snap: Snapshot | None = None) ->
                     for a in actions
                     if a.draft_id == d.id
                 ],
+                editable=editable.get(d.id, False),
+                filled_by=filled.get(d.id),
             )
         )
 
@@ -811,6 +826,123 @@ def match_detail(session: SessionDep, m: Match, snap: Snapshot | None = None) ->
         winner=scored.winner,
         technical=scored.outcome.technical,
         result_source=scored.outcome.source if scored.outcome.decided else None,
+        winner_set_by=site_setter(session.get(MatchWinner, m.id)),
         games=games,
         abyss_phase=phase_on(session, m.created_at.date()),
     )
+
+
+# Results filled in by hand on the match page (services/manual_results.py)
+
+SITE_SOURCE = "gitv.xyz: "
+
+
+def site_setter(row: MatchWinner | None) -> str | None:
+    """Who set the winner on the site; None for one set otherwise (app.cli set-match-winner) or not at all."""
+    return row.source.removeprefix(SITE_SOURCE) if row and row.source and row.source.startswith(SITE_SOURCE) else None
+
+
+class RoomEntry(BaseModel):
+    slot: int
+    rooms: list[int]  # 0 for a room still unknown
+    restarts: int = 0
+
+
+class GameResultIn(BaseModel):
+    players: list[RoomEntry]
+
+
+class WinnerIn(BaseModel):
+    side: int  # index into the match's sides
+
+
+def fresh_detail(session: SessionDep, m: Match) -> MatchDetail:
+    """The match as it is now: the statistics are rebuilt with the change (otherwise the page would get the ones
+    from before while they're rebuilt in the background)."""
+    return match_detail(session, m, snapshot(session, fresh=True))
+
+
+def editable_match(session: SessionDep, match_id: str) -> Match:
+    m = session.get(Match, match_id)
+    if m is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such match.")
+    return m
+
+
+def match_draft(session: SessionDep, m: Match, draft_id: str) -> MatchDraft:
+    d = session.get(MatchDraft, draft_id)
+    if d is None or d.match_id != m.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such game in this match.")
+    return d
+
+
+@router.put("/{match_id}/games/{draft_id}/result", response_model=MatchDetail)
+def fill_game_result(
+    match_id: str,
+    draft_id: str,
+    data: GameResultIn,
+    session: SessionDep,
+    editor: Annotated[User, Depends(get_current_result_editor)],
+):
+    """Fills in a game's missing times: each player's room times (0 for one still unknown) and restarts."""
+    m = editable_match(session, match_id)
+    match_draft(session, m, draft_id)
+    entries = [manual_results.Entry(slot=p.slot, rooms=p.rooms, restarts=p.restarts) for p in data.players]
+    try:
+        manual_results.set_game_result(session, draft_id, entries, editor.nickname)
+    except ValueError as e:
+        session.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+    return fresh_detail(session, m)
+
+
+@router.delete("/{match_id}/games/{draft_id}/result", response_model=MatchDetail)
+def clear_game_result(
+    match_id: str, draft_id: str, session: SessionDep, _: Annotated[User, Depends(get_current_result_editor)]
+):
+    """Removes the times filled in by hand: the game goes back to what the draft site has."""
+    m = editable_match(session, match_id)
+    match_draft(session, m, draft_id)
+    if not manual_results.clear_game_result(session, draft_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="This game has no times filled in by hand.")
+    return fresh_detail(session, m)
+
+
+@router.put("/{match_id}/winner", response_model=MatchDetail)
+def set_winner(
+    match_id: str, data: WinnerIn, session: SessionDep, editor: Annotated[User, Depends(get_current_result_editor)]
+):
+    """Sets the match's winner by hand: only for a match without a result, decided by a technical defeat, or whose
+    winner was set by hand before. The bracket's or the times' result can't be overridden here."""
+    m = editable_match(session, match_id)
+    current = session.get(MatchWinner, m.id)
+    detail = match_detail(session, m)
+    if current is None and detail.winner is not None and detail.result_source not in ("technical", "manual"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This match's winner comes from its bracket or its times: it can't be set by hand.",
+        )
+    if not 0 <= data.side < len(detail.sides):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No such side in this match.")
+    player = detail.sides[data.side].user_id
+    if player is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This player has no page on the site, so they can't be set as the winner.",
+        )
+    row = current or MatchWinner(match_id=m.id, player_id=player, created_at=datetime.now(UTC))
+    row.player_id, row.source, row.created_at = player, SITE_SOURCE + editor.nickname, datetime.now(UTC)
+    session.add(row)
+    session.commit()
+    return fresh_detail(session, m)
+
+
+@router.delete("/{match_id}/winner", response_model=MatchDetail)
+def clear_winner(match_id: str, session: SessionDep, _: Annotated[User, Depends(get_current_result_editor)]):
+    """Removes the winner set by hand: the result comes from the bracket and the games again."""
+    m = editable_match(session, match_id)
+    current = session.get(MatchWinner, m.id)
+    if current is not None:
+        session.delete(current)
+        session.commit()
+    return fresh_detail(session, m)

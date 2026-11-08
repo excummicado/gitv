@@ -76,6 +76,17 @@ async def get_current_player_editor(
     return current_user
 
 
+async def get_current_result_editor(
+    current_user: Annotated[User, Depends(get_current_active_user)],
+):
+    """Fills in missing game times and sets match winners: the same people who schedule matches."""
+    if not current_user.role.can_edit_players:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Only event organizers and admins can fill in results."
+        )
+    return current_user
+
+
 async def get_current_news_writer(
     current_user: Annotated[User, Depends(get_current_active_user)],
 ):

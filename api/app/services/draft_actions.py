@@ -20,6 +20,7 @@ import websocket
 from sqlmodel import Session, delete, select
 
 from ..models import DraftAction, DraftLink, DraftState, MatchPlayer
+from .manual_results import manual_drafts
 from .match_import import is_finished
 
 SOCKET = "wss://abyss.darte.gg/socket.io/draft/"
@@ -134,6 +135,7 @@ def refresh_times(session: Session, matches: list[dict], fetch=fetch_init) -> Ti
     A game that can't be read stays as it is, to be tried again on the next pass."""
     result = TimesResult()
     finished = [m for m in matches if is_finished(m)]
+    filled = manual_drafts(session)  # times filled in by hand win over the site's
     stored: dict[str, dict[int, MatchPlayer]] = defaultdict(dict)
     for p in session.exec(select(MatchPlayer).where(MatchPlayer.match_id.in_([m["_id"] for m in finished]))):
         stored[p.draft_id][p.slot] = p
@@ -141,7 +143,7 @@ def refresh_times(session: Session, matches: list[dict], fetch=fetch_init) -> Ti
         for d in m["drafts"]:
             rows = stored.get(d["_id"])
             raw = session.exec(select(DraftState.raw).where(DraftState.draft_id == d["_id"])).first()
-            if not rows or not times_differ(rows, d.get("players") or [], raw):
+            if not rows or d["_id"] in filled or not times_differ(rows, d.get("players") or [], raw):
                 continue
             link = session.get(DraftLink, d["_id"])
             if link is None:

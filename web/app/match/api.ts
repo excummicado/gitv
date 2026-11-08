@@ -1,6 +1,7 @@
 // The public match endpoint (GET /api/v1/matches/{id}); shapes mirror api/app/routers/matches.py.
 
 import { getJson } from "../api";
+import { authRequest } from "../auth/client";
 
 export type Character = { id: string; name: string; name_ru?: string | null; icon: string | null; rarity: number | null };
 export type TeamMember = { character: Character; level: number | null; constellation: number | null; weapon: Character | null; weapon_level: number | null; refinement: number | null };
@@ -10,6 +11,10 @@ export type DraftMove = { seq: number; slot: number | null; type: string; charac
 export type Game = {
   id: string; game_no: number; status: string; first_pick_slot: number | null; started_at: string | null; finished_at: string | null; url: string | null;
   technical: boolean; technical_reasons: string[]; winner_slot: number | null; players: GamePlayer[]; moves: DraftMove[];
+  // Event organizers and admins may fill in its times (some are missing, or they were filled in by hand before)
+  editable: boolean;
+  // Who filled in its times by hand, if anyone did
+  filled_by: string | null;
 };
 export type ResultSource = "manual" | "challonge" | "technical" | "time" | null;
 export type Organizer = { id: string; name: string; played: boolean };
@@ -19,6 +24,8 @@ export type MatchDetail = {
   free_restarts: number | null; paid_restarts: number[]; sides: MatchSide[]; winner: number | null; technical: boolean;
   // How the winner is known: set by hand, the tournament's Challonge bracket, a technical defeat or the total time
   result_source: ResultSource; games: Game[];
+  // Who set the winner by hand on the site
+  winner_set_by: string | null;
   // A match of a tournament played only on Challonge: the result, no games
   challonge_only: boolean;
   // That bracket on Challonge; null for one entered by hand
@@ -108,4 +115,23 @@ export type LiveMatch = {
 export function fetchLiveMatches(tournament?: string, signal?: AbortSignal) {
   const query = tournament ? `?tournament=${encodeURIComponent(tournament)}` : "";
   return getJson<LiveMatch[]>(`/api/v1/matches/live-matches${query}`, { signal });
+}
+
+// Results filled in by hand by event organizers and admins (api/app/services/manual_results.py).
+export type RoomEntry = { slot: number; rooms: number[]; restarts: number };
+
+export function fillGameResult(matchId: string, gameId: string, players: RoomEntry[]) {
+  return authRequest<MatchDetail>("PUT", `/matches/${encodeURIComponent(matchId)}/games/${encodeURIComponent(gameId)}/result`, { players });
+}
+
+export function clearGameResult(matchId: string, gameId: string) {
+  return authRequest<MatchDetail>("DELETE", `/matches/${encodeURIComponent(matchId)}/games/${encodeURIComponent(gameId)}/result`);
+}
+
+export function setMatchWinner(matchId: string, side: number) {
+  return authRequest<MatchDetail>("PUT", `/matches/${encodeURIComponent(matchId)}/winner`, { side });
+}
+
+export function clearMatchWinner(matchId: string) {
+  return authRequest<MatchDetail>("DELETE", `/matches/${encodeURIComponent(matchId)}/winner`);
 }
