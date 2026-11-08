@@ -4,18 +4,99 @@ Each draft carries both players' rosters with the site's hash of it. Per player 
 distinct hash becomes one PlayerRoster version with the games it was used in; rosters rarely change within a
 tournament, but when they do, the versions show from which game to which. The tables are derived data and
 rebuilt from scratch each time.
+
+Tournaments played off the site have no drafts: rosters known from screenshots (an AFC deck table, Genshin Wizard)
+are entered by hand in brackets/manual_rosters.json and added on each rebuild, for a player and tournament with no
+roster from the drafts. File: {"rosters": [{"player": name on the site (or "player_id"), "tournaments": [ids],
+"date": "YYYY-MM-DD", "source": text, "characters": [[name_ru as the site's agent list has it, level,
+constellation]]}]}. A name the site doesn't know is left out, with a warning in the log.
 """
 
+import hashlib
 import json
+import logging
 from collections import Counter
-from datetime import datetime
+from datetime import UTC, datetime
+from pathlib import Path
 
-from sqlmodel import Session, delete, select
+from sqlmodel import Session, delete, func, select
 
-from ..models import DraftState, Match, MatchDraft, MatchPlayer, PlayerRoster, RosterCharacter, RosterWeapon
+from ..models import Agent, DraftState, Match, MatchDraft, MatchPlayer, PlayerRoster, RosterCharacter, RosterWeapon
+from .challonge import normalize
+
+MANUAL_ROSTERS = Path(__file__).resolve().parents[2] / "brackets" / "manual_rosters.json"
 
 
-def build_rosters(session: Session) -> dict[str, int]:
+def load_manual_rosters(path: Path = MANUAL_ROSTERS) -> list[dict]:
+    return json.loads(path.read_text())["rosters"] if path.exists() else []
+
+
+def _agent_ids(session: Session) -> dict[str, str]:
+    """Russian name -> agent id; of the ids sharing a name (the list has some twice), the one rosters use most."""
+    used = dict(session.exec(select(RosterCharacter.agent_id, func.count()).group_by(RosterCharacter.agent_id)).all())
+    ids: dict[str, str] = {}
+    for agent in session.exec(select(Agent)):
+        if agent.name_ru and used.get(agent.id, 0) >= used.get(ids.get(agent.name_ru, ""), -1):
+            ids[agent.name_ru] = agent.id
+    return ids
+
+
+def _player_id(session: Session, entry: dict) -> str | None:
+    if entry.get("player_id"):
+        return entry["player_id"]
+    name = normalize(entry["player"])
+    rows = session.exec(
+        select(MatchPlayer.user_id, MatchPlayer.full_name, Match.tournament_id)
+        .join(Match, Match.id == MatchPlayer.match_id)
+        .where(MatchPlayer.user_id.is_not(None))
+    ).all()
+    named = [(u, t) for u, n, t in rows if normalize(n or "") == name]
+    here = [u for u, t in named if t in entry["tournaments"]]
+    return (here or [u for u, _ in named] or [None])[0]
+
+
+def add_manual_rosters(session: Session, entries: list[dict], taken: set[tuple[str, str]]) -> int:
+    """The hand-entered rosters (see the module) as version 1 of their player's tournaments not in taken."""
+    agents = _agent_ids(session)
+    unknown = sorted({c[0] for e in entries for c in e["characters"] if c[0] not in agents})
+    if unknown:  # left out: a typo in the file mustn't stop the hourly sync, which rebuilds the rosters
+        logging.getLogger(__name__).warning("manual rosters: characters the site doesn't know: %s", ", ".join(unknown))
+    added = 0
+    for entry in entries:
+        player = _player_id(session, entry)
+        if player is None:
+            continue
+        when = datetime.fromisoformat(entry["date"]).replace(tzinfo=UTC)
+        chars = {agents[name]: (level, c) for name, level, c in entry["characters"] if name in agents}
+        roster_hash = "manual-" + hashlib.sha1(json.dumps(sorted(chars.items())).encode()).hexdigest()[:16]
+        for tid in entry["tournaments"]:
+            if (player, tid) in taken:
+                continue
+            row = PlayerRoster(
+                player_id=player,
+                tournament_id=tid,
+                hash=roster_hash,
+                version=1,
+                first_draft_id="manual",
+                last_draft_id="manual",
+                first_seen=when,
+                last_seen=when,
+                games=0,
+                characters=len(chars),
+                weapons=0,
+            )
+            session.add(row)
+            session.flush()
+            session.add_all(
+                RosterCharacter(roster_id=row.id, agent_id=a, level=level, constellation=c)
+                for a, (level, c) in chars.items()
+            )
+            taken.add((player, tid))
+            added += 1
+    return added
+
+
+def build_rosters(session: Session, manual: list[dict] | None = None) -> dict[str, int]:
     user_by_slot = {
         (d, slot): u for d, slot, u in session.exec(select(MatchPlayer.draft_id, MatchPlayer.slot, MatchPlayer.user_id))
     }
@@ -97,5 +178,12 @@ def build_rosters(session: Session) -> dict[str, int]:
                 RosterWeapon(roster_id=row.id, engine_id=engine, level=level, refinement=refinement, count=n)
                 for (engine, level, refinement), n in weapons.items()
             )
+    # After the drafts' rosters: the agent ids they use decide which id a shared name stands for
+    manual_added = add_manual_rosters(session, load_manual_rosters() if manual is None else manual, set(versions))
     session.commit()
-    return {"player_tournaments": len(versions), "changed": changed, "versions": sum(len(s) for s in versions.values())}
+    return {
+        "player_tournaments": len(versions) + manual_added,
+        "changed": changed,
+        "versions": sum(len(s) for s in versions.values()) + manual_added,
+        "manual": manual_added,
+    }
