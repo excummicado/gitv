@@ -3,7 +3,7 @@ import { STAFF_ROLES } from "../auth/client";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import { NEWS_WRITER_ROLES } from "../articles/api";
 import { useLang } from "../i18n";
-import { addNewsItem, deleteNewsItem, listNewsItems, NEWS_MAX, type NewsItem } from "./api";
+import { addNewsItem, deleteNewsItem, editNewsItem, listNewsItems, NEWS_MAX, type NewsItem } from "./api";
 import "./news-column.css";
 
 const PAGE = 5;
@@ -51,7 +51,46 @@ function useAgo() {
   };
 }
 
-function Item({ item, canRemove, onRemove }: { item: NewsItem; canRemove: boolean; onRemove: () => void }) {
+// Editing an item in place: its text in a box like the writing form's; Esc or Отмена leaves it as it was.
+function EditForm({ item, onSaved, onCancel }: { item: NewsItem; onSaved: (item: NewsItem) => void; onCancel: () => void }) {
+  const { t } = useLang();
+  const [text, setText] = useState(item.text);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const box = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => { const b = box.current; if (b) { b.focus(); b.setSelectionRange(b.value.length, b.value.length); } }, []);
+
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!text.trim()) return;
+    if (text.trim() === item.text) return onCancel();
+    setSaving(true);
+    setError("");
+    try {
+      onSaved(await editNewsItem(item.id, text.trim()));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("Couldn't save it.", "Не удалось сохранить."));
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form className="news-column-form news-item-edit" onSubmit={save}>
+      <textarea ref={box} value={text} onChange={(e) => setText(e.target.value)} maxLength={NEWS_MAX} rows={5}
+        aria-label={t("News text", "Текст новости")} onKeyDown={(e) => { if (e.key === "Escape") onCancel(); }} />
+      <div className="news-column-actions">
+        <small className={text.length > NEWS_MAX - 50 ? "is-near" : undefined}>{text.length}/{NEWS_MAX}</small>
+        <button type="button" className="news-column-cancel" onClick={onCancel}>{t("Cancel", "Отмена")}</button>
+        <button type="submit" className="suggest-button" disabled={saving || !text.trim()}>
+          {saving ? t("Saving…", "Сохранение…") : t("Save", "Сохранить")}
+        </button>
+      </div>
+      {error && <p className="suggest-error" role="alert">{error}</p>}
+    </form>
+  );
+}
+
+function Item({ item, canRemove, onRemove, onEdit }: { item: NewsItem; canRemove: boolean; onRemove: () => void; onEdit: () => void }) {
   const { t, lang } = useLang();
   const ago = useAgo();
   const { title, details, actions } = parts(item.text);
@@ -64,6 +103,9 @@ function Item({ item, canRemove, onRemove }: { item: NewsItem; canRemove: boolea
           {item.author}
         </span>
         <time dateTime={item.created_at} title={full}>{ago(item.created_at)}</time>
+        {canRemove && (
+          <button type="button" className="news-item-remove news-item-edit-button" onClick={onEdit} aria-label={t("Edit", "Редактировать")} title={t("Edit", "Редактировать")}>✎</button>
+        )}
         {canRemove && (
           <button type="button" className="news-item-remove" onClick={onRemove} aria-label={t("Remove", "Удалить")} title={t("Remove", "Удалить")}>×</button>
         )}
@@ -96,6 +138,7 @@ export function NewsColumn() {
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [editing, setEditing] = useState<number | null>(null);
   const box = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -168,8 +211,11 @@ export function NewsColumn() {
       )}
       {!items ? <div className="news-column-empty">…</div>
         : !items.length ? <div className="news-column-empty">{t("No news yet.", "Новостей пока нет.")}</div>
-        : items.map((item) => (
-            <Item key={item.id} item={item} onRemove={() => remove(item)}
+        : items.map((item) => editing === item.id ? (
+            <EditForm key={item.id} item={item} onCancel={() => setEditing(null)}
+              onSaved={(saved) => { setItems((current) => (current ?? []).map((i) => (i.id === saved.id ? saved : i))); setEditing(null); }} />
+          ) : (
+            <Item key={item.id} item={item} onRemove={() => remove(item)} onEdit={() => setEditing(item.id)}
               canRemove={Boolean(user && (item.author_id === user.id || STAFF_ROLES.includes(user.role)))} />
           ))}
       {more && (

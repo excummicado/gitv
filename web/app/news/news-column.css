@@ -40,3 +40,7 @@
 .news-column-empty { padding: 12px; border-top: 1px solid var(--gitv-border); color: var(--gitv-muted); font-size: 12px; }
 .news-column-more { display: block; width: 100%; padding: 7px; border: 0; border-top: 1px solid var(--gitv-border); background: var(--gitv-surface-hover); color: var(--gitv-muted); font: 12px var(--gitv-font); cursor: pointer; }
 .news-column-more:hover { color: var(--gitv-text); }
+/* The edit button sits beside the remove one, shown the same way */
+.news-item-edit-button { margin-right: 0; font-size: 13px; }
+.news-item-edit-button:hover { color: var(--gitv-accent); }
+.news-item-edit { border-top: 1px solid var(--gitv-border); }

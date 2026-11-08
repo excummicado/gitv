@@ -46,3 +46,14 @@ def test_only_the_author_or_an_admin_removes_it(clients):
     assert clients[Role.admin].delete(f"/api/v1/news/{item['id']}").status_code == 204
     assert clients[Role.writer].post("/api/v1/news", json={"text": "x" * 501}).status_code == 422
     assert clients[Role.writer].post("/api/v1/news", json={"text": "   "}).status_code == 422
+
+
+def test_only_the_author_or_an_admin_edits_it(clients):
+    item = clients[Role.writer].post("/api/v1/news", json={"text": "Опечатка"}).json()
+    url = f"/api/v1/news/{item['id']}"
+    assert clients[Role.event_organizer].patch(url, json={"text": "чужая правка"}).status_code == 403
+    done = clients[Role.writer].patch(url, json={"text": "  Исправлено\nподробности "}).json()
+    assert done["text"] == "Исправлено\nподробности" and done["created_at"] == item["created_at"]
+    assert clients[Role.admin].patch(url, json={"text": "Правка админа"}).json()["text"] == "Правка админа"
+    assert clients[Role.writer].patch(url, json={"text": "   "}).status_code == 422
+    assert clients[Role.writer].patch("/api/v1/news/999", json={"text": "x"}).status_code == 404

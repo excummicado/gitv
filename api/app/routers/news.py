@@ -1,7 +1,7 @@
 """Short news for the home page's news column: anyone reads them; writers, event organizers and admins write one
-there (plain text, up to MAX_TEXT characters); its author or an admin removes it. Tournament registrations announced
-in Abyss Cup's and House of the Hearth's channels come in by themselves (services/registrations.py). Articles are
-routers/articles.py."""
+there (plain text, up to MAX_TEXT characters); its author or an admin edits or removes it. Tournament registrations
+announced in Abyss Cup's and House of the Hearth's channels come in by themselves (services/registrations.py).
+Articles are routers/articles.py."""
 
 from datetime import UTC, datetime
 from typing import Annotated
@@ -92,14 +92,38 @@ def add_news(data: NewsIn, session: SessionDep, user: Annotated[User, Depends(ge
     return out(session, [row])[0]
 
 
-@router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_news(item_id: RowId, session: SessionDep, user: Annotated[User, Depends(get_current_news_writer)]):
-    """Its author or an admin removes it."""
+def own_item(session: SessionDep, item_id: int, user: User, action: str) -> NewsItem:
+    """The item, when this user may change it: its author, or an admin (a channel's item has no author)."""
     row = session.get(NewsItem, item_id)
     if row is None or row.hidden:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such news.")
     if row.created_by != user.id and not user.role.is_staff:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only its author or an admin can remove it.")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=f"Only its author or an admin can {action} it."
+        )
+    return row
+
+
+@router.patch("/{item_id}", response_model=NewsItemOut)
+def edit_news(
+    item_id: RowId, data: NewsIn, session: SessionDep, user: Annotated[User, Depends(get_current_news_writer)]
+):
+    """Its author or an admin changes its text; it keeps its place and date."""
+    row = own_item(session, item_id, user, "edit")
+    text = data.text.strip()
+    if not text:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Write the news first.")
+    row.text = text
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    return out(session, [row])[0]
+
+
+@router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_news(item_id: RowId, session: SessionDep, user: Annotated[User, Depends(get_current_news_writer)]):
+    """Its author or an admin removes it."""
+    row = own_item(session, item_id, user, "remove")
     if row.source_url:
         row.hidden = True  # kept, so the channel's post doesn't bring it back
         session.add(row)

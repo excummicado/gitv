@@ -1,6 +1,6 @@
 // Short news of the home page's column (api/app/routers/news.py): read by anyone, written there by writers, event
 // organizers and admins, or added by themselves from Abyss Cup's and House of the Hearth's registration posts
-// (author_id null, author the channel's name); removed by their author or an admin. Articles are ../articles.
+// (author_id null, author the channel's name); edited or removed by their author or an admin. Articles are ../articles.
 import { getJson } from "../api";
 import { authRequest } from "../auth/client";
 
@@ -18,6 +18,11 @@ export function listNewsItems(limit: number, before?: number, signal?: AbortSign
 
 export function addNewsItem(text: string) {
   return authRequest<NewsItem>("POST", "/news", { text });
+}
+
+// Its author or an admin changes the text; it keeps its place and date.
+export function editNewsItem(id: number, text: string) {
+  return authRequest<NewsItem>("PATCH", `/news/${id}`, { text });
 }
 
 export function deleteNewsItem(id: number) {
