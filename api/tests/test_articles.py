@@ -108,7 +108,7 @@ def test_import_list_and_remove(writer):
     files = {"file": ("news.docx", docx([p("Анонс"), p("Текст новости")]), "application/octet-stream")}
     created = writer.post("/api/v1/articles", files=files)
     assert created.status_code == 201, created.text
-    news = writer.get("/api/v1/articles").json()
+    news = writer.get("/api/v1/articles?drafts=true").json()
     assert [(n["title"], n["author"]) for n in news] == [("Анонс", "writer1")]
     assert "Текст новости" in news[0]["body_html"]
     assert writer.post("/api/v1/articles", files={"file": ("x.docx", b"not a docx", "text/plain")}).status_code == 422
@@ -118,14 +118,14 @@ def test_import_list_and_remove(writer):
     assert (other["author"], other["imported_by"]) == ("Spartanchick", "writer1")
     writer.delete(f"/api/v1/articles/{other['id']}")
     assert writer.delete(f"/api/v1/articles/{news[0]['id']}").status_code == 204
-    assert writer.get("/api/v1/articles").json() == []
+    assert writer.get("/api/v1/articles?drafts=true").json() == []
 
 
 def test_the_list_carries_only_the_start_of_an_article(writer):
     text = "&lt;script&gt;x&lt;/script&gt; &amp; " + "слово " * 500  # as the document's XML holds them
     files = {"file": ("long.docx", docx([p("Длинная"), p(text)]), "application/octet-stream")}
     post = writer.post("/api/v1/articles", files=files).json()
-    listed = writer.get("/api/v1/articles").json()[0]["body_html"]
+    listed = writer.get("/api/v1/articles?drafts=true").json()[0]["body_html"]
     assert len(listed) < 500 < len(post["body_html"])
     assert "<" not in listed and "&amp;" in listed
     assert len(writer.get(f"/api/v1/articles/{post['id']}").json()["body_html"]) > 500
@@ -135,6 +135,7 @@ def test_reads_are_counted_once_per_reader(writer):
     files = {"file": ("news.docx", docx([p("Анонс")]), "application/octet-stream")}
     article = writer.post("/api/v1/articles", files=files).json()
     assert article["reads"] == 0
+    approve(writer, article["id"])
     anyone = TestClient(app)  # no sign-in needed
     url = f"/api/v1/articles/{article['id']}/read"
     assert anyone.post(url).status_code == 403  # not from the site's pages
@@ -209,3 +210,52 @@ def test_a_translation_keeps_the_pictures_it_shares():
     original, translation = f"<p>{a}{b}</p>", f"<p>{a}{c}</p>"
     assert unused_pictures(translation, original) == [f"news/{'c' * 32}.png"]
     assert unused_pictures(translation, original, translation) == []
+
+
+def approve(writer, news_id):
+    from app.models import NewsPost
+
+    session = app.dependency_overrides[get_session]()
+    from datetime import UTC, datetime
+
+    post = session.get(NewsPost, news_id)
+    post.approved_at = datetime.now(UTC)
+    session.add(post)
+    session.commit()
+
+
+def member(session, nickname, role):
+    user = User(nickname=nickname, discord_id=nickname, role=role)
+    session.add(user)
+    session.commit()
+    token = create_access_token({"sub": str(user.id), "role": user.role.value})
+    return TestClient(app, headers={"Authorization": f"Bearer {token}"})
+
+
+def test_a_writers_article_waits_for_an_admin(writer, session):
+    files = {"file": ("news.docx", docx([p("Черновик"), p("Текст")]), "application/octet-stream")}
+    draft = writer.post("/api/v1/articles", files=files).json()
+    assert draft["approved"] is False
+    anyone, other = TestClient(app), member(session, "writer2", Role.writer)
+    admin = member(session, "boss", Role.admin)
+    url = f"/api/v1/articles/{draft['id']}"
+    # Hidden from everyone but whoever imported it and admins, and from the plain list (the home page) for them too
+    assert anyone.get(url).status_code == 404 and other.get(url).status_code == 404
+    assert writer.get(url).status_code == 200 and admin.get(url).status_code == 200
+    assert anyone.get("/api/v1/articles?drafts=true").json() == []
+    assert other.get("/api/v1/articles?drafts=true").json() == []
+    assert writer.get("/api/v1/articles").json() == []
+    assert [a["id"] for a in admin.get("/api/v1/articles?drafts=true").json()] == [draft["id"]]
+    assert anyone.post(f"{url}/read", headers={"X-GITV": "1"}).status_code == 404
+    # Only an admin approves; then it's everyone's
+    assert writer.post(f"{url}/approve").status_code == 403
+    done = admin.post(f"{url}/approve").json()
+    assert done["approved"] is True and done["created_at"] >= draft["created_at"]
+    assert [a["id"] for a in anyone.get("/api/v1/articles").json()] == [draft["id"]]
+
+
+def test_an_admins_article_is_published_at_once(writer, session):
+    admin = member(session, "boss", Role.admin)
+    files = {"file": ("news.docx", docx([p("Сразу")]), "application/octet-stream")}
+    assert admin.post("/api/v1/articles", files=files).json()["approved"] is True
+    assert len(TestClient(app).get("/api/v1/articles").json()) == 1

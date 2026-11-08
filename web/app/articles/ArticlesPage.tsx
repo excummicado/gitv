@@ -5,7 +5,7 @@ import { Brand } from "../components/Brand";
 import { useAuth } from "../auth/useCurrentUser";
 import { STAFF_ROLES } from "../auth/client";
 import { useLang } from "../i18n";
-import { deleteArticle, deleteTranslation, excerpt, importArticle, inLang, listArticles, NEWS_WRITER_ROLES, READ_SECONDS, readArticle, reportRead, setTranslation, type Article } from "./api";
+import { approveArticle, deleteArticle, deleteTranslation, excerpt, importArticle, inLang, listArticles, NEWS_WRITER_ROLES, READ_SECONDS, readArticle, reportRead, setTranslation, type Article } from "./api";
 import "./articles.css";
 
 function Frame({ children }: { children: React.ReactNode }) {
@@ -146,6 +146,19 @@ export function ArticlePage() {
   const canEdit = Boolean(post && user && (STAFF_ROLES.includes(user.role) || (NEWS_WRITER_ROLES.includes(user.role) && post.imported_by === user.nickname)));
   const shown = post ? (original ? { title: post.title, body: post.body_html, translated: false } : inLang(post, lang)) : null;
   const [error, setError] = useState("");
+  const [approving, setApproving] = useState(false);
+  const staff = Boolean(user && STAFF_ROLES.includes(user.role));
+  async function approve() {
+    if (!post) return;
+    setApproving(true);
+    try {
+      setPost(await approveArticle(post.id));
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : t("Couldn't approve it.", "Не удалось одобрить."));
+    } finally {
+      setApproving(false);
+    }
+  }
   const [active, setActive] = useState<string | null>(null);
   // Open beside the post; folded above it on a phone, where it would push the post down
   const [tocOpen, setTocOpen] = useState(true);
@@ -173,7 +186,7 @@ export function ArticlePage() {
     document.querySelector(`.news-toc a[href="#${active}"]`)?.scrollIntoView({ block: "nearest" });
   }, [active]);
 
-  useReadCounter(post?.id, (reads) => setPost((p) => (p ? { ...p, reads } : p)));
+  useReadCounter(post?.approved ? post.id : undefined, (reads) => setPost((p) => (p ? { ...p, reads } : p)));
 
   useEffect(() => {
     const controller = new AbortController();
@@ -197,6 +210,12 @@ export function ArticlePage() {
               </nav>
             )}
             <article className="player-box news-article">
+              {!post.approved && (
+                <p className="news-draft">
+                  <span>{staff ? t("Draft: only admins and its author see it.", "Черновик: его видят только админы и автор.") : t("Draft: waiting for an admin's approval.", "Черновик: ждёт одобрения админа.")}</span>
+                  {staff && <button type="button" className="suggest-button" onClick={approve} disabled={approving}>{approving ? "…" : t("Approve and publish", "Одобрить и опубликовать")}</button>}
+                </p>
+              )}
               <h1 className="news-title">{shown!.title}</h1>
               <p className="player-label news-meta">{date(post.created_at)} · {post.author} · <Reads count={post.reads} /></p>
               {post.body_html_tr != null && post.lang !== lang && (
@@ -231,7 +250,7 @@ export function ArticlesListPage() {
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const [formKey, setFormKey] = useState(0);
 
-  const load = () => listArticles(50).then(setPosts).catch(() => setPosts([]));
+  const load = () => listArticles(50, undefined, true).then(setPosts).catch(() => setPosts([]));
   useEffect(() => { load(); }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -241,7 +260,7 @@ export function ArticlesListPage() {
     setSaving(true);
     try {
       await importArticle({ file: file ?? undefined, googleUrl: googleUrl.trim() || undefined, title: title.trim() || undefined, author: author.trim() || undefined });
-      setMessage({ text: t("Published.", "Опубликовано."), ok: true });
+      setMessage({ text: staff ? t("Published.", "Опубликовано.") : t("Sent for an admin's approval.", "Отправлено на одобрение админу."), ok: true });
       setFile(null);
       setGoogleUrl("");
       setTitle("");
@@ -252,6 +271,15 @@ export function ArticlesListPage() {
       setMessage({ text: err instanceof Error ? err.message : t("Couldn't import it. Try again.", "Не удалось импортировать. Попробуйте ещё раз."), ok: false });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function approve(post: Article) {
+    try {
+      const done = await approveArticle(post.id);
+      setPosts((list) => list && [done, ...list.filter((p) => p.id !== post.id)]);
+    } catch (err) {
+      setMessage({ text: err instanceof Error ? err.message : t("Couldn't approve it.", "Не удалось одобрить."), ok: false });
     }
   }
 
@@ -293,7 +321,7 @@ export function ArticlesListPage() {
                 onChange={(e) => { setAuthor(e.target.value); setMessage(null); }} />
             </label>
             <div className="news-actions">
-              <button type="submit" className="suggest-button" disabled={saving}>{saving ? t("Importing…", "Импорт…") : t("Publish", "Опубликовать")}</button>
+              <button type="submit" className="suggest-button" disabled={saving}>{saving ? t("Importing…", "Импорт…") : staff ? t("Publish", "Опубликовать") : t("Send for approval", "Отправить на одобрение")}</button>
               {message && <span className={message.ok ? "suggest-ok" : "suggest-error"} role="status">{message.text}</span>}
             </div>
           </form>
@@ -304,11 +332,17 @@ export function ArticlesListPage() {
         {!posts ? <p className="match-empty">…</p>
           : !posts.length ? <p className="match-empty">{t("No articles yet.", "Статей пока нет.")}</p>
           : posts.map((p) => (
-            <div className="news-row" key={p.id}>
-              <Link to={`/articles/${p.id}`} className="gitv-row-link news-row-title">{inLang(p, lang).title}</Link>
+            <div className={`news-row${p.approved ? "" : " is-draft"}`} key={p.id}>
+              <Link to={`/articles/${p.id}`} className="gitv-row-link news-row-title">
+                {!p.approved && <span className="news-draft-tag">{t("Draft", "Черновик")}</span>}
+                {inLang(p, lang).title}
+              </Link>
               <p className="news-row-excerpt">{excerpt(inLang(p, lang).body)}</p>
               <span className="player-label">
-                {date(p.created_at)} · {p.author} · <Reads count={p.reads} />
+                {date(p.created_at)} · {p.author}{p.approved && <> · <Reads count={p.reads} /></>}
+                {staff && !p.approved && (
+                  <> · <button type="button" className="news-approve" onClick={() => approve(p)}>{t("Approve", "Одобрить")}</button></>
+                )}
                 {(staff || (user && p.imported_by === user.nickname)) && (
                   <> · <button type="button" className="news-remove" onClick={() => remove(p)}>{t("Remove", "Удалить")}</button></>
                 )}

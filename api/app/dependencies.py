@@ -58,6 +58,20 @@ async def get_current_active_user(
     return current_user
 
 
+async def get_optional_user(
+    request: Request,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+    session: SessionDep,
+) -> User | None:
+    """The signed-in user for a public page that shows them more (a draft article), else None: no sign-in, a
+    bad or stale token or a banned account all read as signed out."""
+    try:
+        user = await get_current_user(request, credentials, session)
+    except HTTPException:
+        return None
+    return None if user.disabled else user
+
+
 async def get_current_staff(
     current_user: Annotated[User, Depends(get_current_active_user)],
 ):

@@ -3,6 +3,10 @@ event organizers and admins add one by importing a Word file (.docx, up to 100 M
 (services/news.py), and may attach its translation into the other language the same way; whoever imported it or an
 admin changes or removes it, with its pictures. Nothing is added automatically.
 
+An article imported by anyone but an admin (or from the command line) is a draft until an admin approves it: only
+admins and whoever imported it see it, on the list (with drafts=true) and on its page; approving it publishes it
+dated then.
+
 Each article counts its reads: the page reports one when a reader has had it open for READ_SECONDS (count_read).
 A browser reports an article once, and the same address counts once per article per READ_WINDOW; the addresses
 are only held in memory for that (rate_limit.py), never stored.
@@ -16,7 +20,7 @@ from pydantic import BaseModel
 from sqlmodel import select
 
 from ..database import RowId, SessionDep
-from ..dependencies import get_current_news_writer
+from ..dependencies import get_current_news_writer, get_current_staff, get_optional_user
 from ..models import NewsPost, User
 from ..rate_limit import client_ip, limiter, rate_limit
 from ..security import CSRF_HEADER
@@ -50,6 +54,7 @@ class NewsOut(BaseModel):
     title_tr: str | None
     body_html_tr: str | None  # cleaned like body_html; None without a translation
     reads: int  # readers who stayed on it at least READ_SECONDS
+    approved: bool  # False: a draft, waiting for an admin
 
 
 def out(session: SessionDep, rows: list[NewsPost]) -> list[NewsOut]:
@@ -67,6 +72,7 @@ def out(session: SessionDep, rows: list[NewsPost]) -> list[NewsOut]:
             title_tr=r.title_tr,
             body_html_tr=r.body_html_tr,
             reads=r.reads or 0,
+            approved=r.approved_at is not None,
         )
         for r in rows
     ]
@@ -99,10 +105,27 @@ def editable(session: SessionDep, news_id: int, user: User) -> NewsPost:
     return row
 
 
+def can_see(row: NewsPost, user: User | None) -> bool:
+    """Anyone sees a published article; a draft only admins and whoever imported it."""
+    return row.approved_at is not None or (
+        user is not None and (user.role.is_staff or (row.created_by == user.id and user.role.can_write_news))
+    )
+
+
 @router.get("", response_model=list[NewsOut])
-def list_news(session: SessionDep, limit: Annotated[int, Query(ge=1, le=50)] = 10):
-    """The latest news, newest first."""
-    rows = session.exec(select(NewsPost).order_by(NewsPost.created_at.desc()).limit(limit)).all()
+def list_news(
+    session: SessionDep,
+    user: Annotated[User | None, Depends(get_optional_user)],
+    limit: Annotated[int, Query(ge=1, le=50)] = 10,
+    drafts: bool = False,
+):
+    """The latest news, newest first. drafts: the drafts this user may see come first (the articles page)."""
+    query = select(NewsPost).order_by(NewsPost.created_at.desc())
+    published = session.exec(query.where(NewsPost.approved_at.is_not(None)).limit(limit)).all()
+    waiting = []
+    if drafts and user is not None:
+        waiting = [r for r in session.exec(query.where(NewsPost.approved_at.is_(None))) if can_see(r, user)]
+    rows = [*waiting, *published]
     # Only the start of each text: the home page and the list show an excerpt, the article's own page loads the rest
     return [
         item.model_copy(
@@ -116,9 +139,9 @@ def list_news(session: SessionDep, limit: Annotated[int, Query(ge=1, le=50)] = 1
 
 
 @router.get("/{news_id}", response_model=NewsOut)
-def read_news(news_id: RowId, session: SessionDep):
+def read_news(news_id: RowId, session: SessionDep, user: Annotated[User | None, Depends(get_optional_user)]):
     row = session.get(NewsPost, news_id)
-    if row is None:
+    if row is None or not can_see(row, user):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such article.")
     return out(session, [row])[0]
 
@@ -134,7 +157,7 @@ def count_read(news_id: RowId, request: Request, session: SessionDep):
     if request.headers.get(CSRF_HEADER) != "1":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Missing the site's request header.")
     row = session.get(NewsPost, news_id)
-    if row is None:
+    if row is None or row.approved_at is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such article.")
     if not limiter.hit(("article-read", client_ip(request), news_id), 1, READ_WINDOW):
         row.reads = (row.reads or 0) + 1
@@ -159,7 +182,7 @@ def add_news(  # not async: converting a document takes a while, and would stop 
 ):
     """Imports a news post from a .docx file or a Google document shared by link (one of the two). The title is the
     given one, else the document's first heading or line; the author is the given one (who wrote the article), else
-    whoever imports it."""
+    whoever imports it. An admin's article is published at once; anyone else's waits as a draft for an admin."""
     source, found, body, pictures = read_document(file, google_url)
     heading = (title or "").strip() or found
     if not heading or (not body and not found):
@@ -174,9 +197,26 @@ def add_news(  # not async: converting a document takes a while, and would stop 
         created_by=user.id,
         created_at=datetime.now(UTC),
     )
+    if user.role.is_staff:
+        row.approved_at, row.approved_by = row.created_at, user.id
     session.add(row)
     session.commit()
     session.refresh(row)
+    return out(session, [row])[0]
+
+
+@router.post("/{news_id}/approve", response_model=NewsOut)
+def approve_news(news_id: RowId, session: SessionDep, user: Annotated[User, Depends(get_current_staff)]):
+    """An admin publishes a draft: it shows to everyone, dated now (the top of the list)."""
+    row = session.get(NewsPost, news_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such article.")
+    if row.approved_at is None:
+        now = datetime.now(UTC)
+        row.approved_at, row.approved_by, row.created_at = now, user.id, now
+        session.add(row)
+        session.commit()
+        session.refresh(row)
     return out(session, [row])[0]
 
 

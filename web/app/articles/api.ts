@@ -10,6 +10,7 @@ export type Article = {
   // A translation into the other language, uploaded by hand: the post's language and the translated title and body
   lang: "ru" | "en" | null; title_tr: string | null; body_html_tr: string | null;
   reads: number; // readers who stayed on it at least READ_SECONDS
+  approved: boolean; // false: a draft, seen only by admins and whoever imported it until an admin approves it
 };
 
 // How long the article must be open (and its tab visible) before it counts as read (as the API's READ_SECONDS).
@@ -23,8 +24,9 @@ export function inLang(post: Article, lang: string) {
 
 export const NEWS_WRITER_ROLES: Role[] = ["writer", ...PLAYER_EDITOR_ROLES];
 
-export function listArticles(limit = 10, signal?: AbortSignal) {
-  return getJson<Article[]>(`/api/v1/articles?limit=${limit}`, { signal, failed: ["Couldn't load the articles.", "Не удалось загрузить статьи."] });
+// drafts: the drafts the signed-in member may see come first (the articles page; the home page shows published only).
+export function listArticles(limit = 10, signal?: AbortSignal, drafts = false) {
+  return getJson<Article[]>(`/api/v1/articles?limit=${limit}${drafts ? "&drafts=true" : ""}`, { signal, failed: ["Couldn't load the articles.", "Не удалось загрузить статьи."] });
 }
 
 export function readArticle(id: string, signal?: AbortSignal) {
@@ -62,6 +64,11 @@ export async function reportRead(id: number): Promise<number | null> {
   } catch {
     return null;
   }
+}
+
+// An admin publishes a draft (dated now).
+export function approveArticle(id: number) {
+  return authRequest<Article>("POST", `/articles/${id}/approve`);
 }
 
 export function deleteArticle(id: number) {

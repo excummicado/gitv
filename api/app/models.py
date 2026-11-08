@@ -525,6 +525,9 @@ class NewsPost(SQLModel, table=True):
     created_at: datetime = Field(index=True)
     # Readers who stayed on it at least 30 seconds (routers/articles.py count_read); None counts as 0
     reads: int | None = None
+    # When an admin approved it, and who: until then only admins and whoever imported it see it (a draft)
+    approved_at: datetime | None = None
+    approved_by: uuid.UUID | None = Field(default=None, foreign_key="user.id")
 
 
 class NewsItem(SQLModel, table=True):

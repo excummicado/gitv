@@ -53,7 +53,7 @@ def preview(
 
     if kind == "article":
         post = session.get(NewsPost, row_id(id)) if row_id(id) is not None else None
-        if post is None:
+        if post is None or post.approved_at is None:
             return None
         translated = post.body_html_tr is not None and post.lang != lang
         title = (post.title_tr or post.title) if translated else post.title
@@ -143,6 +143,6 @@ def pages(session: SessionDep):
         # Players with a page of their own: a site account or one added by hand (not a bare bracket name)
         players=sorted(p for p in snap.players if re.fullmatch(r"[0-9a-f]{24}|offsite-.+", p)),
         tournaments=sorted(set(snap.match_tournament.values())),
-        articles=[n for n in session.exec(select(NewsPost.id))],
+        articles=[n for n in session.exec(select(NewsPost.id).where(NewsPost.approved_at.is_not(None)))],
         abyss=[a for a in session.exec(select(AbyssPhase.id))],
     )

@@ -744,6 +744,35 @@ def set_news_translation(news_id: int, path: str, title: str | None) -> None:
         print(f"News {news_id}: translation «{post.title_tr}», {len(pictures)} pictures.")
 
 
+def import_article(path: str, nickname: str, title: str | None, author: str | None) -> None:
+    """Imports a .docx as a draft article under a member's name (routers/articles.py): it shows once an admin
+    approves it on its page."""
+    from datetime import datetime
+
+    from .models import NewsPost, User
+    from .services.news import DocumentError, docx_to_html
+
+    with Session(engine) as session, open(path, "rb") as doc:
+        user = session.exec(select(User).where(User.nickname == nickname)).first()
+        if user is None:
+            raise SystemExit(f"No member {nickname}.")
+        try:
+            found, body, pictures = docx_to_html(doc)
+        except DocumentError as e:
+            raise SystemExit(str(e)) from e
+        post = NewsPost(
+            title=title or found,
+            body_html=body,
+            source=os.path.basename(path),
+            author_name=author,
+            created_by=user.id,
+            created_at=datetime.now(UTC),
+        )
+        session.add(post)
+        session.commit()
+        print(f"Draft article {post.id}: «{post.title}», {len(pictures)} pictures; /articles/{post.id}")
+
+
 def run_fetch_abyss(refetch: bool) -> None:
     from .services.abyss import fetch_abyss
 
@@ -884,6 +913,11 @@ def main() -> None:
     trn_cmd.add_argument("news_id", type=int)
     trn_cmd.add_argument("file", help="The translated document (.docx)")
     trn_cmd.add_argument("--title", help="Its title; else the document's first heading or line")
+    art_cmd = commands.add_parser("import-article", help="Import a .docx as a draft article, for an admin to approve")
+    art_cmd.add_argument("file", help="The document (.docx)")
+    art_cmd.add_argument("--by", required=True, help="Nickname of the member it's imported under")
+    art_cmd.add_argument("--title", help="Its title; else the document's first heading or line")
+    art_cmd.add_argument("--author", help="Its author as shown; else the member")
     commands.add_parser("poll-stream", help="Read the streams' Telegram channels and Twitch status once")
     commands.add_parser("import-aspirine", help="Store the old tournaments export-aspirine saved as matches")
     games_cmd = commands.add_parser("add-manual-games", help="Store games of hand-entered tournaments from a JSON file")
@@ -986,6 +1020,8 @@ def main() -> None:
         export_aspirine(args.slugs)
     elif args.command == "set-news-translation":
         set_news_translation(args.news_id, args.file, args.title)
+    elif args.command == "import-article":
+        import_article(args.file, args.by, args.title, args.author)
     elif args.command == "poll-stream":
         poll_stream()
     elif args.command == "import-aspirine":
