@@ -80,7 +80,8 @@ function PickedGames({ c }: { c: OwnedCharacter }) {
   );
 }
 
-export function CharactersTab({ playerId }: { playerId: string }) {
+// since, until: the page's date range (YYYY-MM-DD); only tournaments that started within it count.
+export function CharactersTab({ playerId, since, until }: { playerId: string; since?: string; until?: string }) {
   const l = useLang();
   const { t, name, date, count } = l;
   const [tournament, setTournament] = useState("");
@@ -95,11 +96,11 @@ export function CharactersTab({ playerId }: { playerId: string }) {
   useEffect(() => {
     const controller = new AbortController();
     setError("");
-    fetchCharacterRoster(playerId, tournament || undefined, account, controller.signal)
+    fetchCharacterRoster(playerId, tournament || undefined, account, controller.signal, since, until)
       .then(setData)
       .catch((err) => { if (!controller.signal.aborted) setError(err instanceof Error ? err.message : t("Couldn't load the roster.", "Не удалось загрузить ростер.")); });
     return () => controller.abort();
-  }, [playerId, tournament, account]);
+  }, [playerId, tournament, account, since, until]);
 
   const rows = useMemo(() => {
     if (!data) return [];
@@ -134,7 +135,10 @@ export function CharactersTab({ playerId }: { playerId: string }) {
         <label className="chars-roster">
           <span className="player-label">{t("Roster", "Ростер")}</span>
           <select className="match-input" value={tournament} onChange={(e) => setTournament(e.target.value)} aria-label={t("Roster of", "Ростер на")}>
-            <option value="">{t("All time: every character ever owned", "За всё время: все персонажи")}</option>
+            <option value="">{since || until
+              ? t(`${[since && `From ${date(since)}`, until && `${since ? "to" : "Up to"} ${date(until)}`].filter(Boolean).join(" ")}: every character owned`,
+                  `${[since && `С ${date(since)}`, until && `${since ? "по" : "По"} ${date(until)}`].filter(Boolean).join(" ")}: все персонажи`)
+              : t("All time: every character ever owned", "За всё время: все персонажи")}</option>
             {data?.tournaments.map((tr) => (
               <option key={tr.id} value={tr.id}>{tr.title} · {date(tr.date)}{tr.versions > 1 ? ` · ${t("changed mid-tournament", "менялся по ходу")}` : ""}</option>
             ))}

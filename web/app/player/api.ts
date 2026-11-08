@@ -67,16 +67,20 @@ export function fetchPlayers(signal?: AbortSignal, scope: Scope = "all") {
   return getJson<PlayerSummary[]>(`/api/v1/players?scope=${scope}`, { signal });
 }
 
-// tournament: limit the statistics to one tournament the player played (scope and since are then ignored).
-// since (YYYY-MM-DD): count only tournaments that started on or after that day.
-export function fetchPlayer(id: string, signal?: AbortSignal, scope: Scope = "all", tournament?: string, since?: string) {
+// tournament: limit the statistics to one tournament the player played (scope, since and until are then ignored).
+// since, until (YYYY-MM-DD): count only tournaments that started on or after, on or before those days.
+export function fetchPlayer(id: string, signal?: AbortSignal, scope: Scope = "all", tournament?: string, since?: string, until?: string) {
   const notFound: Message = tournament ? ["This player didn't play that tournament.", "Игрок не участвовал в этом турнире."]
+    : until ? ["No games in tournaments between those dates.", "Нет игр в турнирах за эти даты."]
     : since ? ["No games in tournaments since that date.", "Нет игр в турнирах с этой даты."]
     : scope === "major" ? ["No games in major tournaments (Abyss Cup qualifiers and playoffs, Abyss Fight Club).", "Нет игр в мейджор-турнирах (квалификации и плей-офф Abyss Cup, Abyss Fight Club)."]
     : ["This player hasn't played an imported match.", "У игрока нет импортированных матчей."];
   const query = new URLSearchParams({ scope });
   if (tournament) query.set("tournament", tournament);
-  else if (since) query.set("since", since);
+  else {
+    if (since) query.set("since", since);
+    if (until) query.set("until", until);
+  }
   return getJson<PlayerDetail>(`/api/v1/players/${encodeURIComponent(id)}?${query}`, { signal, notFound });
 }
 
@@ -151,10 +155,13 @@ export type CharacterRoster = {
   tournament: string | null; games: number; characters: OwnedCharacter[];
 };
 
-export function fetchCharacterRoster(playerId: string, tournament?: string, account?: number, signal?: AbortSignal) {
+// since, until (YYYY-MM-DD): only the tournaments that started on or after, on or before those days count.
+export function fetchCharacterRoster(playerId: string, tournament?: string, account?: number, signal?: AbortSignal, since?: string, until?: string) {
   const params = new URLSearchParams();
   if (tournament) params.set("tournament", tournament);
   if (account) params.set("account", String(account));
+  if (since) params.set("since", since);
+  if (until) params.set("until", until);
   const query = params.size ? `?${params}` : "";
   return getJson<CharacterRoster>(`/api/v1/players/${encodeURIComponent(playerId)}/characters${query}`, {
     signal, notFound: ["No roster for this tournament.", "Нет ростера на этом турнире."],

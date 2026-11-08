@@ -424,18 +424,24 @@ function TournamentList({ player, playerId }: { player: PlayerDetail; playerId: 
   );
 }
 
-// "Count from": the statistics start with the tournaments that began on or after this day.
-function SinceFilter({ value, onChange }: { value: string; onChange: (day: string) => void }) {
+// The statistics' date range: "Count from" (tournaments that began on or after this day) and "Count to" (on or
+// before it).
+function DateFilter({ value, onChange, kind, min, max }: { value: string; onChange: (day: string) => void; kind: "since" | "until"; min?: string; max?: string }) {
   const { t } = useLang();
+  const today = new Date().toISOString().slice(0, 10);
+  const [label, aria, title] = kind === "since"
+    ? [t("Count from", "Считать с"), t("Count statistics from this date", "Считать статистику с этой даты"),
+      t("Only tournaments that started on or after this day count", "Учитываются только турниры, начавшиеся с этого дня")]
+    : [t("Count to", "Считать по"), t("Count statistics up to this date", "Считать статистику по эту дату"),
+      t("Only tournaments that started on or before this day count", "Учитываются только турниры, начавшиеся не позже этого дня")];
   return (
     <span className={`player-since${value ? " active" : ""}`}>
       <label>
-        <span>{t("Count from", "Считать с")}</span>
-        <input type="date" value={value} max={new Date().toISOString().slice(0, 10)} aria-label={t("Count statistics from this date", "Считать статистику с этой даты")}
-          title={t("Only tournaments that started on or after this day count", "Учитываются только турниры, начавшиеся с этого дня")}
+        <span>{label}</span>
+        <input type="date" value={value} min={min || undefined} max={max && max < today ? max : today} aria-label={aria} title={title}
           onChange={(e) => onChange(e.target.value)} />
       </label>
-      {value && <button type="button" onClick={() => onChange("")} aria-label={t("Count all time", "Считать за всё время")} title={t("All time", "За всё время")}>×</button>}
+      {value && <button type="button" onClick={() => onChange("")} aria-label={t("Remove this date", "Убрать эту дату")} title={t("Remove", "Убрать")}>×</button>}
     </span>
   );
 }
@@ -612,6 +618,8 @@ export function PlayerPage({ playerId }: { playerId: string }) {
   const tournament = params.get("tournament") ?? "";
   const sinceParam = params.get("since") ?? "";
   const since = /^\d{4}-\d{2}-\d{2}$/.test(sinceParam) ? sinceParam : "";
+  const untilParam = params.get("until") ?? "";
+  const until = /^\d{4}-\d{2}-\d{2}$/.test(untilParam) ? untilParam : "";
   // The picker's list comes with the player; kept so it stays filled while another tournament loads.
   const [tournaments, setTournaments] = useState<PlayedTournament[]>([]);
   const [player, setPlayer] = useState<PlayerDetail | null>(null);
@@ -621,11 +629,11 @@ export function PlayerPage({ playerId }: { playerId: string }) {
     const controller = new AbortController();
     setPlayer(null);
     setError("");
-    fetchPlayer(playerId, controller.signal, major ? "major" : "all", tournament || undefined, since || undefined)
+    fetchPlayer(playerId, controller.signal, major ? "major" : "all", tournament || undefined, since || undefined, until || undefined)
       .then((data) => { setPlayer(data); setTournaments(data.tournament_list); })
       .catch((err) => { if (!controller.signal.aborted) setError(err instanceof Error ? err.message : t("Couldn't load the player.", "Не удалось загрузить игрока.")); });
     return () => controller.abort();
-  }, [playerId, major, tournament, since]);
+  }, [playerId, major, tournament, since, until]);
 
   return (
     <main className="gitv-page">
@@ -637,7 +645,8 @@ export function PlayerPage({ playerId }: { playerId: string }) {
             <div className="player-scope">
               {tournaments.length > 0 && <TournamentPicker tournaments={tournaments} value={tournament} onChange={(id) => update({ tournament: id })} />}
               {/* A single tournament already narrows everything down, so the majors switch only applies to "all". */}
-              {!tournament && <SinceFilter value={since} onChange={(day) => update({ since: day })} />}
+              {!tournament && <DateFilter kind="since" value={since} max={until} onChange={(day) => update({ since: day })} />}
+              {!tournament && <DateFilter kind="until" value={until} min={since} onChange={(day) => update({ until: day })} />}
               {!tournament && <MajorToggle on={major} onChange={(on) => update({ major: on ? "1" : "" })} />}
               <Link className="player-compare-link" to={`/player/${playerId}/compare${major ? "?major=1" : ""}`}>{t("Compare", "Сравнить")}</Link>
             </div>
@@ -673,7 +682,7 @@ export function PlayerPage({ playerId }: { playerId: string }) {
 
                   {tab === "matches" ? <MatchList player={player} options={options} onChange={update} />
                     : tab === "tournaments" ? <TournamentList player={player} playerId={playerId} />
-                    : tab === "characters" ? <CharactersTab playerId={playerId} />
+                    : tab === "characters" ? <CharactersTab playerId={playerId} since={tournament ? undefined : since || undefined} until={tournament ? undefined : until || undefined} />
                     : <Stats player={player} />}
                 </>}
           </div>

@@ -26,7 +26,7 @@ from ..services.stats import (
     summary,
     tournament_standings,
 )
-from ..services.stats.snapshot import cached_json, major_tournament_ids
+from ..services.stats.snapshot import cached_json, major_tournament_ids, tournaments_since, tournaments_until
 from .matches import Character
 from .tournaments import rows as tournament_rows
 
@@ -303,20 +303,27 @@ def list_champions(session: SessionDep, limit: Annotated[int, Query(ge=1, le=20)
 
 @router.get("/{player_id}", response_model=PlayerDetail)
 def read_player(
-    player_id: str, session: SessionDep, scope: Scope = "all", tournament: str | None = None, since: date | None = None
+    player_id: str,
+    session: SessionDep,
+    scope: Scope = "all",
+    tournament: str | None = None,
+    since: date | None = None,
+    until: date | None = None,
 ):
-    """tournament: limit the statistics to one tournament the player played (scope and since are then ignored).
-    since: count only tournaments that started on or after this date (whole tournaments, so places hold).
-    A merged-away account opens the player it was merged into."""
+    """tournament: limit the statistics to one tournament the player played (scope, since and until are then
+    ignored). since, until: count only tournaments that started on or after, on or before these dates (whole
+    tournaments, so places hold). A merged-away account opens the player it was merged into."""
     player_id = merges(session).get(player_id, player_id)
     everything = snapshot(session)
-    snap = everything if tournament else snapshot(session, scope, since)
+    snap = everything if tournament else snapshot(session, scope, since, until)
     pd = snap.players.get(player_id)
     if pd is None:
         if player_id not in everything.players:
             detail_text = "No such player."
-        elif since:
+        elif since and not until:
             detail_text = "No games in tournaments since that date."
+        elif until:
+            detail_text = "No games in tournaments between those dates."
         else:
             detail_text = "No games in major tournaments."
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail_text)
@@ -596,14 +603,29 @@ def player_elo(player_id: str, session: SessionDep):
 
 
 @router.get("/{player_id}/characters", response_model=CharacterRoster)
-def read_characters(player_id: str, session: SessionDep, tournament: str | None = None, account: int | None = None):
+def read_characters(
+    player_id: str,
+    session: SessionDep,
+    tournament: str | None = None,
+    account: int | None = None,
+    since: date | None = None,
+    until: date | None = None,
+):
     """Every character ever in the roster of one of the player's game accounts (or in one tournament's roster) with
-    the player's statistics on it and its constellation changes."""
+    the player's statistics on it and its constellation changes. since, until: only the tournaments that started on
+    or after, on or before these dates count, for the rosters and the games both."""
     player_id = merges(session).get(player_id, player_id)
     snap = snapshot(session)
     if player_id not in snap.players:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such player.")
-    data = character_roster(session, snap, player_id, tournament, account)
+    only = None
+    if since or until:
+        snap = snapshot(session, "all", since, until)
+        only = tournaments_since(session, since) if since else None
+        if until:
+            dated = tournaments_until(session, until)
+            only = dated if only is None else only & dated
+    data = character_roster(session, snap, player_id, tournament, account, only=only)
     if tournament and not any(t["id"] == tournament for t in data["tournaments"]):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="No roster for this player in that tournament."

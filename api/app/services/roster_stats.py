@@ -82,14 +82,22 @@ def roster_tournaments(snap: Snapshot, versions: list[PlayerRoster]) -> list[dic
 
 
 def character_roster(
-    session: Session, snap: Snapshot, player_id: str, tournament: str | None = None, account: int | None = None
+    session: Session,
+    snap: Snapshot,
+    player_id: str,
+    tournament: str | None = None,
+    account: int | None = None,
+    *,
+    only: set[str] | None = None,
 ) -> dict:
     """All characters ever in the player's roster (or, with tournament, the ones in that tournament's roster),
     each with: its constellation now (or in that tournament) and every change of it; the tournaments it was in
     the roster for; and the player's games with it: picks, winrate, average time, bans against it.
 
     All of it for one game account (split_accounts): the given one (1-based), else the one that played the
-    tournament, else the one used last. A player with several gets the games of the account's tournaments only."""
+    tournament, else the one used last. A player with several gets the games of the account's tournaments only.
+    only: the tournaments of a date range, which snap is limited to; only their rosters count too (the accounts are
+    still told apart over every roster)."""
     versions, chars = _rosters(session, player_id)
     five_stars = set(session.exec(select(Agent.id).where(Agent.rarity == 5)))
     accounts = split_accounts(versions, chars, five_stars)
@@ -102,6 +110,8 @@ def character_roster(
     else:
         number = max(numbers, key=lambda i: max(v.last_seen for v in accounts[i - 1]), default=None)
     versions = accounts[number - 1] if number else []
+    if only is not None:
+        versions = [v for v in versions if v.tournament_id in only]
     account_list = [
         {
             "number": i,

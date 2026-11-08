@@ -335,6 +335,11 @@ def test_player_stats_since_a_date(client, session):
     assert len(since["tournament_list"]) == 2  # the picker still lists everything
     r = client.get("/api/v1/players/A?since=2026-09-01")
     assert r.status_code == 404 and "since" in r.json()["detail"]
+    until = client.get("/api/v1/players/A?until=2026-04-30").json()
+    assert until["matches"] == 1 and len(until["tournament_list"]) == 2
+    r = client.get("/api/v1/players/A?since=2026-04-01&until=2026-04-02")
+    assert r.status_code == 404 and "between" in r.json()["detail"]
+    assert client.get("/api/v1/players/A/characters?until=2026-04-30").status_code == 200
 
     # The comparison carries each side's Elo, like the player page
     compared = client.get("/api/v1/players/A/compare/B")

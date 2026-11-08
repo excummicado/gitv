@@ -51,6 +51,7 @@ RU = {
     "No such player.": "Такого игрока нет.",
     "No games in major tournaments.": "Нет игр в мейджор-турнирах.",
     "No games in tournaments since that date.": "Нет игр в турнирах с этой даты.",
+    "No games in tournaments between those dates.": "Нет игр в турнирах за эти даты.",
     "This player didn't play that tournament.": "Игрок не участвовал в этом турнире.",
     "No roster for this player in that tournament.": "Нет ростера игрока на этом турнире.",
     # Matches of the day
