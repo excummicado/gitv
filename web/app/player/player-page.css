@@ -192,3 +192,9 @@
 .player-elo-tip-row > :last-child { font-variant-numeric: tabular-nums; }
 .player-elo-tip-formula { margin-top: 5px; padding: 5px 8px; background: var(--gitv-surface-2); color: var(--gitv-text); font-variant-numeric: tabular-nums; text-align: center; }
 .player-elo-tip-note { margin-top: 4px; color: var(--gitv-muted); font-size: 11px; }
+.player-since input[type="text"] { width: 92px; font-variant-numeric: tabular-nums; }
+.player-since.invalid input[type="text"] { border-color: var(--gitv-warn); }
+.player-since .player-since-calendar { display: inline-flex; align-items: center; }
+/* The browser's own picker, opened by the calendar button: kept in place (it opens next to it) but not shown */
+.player-since { position: relative; }
+.player-since .player-since-picker { position: absolute; left: 0; bottom: 0; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; pointer-events: none; }

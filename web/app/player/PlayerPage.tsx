@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
 import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
@@ -424,24 +424,90 @@ function TournamentList({ player, playerId }: { player: PlayerDetail; playerId: 
   );
 }
 
+// A date typed as dd.mm.yyyy: digits fill the day, the month and the year in turn and the dots come by themselves;
+// a dot (or a dash, slash or space) typed after a single digit moves on, so "1.6.2024" works too.
+export function maskDate(raw: string): string {
+  const iso = raw.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return `${iso[3]}.${iso[2]}.${iso[1]}`;
+  const parts = ["", "", ""];
+  let i = 0;
+  for (const ch of raw) {
+    if (/\d/.test(ch)) {
+      if (parts[i].length === (i === 2 ? 4 : 2)) {
+        if (i === 2) break;
+        i += 1;
+      }
+      parts[i] += ch;
+    } else if (/[.\-/\s,]/.test(ch) && i < 2 && parts[i]) {
+      parts[i] = parts[i].padStart(2, "0");
+      i += 1;
+    }
+  }
+  // A dot shows once the next part has begun (or one was typed), so Backspace goes through the dots as usual
+  return parts.slice(0, i + 1).join(".");
+}
+
+// dd.mm.yyyy (or a two-digit year, taken as 20yy) as YYYY-MM-DD; null while it isn't a whole real date.
+export function parseDate(text: string, partialYear = false): string | null {
+  const m = text.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})$/);
+  if (!m || (m[3].length === 2 && !partialYear)) return null;
+  const year = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+  const day = new Date(Date.UTC(year, Number(m[2]) - 1, Number(m[1])));
+  if (day.getUTCDate() !== Number(m[1]) || day.getUTCMonth() !== Number(m[2]) - 1 || year < 2000) return null;
+  return day.toISOString().slice(0, 10);
+}
+
+const shown = (day: string) => (day ? day.split("-").reverse().join(".") : "");
+
 // The statistics' date range: "Count from" (tournaments that began on or after this day) and "Count to" (on or
-// before it).
+// before it). Typed by hand as dd.mm.yyyy, applied once the date is whole (or on Enter / leaving the field); the
+// calendar button opens the browser's date picker.
 function DateFilter({ value, onChange, kind, min, max }: { value: string; onChange: (day: string) => void; kind: "since" | "until"; min?: string; max?: string }) {
   const { t } = useLang();
   const today = new Date().toISOString().slice(0, 10);
+  const [draft, setDraft] = useState(shown(value));
+  const [bad, setBad] = useState(false);
+  const picker = useRef<HTMLInputElement>(null);
+  useEffect(() => { setDraft(shown(value)); setBad(false); }, [value]);
   const [label, aria, title] = kind === "since"
-    ? [t("Count from", "Считать с"), t("Count statistics from this date", "Считать статистику с этой даты"),
+    ? [t("Count from", "Считать с"), t("Count statistics from this date, dd.mm.yyyy", "Считать статистику с этой даты, дд.мм.гггг"),
       t("Only tournaments that started on or after this day count", "Учитываются только турниры, начавшиеся с этого дня")]
-    : [t("Count to", "Считать по"), t("Count statistics up to this date", "Считать статистику по эту дату"),
+    : [t("Count to", "Считать по"), t("Count statistics up to this date, dd.mm.yyyy", "Считать статистику по эту дату, дд.мм.гггг"),
       t("Only tournaments that started on or before this day count", "Учитываются только турниры, начавшиеся не позже этого дня")];
+
+  const apply = (day: string) => { if (day !== value) onChange(day); };
+  // On Enter or leaving the field: an empty field clears the date, a whole one applies, anything else goes back.
+  const settle = () => {
+    if (!draft.trim()) return apply("");
+    const day = parseDate(draft, true);
+    if (day) apply(day);
+    else { setDraft(shown(value)); setBad(false); }
+  };
+
   return (
-    <span className={`player-since${value ? " active" : ""}`}>
+    <span className={`player-since${value ? " active" : ""}${bad ? " invalid" : ""}`}>
       <label>
         <span>{label}</span>
-        <input type="date" value={value} min={min || undefined} max={max && max < today ? max : today} aria-label={aria} title={title}
-          onChange={(e) => onChange(e.target.value)} />
+        <input type="text" inputMode="numeric" autoComplete="off" placeholder={t("dd.mm.yyyy", "дд.мм.гггг")} maxLength={10} value={draft}
+          aria-label={aria} title={title} aria-invalid={bad}
+          onChange={(e) => {
+            const next = maskDate(e.target.value);
+            setDraft(next);
+            const whole = next.length === 10;
+            const day = whole ? parseDate(next) : null;
+            setBad(whole && !day);
+            if (day) apply(day);
+          }}
+          onBlur={settle}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); settle(); } }} />
       </label>
-      {value && <button type="button" onClick={() => onChange("")} aria-label={t("Remove this date", "Убрать эту дату")} title={t("Remove", "Убрать")}>×</button>}
+      <button type="button" className="player-since-calendar" aria-label={t("Pick on a calendar", "Выбрать в календаре")} title={t("Calendar", "Календарь")}
+        onClick={() => { const el = picker.current; if (el) { try { el.showPicker(); } catch { el.focus(); } } }}>
+        <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden><path fill="currentColor" d="M4 0h1.5v2h5V0H12v2h2a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h2zm9.5 6h-11v8.5h11zM5 8h2v2H5zm4 0h2v2H9z" /></svg>
+      </button>
+      <input ref={picker} className="player-since-picker" type="date" tabIndex={-1} aria-hidden value={value} min={min || undefined}
+        max={max && max < today ? max : today} onChange={(e) => apply(e.target.value)} />
+      {value && <button type="button" onClick={() => apply("")} aria-label={t("Remove this date", "Убрать эту дату")} title={t("Remove", "Убрать")}>×</button>}
     </span>
   );
 }
