@@ -259,3 +259,37 @@ def test_an_admins_article_is_published_at_once(writer, session):
     files = {"file": ("news.docx", docx([p("Сразу")]), "application/octet-stream")}
     assert admin.post("/api/v1/articles", files=files).json()["approved"] is True
     assert len(TestClient(app).get("/api/v1/articles").json()) == 1
+
+
+def test_an_article_is_edited_on_its_page(writer, session):
+    files = {
+        "file": ("news.docx", docx([p("Заголовок"), p("Первый абзац"), p("Лишняя фраза")]), "application/octet-stream")
+    }
+    post = writer.post("/api/v1/articles", files=files).json()
+    url = f"/api/v1/articles/{post['id']}"
+    body = '<h2 id="x" onclick="evil()">Глава</h2><p>Первый абзац <b>жирно</b></p><p><br></p><script>x</script>'
+    done = writer.patch(url, json={"title": "Новый заголовок", "author": "GITV", "body_html": body}).json()
+    assert (done["title"], done["author"]) == ("Новый заголовок", "GITV")
+    assert done["body_html"] == '<h2 id="ch-1">Глава</h2><p>Первый абзац <b>жирно</b></p>'
+    assert writer.patch(url, json={"body_html": "<p> </p>"}).status_code == 422
+    assert writer.patch(url, json={"body_html_tr": "<p>Text</p>"}).status_code == 422  # no translation to edit
+    other = member(session, "writer2", Role.writer)
+    assert other.patch(url, json={"title": "Чужая"}).status_code == 403  # only its author or an admin
+
+
+def test_a_writers_edit_sends_a_published_article_back_for_approval(writer, session):
+    admin = member(session, "boss", Role.admin)
+    files = {"file": ("news.docx", docx([p("Статья"), p("Текст")]), "application/octet-stream")}
+    post = writer.post("/api/v1/articles", files=files).json()
+    url = f"/api/v1/articles/{post['id']}"
+    admin.post(f"{url}/approve")
+    assert admin.patch(url, json={"title": "Правка админа"}).json()["approved"] is True
+    assert writer.patch(url, json={"title": "Правка автора"}).json()["approved"] is False
+
+
+def test_the_document_is_replaced_with_a_new_version(writer):
+    files = {"file": ("news.docx", docx([p("Статья"), p("Старый текст")]), "application/octet-stream")}
+    post = writer.post("/api/v1/articles", files=files).json()
+    new = {"file": ("v2.docx", docx([p("Статья v2"), p("Новый текст")]), "application/octet-stream")}
+    done = writer.put(f"/api/v1/articles/{post['id']}/document", files=new).json()
+    assert done["title"] == "Статья v2" and "Новый текст" in done["body_html"] and "Старый" not in done["body_html"]

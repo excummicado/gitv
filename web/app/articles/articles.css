@@ -56,3 +56,13 @@
 .news-draft-tag { display: inline-block; margin-right: 8px; padding: 1px 6px; border: 1px solid var(--gitv-accent); border-radius: 4px; color: var(--gitv-accent); font-size: 11px; font-weight: 600; vertical-align: 1px; }
 .news-row.is-draft { background: color-mix(in srgb, var(--gitv-accent) 6%, transparent); }
 .news-approve { padding: 0; border: 0; background: none; color: var(--gitv-accent); font: inherit; font-weight: 600; cursor: pointer; }
+/* Editing an article on its page */
+.news-edit { padding: 0; border: 0; background: none; color: var(--gitv-accent); font: inherit; cursor: pointer; text-decoration: none; }
+.news-edit:hover { text-decoration: underline; }
+.news-editor { display: grid; gap: 12px; }
+.news-editor-title { font-size: 16px; font-weight: 600; }
+.news-toolbar { position: sticky; top: 0; z-index: 1; display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; border: 1px solid var(--gitv-border); border-radius: 6px; background: var(--gitv-surface, var(--gitv-bg)); }
+.news-tool { min-width: 32px; height: 28px; padding: 0 8px; border: 1px solid var(--gitv-border); border-radius: 4px; background: none; color: var(--gitv-text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.news-tool:hover { border-color: var(--gitv-accent); color: var(--gitv-accent); }
+.news-editable { min-height: 240px; padding: 12px; border: 1px solid var(--gitv-border); border-radius: 6px; outline: none; }
+.news-editable:focus { border-color: var(--gitv-accent); }

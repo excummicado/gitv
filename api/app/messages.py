@@ -63,6 +63,10 @@ RU = {
     "No such article.": "Такой статьи нет.",
     "No such news.": "Такой новости нет.",
     "Write the news first.": "Сначала напишите новость.",
+    "Only its author or an admin can change it.": "Изменить может только автор или админ.",
+    "The article is empty.": "Статья пустая.",
+    "The document is empty.": "Документ пустой.",
+    "It has no translation.": "У статьи нет перевода.",
 }
 
 # Messages with numbers or dates in them.

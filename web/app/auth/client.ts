@@ -138,7 +138,7 @@ async function adminRequest(method: "POST" | "PUT" | "DELETE", path: string, bod
 
 // A request as the signed-in member: JSON or FormData body, the API's error message on failure,
 // and a local sign-out when the sign-in is no longer accepted. Returns null for an empty (204) response.
-export async function authRequest<T>(method: "GET" | "POST" | "PUT" | "DELETE", path: string, body?: unknown): Promise<T> {
+export async function authRequest<T>(method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE", path: string, body?: unknown): Promise<T> {
   if (!readStored()) throw new ApiError(tr(["Sign in first.", "Сначала войдите."]), 401);
   const headers: Record<string, string> = { ...AUTH_HEADER };
   if (body !== undefined && !(body instanceof FormData)) headers["Content-Type"] = "application/json";

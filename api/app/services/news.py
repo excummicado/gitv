@@ -153,6 +153,15 @@ def docx_to_html(doc: BinaryIO) -> tuple[str, str, list[str]]:
     return title[:200], body.strip(), [p for p in saved if p in used]
 
 
+def edited_html(body: str) -> str:
+    """A body edited on the article's page, cleaned like an imported one: the same tags, links and own pictures only,
+    and its headings given anchors again."""
+    body = clean(body)
+    body = re.sub(r"<img(?![^>]*\bsrc=)[^>]*>", "", body)
+    body = re.sub(r"<(p|h[1-6]|li|blockquote)>(\s|&nbsp;|<br\s*/?>)*</\1>", "", body)  # emptied by the editing
+    return chapters(body).strip()
+
+
 def language(body: str) -> str:
     """ "ru" when most of the letters are Cyrillic, else "en"."""
     text = re.sub(r"<[^>]+>", " ", body)

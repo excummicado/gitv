@@ -66,6 +66,22 @@ export async function reportRead(id: number): Promise<number | null> {
   }
 }
 
+// Edits made on the article's page; fields left out stay. author "" goes back to whoever imported it. Anyone but an
+// admin editing a published article sends it back for approval.
+export type ArticleEdit = { title?: string; author?: string; body_html?: string; title_tr?: string; body_html_tr?: string };
+
+export function editArticle(id: number, edit: ArticleEdit) {
+  return authRequest<Article>("PATCH", `/articles/${id}`, edit);
+}
+
+// A new version of the article's document (a .docx file or a Google Docs link) in place of its text.
+export function replaceDocument(id: number, input: { file?: File; googleUrl?: string }) {
+  const form = new FormData();
+  if (input.file) form.append("file", input.file);
+  if (input.googleUrl) form.append("google_url", input.googleUrl);
+  return authRequest<Article>("PUT", `/articles/${id}/document`, form);
+}
+
 // An admin publishes a draft (dated now).
 export function approveArticle(id: number) {
   return authRequest<Article>("POST", `/articles/${id}/approve`);

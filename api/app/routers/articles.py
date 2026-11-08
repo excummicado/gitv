@@ -5,7 +5,8 @@ admin changes or removes it, with its pictures. Nothing is added automatically.
 
 An article imported by anyone but an admin (or from the command line) is a draft until an admin approves it: only
 admins and whoever imported it see it, on the list (with drafts=true) and on its page; approving it publishes it
-dated then.
+dated then. Its author or an admin edits it on its page (its text in the browser, or a new version of the document);
+an edit by anyone but an admin sends a published article back for approval.
 
 Each article counts its reads: the page reports one when a reader has had it open for READ_SECONDS (count_read).
 A browser reports an article once, and the same address counts once per article per READ_WINDOW; the addresses
@@ -16,7 +17,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlmodel import select
 
 from ..database import RowId, SessionDep
@@ -29,6 +30,7 @@ from ..services.news import (
     brief,
     delete_pictures,
     docx_to_html,
+    edited_html,
     fetch_google_doc,
     language,
     picture_files,
@@ -227,6 +229,85 @@ def delete_news(news_id: RowId, session: SessionDep, user: Annotated[User, Depen
     session.delete(row)
     session.commit()
     delete_pictures(list(dict.fromkeys(picture_files(row.body_html) + picture_files(row.body_html_tr or ""))))
+
+
+MAX_BODY = 2_000_000  # characters of an edited body's HTML
+
+
+class NewsEdit(BaseModel):
+    """Fields changed on the article's page; those left out stay. A body is HTML, cleaned like an imported one."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    author: str | None = Field(default=None, max_length=100)  # "" goes back to whoever imported it
+    body_html: str | None = Field(default=None, max_length=MAX_BODY)
+    title_tr: str | None = Field(default=None, min_length=1, max_length=200)
+    body_html_tr: str | None = Field(default=None, max_length=MAX_BODY)
+
+
+def back_to_review(row: NewsPost, user: User) -> None:
+    """A published article changed by anyone but an admin waits for an admin's approval again."""
+    if not user.role.is_staff:
+        row.approved_at = row.approved_by = None
+
+
+@router.patch("/{news_id}", response_model=NewsOut)
+def edit_news(
+    news_id: RowId, edit: NewsEdit, session: SessionDep, user: Annotated[User, Depends(get_current_news_writer)]
+):
+    """Its author or an admin edits the article on its page: title, author shown, text, and its translation's."""
+    row = editable(session, news_id, user)
+    old = [row.body_html, row.body_html_tr or ""]
+    if edit.title is not None:
+        row.title = edit.title.strip() or row.title
+    if edit.author is not None:
+        row.author_name = edit.author.strip() or None
+    if edit.body_html is not None:
+        body = edited_html(edit.body_html)
+        if not body:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="The article is empty.")
+        row.body_html = body
+    if edit.title_tr is not None or edit.body_html_tr is not None:
+        if row.body_html_tr is None:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="It has no translation.")
+        if edit.title_tr is not None:
+            row.title_tr = edit.title_tr.strip() or row.title_tr
+        if edit.body_html_tr is not None:
+            row.body_html_tr = edited_html(edit.body_html_tr) or row.body_html_tr
+    back_to_review(row, user)
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    delete_pictures([p for o in old for p in unused_pictures(o, row.body_html, row.body_html_tr or "")])
+    return out(session, [row])[0]
+
+
+@router.put(
+    "/{news_id}/document",
+    response_model=NewsOut,
+    dependencies=[Depends(rate_limit("news", 20, 3600, per="user"))],
+)
+def replace_document(  # not async, as add_news
+    news_id: RowId,
+    session: SessionDep,
+    user: Annotated[User, Depends(get_current_news_writer)],
+    file: Annotated[UploadFile | None, File(description="A Word document (.docx)")] = None,
+    google_url: Annotated[str | None, Form(max_length=300)] = None,
+):
+    """Replaces the article's text with a new version of its document (a .docx file or a Google document link); the
+    title stays unless the document's first heading or line differs from it."""
+    row = editable(session, news_id, user)
+    source, found, body, pictures = read_document(file, google_url)
+    if not body:
+        delete_pictures(pictures)
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="The document is empty.")
+    old = row.body_html
+    row.title, row.body_html, row.source = found or row.title, body, source
+    back_to_review(row, user)
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    delete_pictures(unused_pictures(old, row.body_html, row.body_html_tr or ""))
+    return out(session, [row])[0]
 
 
 @router.put(

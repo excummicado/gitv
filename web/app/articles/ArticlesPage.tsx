@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useParams, useSearchParams } from "react-router";
 import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
 import { useAuth } from "../auth/useCurrentUser";
 import { STAFF_ROLES } from "../auth/client";
 import { useLang } from "../i18n";
-import { approveArticle, deleteArticle, deleteTranslation, excerpt, importArticle, inLang, listArticles, NEWS_WRITER_ROLES, READ_SECONDS, readArticle, reportRead, setTranslation, type Article } from "./api";
+import { approveArticle, deleteArticle, deleteTranslation, editArticle, replaceDocument, excerpt, importArticle, inLang, listArticles, NEWS_WRITER_ROLES, READ_SECONDS, readArticle, reportRead, setTranslation, type Article } from "./api";
 import "./articles.css";
 
 function Frame({ children }: { children: React.ReactNode }) {
@@ -108,6 +108,112 @@ function TranslationForm({ post, onDone }: { post: Article; onDone: (post: Artic
   );
 }
 
+// Formatting buttons over the editable text; each acts on the selection (mousedown keeps it from being lost).
+const TOOLS: { label: string; title: [string, string]; run: () => void }[] = [
+  { label: "Ж", title: ["Bold", "Жирный"], run: () => document.execCommand("bold") },
+  { label: "К", title: ["Italic", "Курсив"], run: () => document.execCommand("italic") },
+  { label: "H2", title: ["Chapter heading", "Заголовок главы"], run: () => document.execCommand("formatBlock", false, "h2") },
+  { label: "H3", title: ["Subheading", "Подзаголовок"], run: () => document.execCommand("formatBlock", false, "h3") },
+  { label: "¶", title: ["Plain paragraph", "Обычный абзац"], run: () => document.execCommand("formatBlock", false, "p") },
+  { label: "•", title: ["Bulleted list", "Маркированный список"], run: () => document.execCommand("insertUnorderedList") },
+  { label: "1.", title: ["Numbered list", "Нумерованный список"], run: () => document.execCommand("insertOrderedList") },
+  { label: "🔗", title: ["Link", "Ссылка"], run: () => { const url = window.prompt("https://…"); if (url) document.execCommand("createLink", false, url); } },
+  { label: "⌫", title: ["Clear formatting", "Убрать оформление"], run: () => { document.execCommand("removeFormat"); document.execCommand("unlink"); } },
+];
+
+// Editing the article on its page: the title, the author shown and the text (the version being read: the original or
+// its translation), formatted with TOOLS; or a new version of its document in place of the text.
+function ArticleEditor({ post, translated, staff, onSaved, onCancel }: { post: Article; translated: boolean; staff: boolean; onSaved: (post: Article) => void; onCancel: () => void }) {
+  const { t } = useLang();
+  const [title, setTitle] = useState(translated ? post.title_tr ?? post.title : post.title);
+  const [author, setAuthor] = useState(post.author === post.imported_by ? "" : post.author);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [googleUrl, setGoogleUrl] = useState("");
+  const body = useRef<HTMLDivElement>(null);
+  const initial = translated ? post.body_html_tr ?? "" : post.body_html;
+  useEffect(() => { if (body.current) body.current.innerHTML = initial; }, []);
+  const review = !staff && post.approved;
+
+  async function save() {
+    if (!title.trim()) return setMessage(t("Give it a title.", "Укажите заголовок."));
+    if (review && !window.confirm(t("After saving, the article goes back for an admin's approval and is hidden until then. Save?", "После сохранения статья снова уйдёт на одобрение и до него будет скрыта. Сохранить?"))) return;
+    setSaving(true);
+    setMessage("");
+    try {
+      const html = body.current?.innerHTML ?? initial;
+      onSaved(await editArticle(post.id, translated
+        ? { title_tr: title.trim(), body_html_tr: html }
+        : { title: title.trim(), author: author.trim(), body_html: html }));
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : t("Couldn't save it.", "Не удалось сохранить."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function replace() {
+    if (!file === !googleUrl.trim()) return setMessage(t("A .docx file or a Google Docs link, one of the two.", "Файл .docx или ссылка на Google Документ, что-то одно."));
+    if (!window.confirm(t("Replace the article's text with this document?", "Заменить текст статьи этим документом?"))) return;
+    setSaving(true);
+    setMessage("");
+    try {
+      onSaved(await replaceDocument(post.id, { file: file ?? undefined, googleUrl: googleUrl.trim() || undefined }));
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : t("Couldn't replace it.", "Не удалось заменить."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="news-editor">
+      <label className="news-field">
+        <span className="player-label">{translated ? t("Translation's title", "Заголовок перевода") : t("Title", "Заголовок")}</span>
+        <input className="match-input news-editor-title" value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} />
+      </label>
+      {!translated && (
+        <label className="news-field">
+          <span className="player-label">{t("Author", "Автор")}</span>
+          <input className="match-input" value={author} maxLength={100} placeholder={post.imported_by} onChange={(e) => setAuthor(e.target.value)} />
+        </label>
+      )}
+      <div className="news-toolbar" role="toolbar" aria-label={t("Formatting", "Оформление")}>
+        {TOOLS.map((tool) => (
+          <button key={tool.label} type="button" className="news-tool" title={t(...tool.title)} aria-label={t(...tool.title)}
+            onMouseDown={(e) => { e.preventDefault(); tool.run(); }}>{tool.label}</button>
+        ))}
+      </div>
+      <div ref={body} className="news-body news-editable" contentEditable suppressContentEditableWarning role="textbox" aria-multiline="true" aria-label={t("Article text", "Текст статьи")} />
+      {review && <p className="news-hint">{t("Saving sends the article back for an admin's approval.", "После сохранения статья снова уйдёт на одобрение админу.")}</p>}
+      <div className="news-actions">
+        <button type="button" className="suggest-button" onClick={save} disabled={saving}>{saving ? t("Saving…", "Сохранение…") : t("Save", "Сохранить")}</button>
+        <button type="button" className="news-switch" onClick={onCancel} disabled={saving}>{t("Cancel", "Отмена")}</button>
+        {message && <span className="suggest-error" role="status">{message}</span>}
+      </div>
+      {!translated && (
+        <details className="news-tr-box">
+          <summary className="player-label">{t("Replace with a new version of the document", "Заменить новой версией документа")}</summary>
+          <div className="news-form">
+            <label className="news-field">
+              <span className="player-label">{t("Word document (.docx)", "Документ Word (.docx)")}</span>
+              <input className="match-input" type="file" accept=".docx" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            </label>
+            <label className="news-field">
+              <span className="player-label">{t("or a Google Docs link", "или ссылка на Google Документ")}</span>
+              <input className="match-input" type="url" value={googleUrl} maxLength={300} placeholder="https://docs.google.com/document/d/…" onChange={(e) => setGoogleUrl(e.target.value)} />
+            </label>
+            <div className="news-actions">
+              <button type="button" className="suggest-button" onClick={replace} disabled={saving}>{t("Replace the text", "Заменить текст")}</button>
+            </div>
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
 // One article. Its body is HTML the API cleaned (only text formatting, links and pictures); a long one, with
 // chapters, gets a chapter list beside it (above it on a phone).
 // Counts the article as read once it has been open READ_SECONDS with its tab in view (time in a hidden tab doesn't
@@ -147,6 +253,9 @@ export function ArticlePage() {
   const shown = post ? (original ? { title: post.title, body: post.body_html, translated: false } : inLang(post, lang)) : null;
   const [error, setError] = useState("");
   const [approving, setApproving] = useState(false);
+  const [params, setParams] = useSearchParams();
+  const editing = canEdit && params.has("edit");
+  const setEditing = (on: boolean) => setParams((p) => { if (on) p.set("edit", "1"); else p.delete("edit"); return p; }, { replace: true });
   const staff = Boolean(user && STAFF_ROLES.includes(user.role));
   async function approve() {
     if (!post) return;
@@ -216,8 +325,15 @@ export function ArticlePage() {
                   {staff && <button type="button" className="suggest-button" onClick={approve} disabled={approving}>{approving ? "…" : t("Approve and publish", "Одобрить и опубликовать")}</button>}
                 </p>
               )}
+              {editing ? (
+                <ArticleEditor post={post} translated={shown!.translated} staff={staff}
+                  onSaved={(p) => { setPost(p); setEditing(false); }} onCancel={() => setEditing(false)} />
+              ) : (<>
               <h1 className="news-title">{shown!.title}</h1>
-              <p className="player-label news-meta">{date(post.created_at)} · {post.author} · <Reads count={post.reads} /></p>
+              <p className="player-label news-meta">
+                {date(post.created_at)} · {post.author}{post.approved && <> · <Reads count={post.reads} /></>}
+                {canEdit && <> · <button type="button" className="news-edit" onClick={() => setEditing(true)}>{t("Edit", "Редактировать")}</button></>}
+              </p>
               {post.body_html_tr != null && post.lang !== lang && (
                 <p className="news-translation">
                   {original
@@ -228,6 +344,7 @@ export function ArticlePage() {
               <div className="news-body" ref={body} dangerouslySetInnerHTML={{ __html: shown!.body }} />
               <p className="news-foot"><Link to="/articles" className="gitv-row-link">{t("All articles", "Все статьи")}</Link></p>
               {canEdit && <TranslationForm post={post} onDone={(p) => { setPost(p); setOriginal(false); }} />}
+              </>)}
             </article>
           </div>
         )}
@@ -344,7 +461,8 @@ export function ArticlesListPage() {
                   <> · <button type="button" className="news-approve" onClick={() => approve(p)}>{t("Approve", "Одобрить")}</button></>
                 )}
                 {(staff || (user && p.imported_by === user.nickname)) && (
-                  <> · <button type="button" className="news-remove" onClick={() => remove(p)}>{t("Remove", "Удалить")}</button></>
+                  <> · <Link to={`/articles/${p.id}?edit=1`} className="news-edit">{t("Edit", "Редактировать")}</Link>
+                    {" · "}<button type="button" className="news-remove" onClick={() => remove(p)}>{t("Remove", "Удалить")}</button></>
                 )}
               </span>
             </div>
