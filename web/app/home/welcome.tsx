@@ -308,7 +308,7 @@ function TodaysMatches() {
         <Fragment key={stream.url}>
           <div className="gitv-row gitv-stream">
             <a href={stream.url} target="_blank" rel="noreferrer" className="gitv-row-link gitv-stream-link" title={stream.title ?? undefined}>
-              {stream.live && <b className="gitv-badge gitv-stream-live">{t("Live", "В эфире")}</b>}
+              {stream.live && <b className="gitv-badge gitv-stream-live">{t("Live", "Лайв")}</b>}
               <span>{stream.name} · Twitch · {stream.url.replace(/^https?:\/\/(www\.)?(twitch\.tv\/)?/, "")}</span>
             </a>
             {stream.live && stream.title && <small className="gitv-stream-title">{stream.title}</small>}
