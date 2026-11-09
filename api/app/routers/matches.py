@@ -312,6 +312,10 @@ class ScoredMatch:
         ]
 
 
+# score_match's default for the winner set by hand: the snapshot's
+FROM_SNAPSHOT = object()
+
+
 def score_match(
     m: Match,
     drafts: list[MatchDraft],
@@ -319,10 +323,13 @@ def score_match(
     rooms: dict[tuple[str, int], tuple[int, int, int]],
     merged: dict[str, str],
     snap: Snapshot,
+    by_hand: str | None | object = FROM_SNAPSHOT,
 ) -> ScoredMatch:
     """Scores a match from its drafts (in game order), players and room times by (draft, slot), by the shared rule
     (match_checks.match_outcome): a winner set by hand first, then Challonge, then a running tournament's wait for
-    its bracket, then technical defeats, then total time."""
+    its bracket, then technical defeats, then total time. by_hand: the winner set by hand as read from the database
+    (a merged account as the one it's merged into), for a page that must show it before the snapshot has it; the
+    snapshot's by default."""
     paid = json.loads(m.paid_restarts or "[]")
 
     def adj(p: MatchPlayer) -> int:
@@ -353,10 +360,13 @@ def score_match(
                 totals[i] += adj(p)
         games.append((d, dp, tech, results))
 
-    known = snap.outcomes.get(m.id)
-    challonge = side_of.get(known.winner) if known and known.source == "challonge" else None
-    by_hand = side_of.get(known.winner) if known and known.source == "manual" else None
-    outcome = match_outcome(side_games, challonge, by_hand, **waiting(snap.live, snap.challonge, m.tournament_id))
+    if by_hand is FROM_SNAPSHOT:
+        known = snap.outcomes.get(m.id)
+        by_hand = known.winner if known and known.source == "manual" else None
+    challonge = side_of.get(snap.challonge_winners.get(m.id))
+    outcome = match_outcome(
+        side_games, challonge, side_of.get(by_hand), **waiting(snap.live, snap.challonge, m.tournament_id)
+    )
     # Totals mean something only when every game has a time and nobody took a technical defeat.
     if outcome.technical or any(g.result == NO_RESULT for g in side_games) or len(side_of) != 2:
         totals = [None] * len(first)
@@ -750,7 +760,9 @@ def match_detail(session: SessionDep, m: Match, snap: Snapshot | None = None) ->
     names = display_names(session)
     room_lists = {d.id: rooms_of(states.get(d.id)) for d in drafts}
     rooms = {(d, slot): tuple(times) for d, by_slot in room_lists.items() for slot, times in by_slot.items()}
-    scored = score_match(m, drafts, players, rooms, merged, snap or snapshot(session))
+    set_by = session.get(MatchWinner, m.id)
+    by_hand = merged.get(set_by.player_id, set_by.player_id) if set_by else None
+    scored = score_match(m, drafts, players, rooms, merged, snap or snapshot(session), by_hand)
     sides = scored.sides(names, merged)
 
     editable = manual_results.editable_drafts(session, m.id)
@@ -829,7 +841,7 @@ def match_detail(session: SessionDep, m: Match, snap: Snapshot | None = None) ->
         winner=scored.winner,
         technical=scored.outcome.technical,
         result_source=scored.outcome.source if scored.outcome.decided else None,
-        winner_set_by=site_setter(session.get(MatchWinner, m.id)),
+        winner_set_by=site_setter(set_by),
         operator=(op := tournament_operator(session, m.tournament_id)) and op.value,
         games=games,
         abyss_phase=phase_on(session, m.created_at.date()),
@@ -861,9 +873,12 @@ class WinnerIn(BaseModel):
 
 
 def fresh_detail(session: SessionDep, m: Match) -> MatchDetail:
-    """The match as it is now: the statistics are rebuilt with the change (otherwise the page would get the ones
-    from before while they're rebuilt in the background)."""
-    return match_detail(session, m, snapshot(session, fresh=True))
+    """The match as it is now, right after a change to it. match_detail reads the match's games and its winner set by
+    hand from the database, and the rest (its Challonge result, whether its tournament runs) doesn't change with an
+    edit here, so the snapshot at hand will do. Asking for it starts a rebuild with the change in the background,
+    which the rest of the site shows once ready. A build here (fresh=True) took seconds, and every request needing
+    statistics waited for it on the snapshot's lock."""
+    return match_detail(session, m)
 
 
 def editable_match(session: SessionDep, match_id: str, editor: User) -> Match:

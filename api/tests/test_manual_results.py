@@ -126,6 +126,31 @@ def test_winner_of_a_technical_defeat_can_be_set_and_removed(session, client):
     assert match["winner"] == 0 and match["result_source"] == "technical"
 
 
+def test_winner_set_by_hand_shows_without_waiting_for_the_statistics(session, client, monkeypatch):
+    """In the API the statistics are rebuilt in the background: the answer to setting a winner doesn't wait for that
+    (it took seconds, holding every other request), yet already shows the new winner."""
+    import importlib
+
+    snapshots = importlib.import_module("app.services.stats.snapshot")
+    setup(session)
+    sign_in(Role.event_organizer)
+    assert client.get(f"/api/v1/matches/{MATCH}").json()["winner"] == 0  # the snapshot from before
+    built = snapshots._cache["all:"]
+    started = []
+
+    def build_in_background(engine, key):
+        started.append(key)
+        snapshots._building_behind.release()
+
+    monkeypatch.setattr(snapshots, "_build_behind", True)
+    monkeypatch.setattr(snapshots, "_build_in_background", build_in_background)
+    match = client.put(f"/api/v1/matches/{MATCH}/winner", json={"side": 1}).json()
+    assert match["winner"] == 1 and match["result_source"] == "manual"
+    assert snapshots._cache["all:"] is built and len(started) == 1  # the rebuild left to the background
+    match = client.delete(f"/api/v1/matches/{MATCH}/winner").json()
+    assert match["winner"] == 0 and match["result_source"] == "technical"
+
+
 def by_operator(session, organizer_id="hoth-account", alias="House of the Hearth"):
     from app.models import OrganizerAlias, TournamentInfo
 

@@ -106,6 +106,8 @@ class Snapshot:
     match_tournament: dict[str, str]  # match id -> tournament id
     match_sides: dict[str, dict[str, int]]  # match id -> {player id: games won}
     outcomes: dict[str, MatchOutcome] = field(default_factory=dict)  # match id -> who won it and how it's known
+    # match id -> its winner on the Challonge bracket, even where a winner set by hand overrides it in outcomes
+    challonge_winners: dict[str, str] = field(default_factory=dict)
     # tournament id -> results from its Challonge bracket
     challonge: dict[str, ChallongeResult] = field(default_factory=dict)
     # tournament id -> winner set by hand, for finals without a result
@@ -281,11 +283,17 @@ def snapshot(
 
 def _build_in_background(engine, key: tuple) -> None:
     try:
-        with Session(engine) as session:
-            built = build(session, key)
-        with _lock:
-            _cache.clear()
-            _cache["all:"] = built
+        # Data written during a build has no build of its own to wait for (only one runs at a time): build again.
+        while True:
+            with Session(engine) as session:
+                built = build(session, key)
+                latest = data_key(session)
+            with _lock:
+                _cache.clear()
+                _cache["all:"] = built
+            if latest == key:
+                break
+            key = latest
     except Exception:  # noqa: BLE001 - the snapshot at hand keeps answering, and the next request tries again
         log.exception("building the statistics failed")
     finally:
@@ -337,6 +345,7 @@ def restrict(base: Snapshot, only: set[str]) -> Snapshot:
         match_tournament=base.match_tournament,
         match_sides={m: s for m, s in base.match_sides.items() if m in kept},
         outcomes={m: o for m, o in base.outcomes.items() if m in kept},
+        challonge_winners={m: w for m, w in base.challonge_winners.items() if m in kept},
         challonge={t: c for t, c in base.challonge.items() if t in only},
         set_winners={t: w for t, w in base.set_winners.items() if t in only},
         challonge_only={t: c for t, c in base.challonge_only.items() if t in only},
@@ -573,6 +582,7 @@ def build(session: Session, key: tuple, only: set[str] | None = None) -> Snapsho
         match_sides=match_sides,
         match_tournament=match_tournament,
         outcomes=outcomes,
+        challonge_winners=challonge_winners,
         challonge=challonge,
         set_winners=dict(session.exec(select(TournamentWinner.tournament_id, TournamentWinner.player_id)).all()),
         challonge_only=only_rows,
