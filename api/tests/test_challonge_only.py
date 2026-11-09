@@ -5,8 +5,17 @@ import json
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from sqlmodel import select
 
-from app.models import Agent, ChallongeBracket, ChallongeTournament, Tournament, TournamentInfo
+from app.models import (
+    Agent,
+    ChallongeBracket,
+    ChallongeTournament,
+    DraftState,
+    MatchDraft,
+    Tournament,
+    TournamentInfo,
+)
 from app.services.challonge import bracket_from_store
 from app.services.challonge_check import find_issues
 from app.services.challonge_import import estimate_date, slug_of
@@ -349,6 +358,37 @@ def test_a_running_tournaments_match_waits_for_its_bracket(world):
     world.s.add(bracket)
     snap = world.snap()
     assert (snap.outcomes[mid].winner, snap.outcomes[mid].source) == ("B", "challonge")
+
+
+def test_a_running_tournaments_match_with_every_timer_filled_has_its_result_at_once(world):
+    """No doubt left when both players entered every room of every game: no waiting for the bracket."""
+    tid = world.tournament("Abyss Fast Soup 96")
+    url = "https://challonge.com/soup96"
+    world.s.add(TournamentInfo(tournament_id=tid, is_finished=False, challonge_url=url))
+    raw = store([m(1, "A", "B"), m(1, "C", "D"), m(1, "E", "F"), m(2, None, None)], state="underway")
+    world.s.add(ChallongeBracket(tournament_id=tid, url=url, raw=json.dumps(raw), fetched_at=datetime.now(UTC)))
+
+    def rooms(mid, *games):
+        """games: (rooms of slot 0, rooms of slot 1) per game, in order."""
+        world.s.flush()
+        drafts = world.s.exec(select(MatchDraft).where(MatchDraft.match_id == mid).order_by(MatchDraft.game_no)).all()
+        for d, game in zip(drafts, games, strict=True):
+            players = [{f"clearTimeRoom{i + 1}": t for i, t in enumerate(r)} for r in game]
+            world.s.add(
+                DraftState(draft_id=d.id, match_id=mid, status="FINISHED", raw=json.dumps({"players": players}))
+            )
+
+    timed = world.play(tid, "A", "B", (100, 120), (100, 120))
+    rooms(timed, ((30, 30, 40), (40, 40, 40)), ((30, 30, 40), (40, 40, 40)))
+    tech = world.play(tid, "C", "D", (100, 120), (100, 900))
+    rooms(tech, ((30, 30, 40), (40, 40, 40)), ((30, 30, 40), (300, 300, 300)))
+    gap = world.play(tid, "E", "F", (100, 120), (100, 40))
+    rooms(gap, ((30, 30, 40), (40, 40, 40)), ((30, 30, 40), (40, 0, 0)))
+    snap = world.snap()
+    assert tid in snap.live
+    assert (snap.outcomes[timed].winner, snap.outcomes[timed].source) == ("A", "time")
+    assert (snap.outcomes[tech].winner, snap.outcomes[tech].source) == ("C", "technical")
+    assert not snap.outcomes[gap].decided  # a room left empty: waits for the bracket
 
 
 def test_a_bracket_shared_by_site_tournaments_or_their_own_group_stage_is_not_added(world):

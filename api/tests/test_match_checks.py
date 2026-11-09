@@ -11,6 +11,7 @@ from app.services.match_checks import (
     room_status,
     technical_game,
     technical_loser,
+    timers_filled,
 )
 
 
@@ -204,6 +205,29 @@ class TestMatchOutcome:
         assert (o.decided, o.technical) == (False, True)
         o = match_outcome(self.games(("a", "W", False, 100), ("b", "L", False, 120)), holding_technical=True)
         assert (o.winner, o.source) == ("a", "time")
+
+    def test_every_timer_filled_decides_a_running_tournaments_match_at_once(self):
+        filled = self.games(("a", "W", False, 100, True), ("b", "L", False, 120, True))
+        o = match_outcome(filled, awaiting_bracket=True)
+        assert (o.winner, o.source) == ("a", "time")
+        # A technical defeat too, when its player entered 300 s to the end and the other their times
+        tech = self.games(("a", "W", False, 100, True), ("b", "L", True, 900, True))
+        o = match_outcome(tech, holding_technical=True)
+        assert (o.winner, o.source) == ("a", "technical")
+        o = match_outcome(tech, awaiting_bracket=True)
+        assert (o.winner, o.source) == ("a", "technical")
+        # One timer left empty anywhere in the match: it waits as before
+        part = self.games(("a", "W", False, 100, True), ("b", "L", True, 300, False))
+        assert not match_outcome(part, awaiting_bracket=True).decided
+        assert not match_outcome(part, holding_technical=True).decided
+
+    def test_timers_filled(self):
+        assert timers_filled((80, 90, 100), 270)
+        assert timers_filled((80, 300, 300), 680)  # given up in room 2: entered to the end
+        assert not timers_filled((80, 0, 0), 80)
+        assert not timers_filled((0, 0, 0), 0)
+        assert not timers_filled((80, 90, 100), 0)
+        assert not timers_filled(None, 270)  # no socket data: can't be seen
 
     def test_winner_set_by_hand_not_in_the_match_is_ignored(self):
         o = match_outcome(self.games(("a", "W", False, 100), ("b", "L", False, 120)), set_winner="z")

@@ -128,6 +128,13 @@ def has_result(clear_time: int) -> bool:
     return clear_time > 0
 
 
+def timers_filled(rooms: tuple[int, ...] | None, clear_time: int) -> bool:
+    """Whether a player entered every timer of a game: a total and a time for every room (300 for a room given up
+    counts). Without the socket data (rooms None) that can't be seen, so it counts as not. Such a game leaves no
+    doubt, so a running tournament's match made only of them gets its result at once (match_outcome, rule 3)."""
+    return rooms is not None and has_result(clear_time) and all(t > 0 for t in rooms)
+
+
 def room_times(session: Session, draft_ids: list[str] | None = None) -> dict[tuple[str, int], tuple[int, ...]]:
     """{(draft id, slot): (room 1, room 2, room 3)} from the stored socket data, for every draft or only the given
     ones; 0 where a room is missing. A game played on fewer rooms (roomCount in its data, e.g. old tournaments
@@ -222,12 +229,17 @@ def technical_loser(
     return None, None
 
 
-def technical_drafts(session: Session, players: list[MatchPlayer] | None = None) -> dict[str, TechnicalGame]:
-    """Games that look unfinished after a technical defeat, with who took it.
+def technical_drafts(
+    session: Session,
+    players: list[MatchPlayer] | None = None,
+    rooms: dict[tuple[str, int], tuple[int, ...]] | None = None,
+) -> dict[str, TechnicalGame]:
+    """Games that look unfinished after a technical defeat, with who took it. rooms: room_times, when read already.
 
     Only drafts with socket data can be checked; run fetch-draft-actions first.
     """
-    rooms = room_times(session)
+    if rooms is None:
+        rooms = room_times(session)
     if players is None:
         players = list(session.exec(select(MatchPlayer)))
     by_draft: dict[str, list[MatchPlayer]] = defaultdict(list)
@@ -289,6 +301,7 @@ class SideGame(NamedTuple):
     result: str  # W, L, D or NO_RESULT, from game_results
     tech_loss: bool  # took the technical defeat in this game
     adjusted: int  # adjusted time
+    filled: bool = False  # entered every timer of the game (timers_filled); unknown counts as not
 
 
 @dataclass
@@ -313,7 +326,9 @@ def match_outcome(
     2. The match's result on the tournament's Challonge bracket (see services.challonge), when there is one.
     3. A running tournament's match isn't over until its bracket says so: awaiting_bracket (the tournament has a
        bracket) leaves it without a result, and holding_technical (it has none) does the same to a technical defeat.
-       Players enter their times after a game is marked finished, so a missing time is often only a late one.
+       Players enter their times after a game is marked finished, so a missing time is often only a late one. But
+       when both players filled in every timer of every game (SideGame.filled), there's no doubt left: the match
+       gets its result at once by the rules below, a technical defeat included.
     4. A technical defeat in any game loses the match; no result if both players took one.
     5. Otherwise the lower total adjusted time wins, once every game has a result; equal totals are a draw.
     """
@@ -325,7 +340,8 @@ def match_outcome(
         return MatchOutcome(set_winner, True, bool(tech), "manual")
     if challonge_winner is not None and challonge_winner in sides:
         return MatchOutcome(challonge_winner, True, bool(tech), "challonge")
-    if awaiting_bracket or holding_technical and tech:
+    filled = all(g.filled for g in games)
+    if not filled and (awaiting_bracket or holding_technical and tech):
         return MatchOutcome(None, False, bool(tech), None)
     if tech:
         if len(tech) == 1:

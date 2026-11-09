@@ -46,6 +46,7 @@ from ..services.match_checks import (
     room_times,
     technical_game,
     tidy_title,
+    timers_filled,
 )
 from ..services.organizers import can_run_tournament, organizer_resolver, tournament_operator
 from ..services.player_names import display_names, merges, player_key, shown_name
@@ -353,7 +354,13 @@ def score_match(
             i = side_of.get(key(p))
             # A player who isn't one of the first game's two: the match can't be scored.
             side_games.append(
-                SideGame(i if i is not None else key(p), r, bool(tech and tech.loser_slot == p.slot), adj(p))
+                SideGame(
+                    i if i is not None else key(p),
+                    r,
+                    bool(tech and tech.loser_slot == p.slot),
+                    adj(p),
+                    timers_filled(rooms.get((d.id, p.slot)), p.clear_time),
+                )
             )
             if i is not None:
                 won[i] += r == "W"

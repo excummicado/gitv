@@ -53,7 +53,9 @@ from ..match_checks import (
     adjusted_time,
     game_results,
     match_outcome,
+    room_times,
     technical_drafts,
+    timers_filled,
 )
 from ..player_names import display_names, merges, name_overrides, player_key
 
@@ -403,7 +405,8 @@ def build(session: Session, key: tuple, only: set[str] | None = None) -> Snapsho
     }
     drafts = {d.id: d for d in session.exec(select(MatchDraft))}
     players = list(session.exec(select(MatchPlayer)))
-    technical = technical_drafts(session, players)
+    rooms = room_times(session)
+    technical = technical_drafts(session, players, rooms)
     agents_by_player: dict[int, list[str]] = defaultdict(list)
     constellations: dict[int, dict[str, int]] = defaultdict(dict)
     for pk in sorted(session.exec(select(MatchPick)), key=lambda pk: pk.position):
@@ -464,7 +467,8 @@ def build(session: Session, key: tuple, only: set[str] | None = None) -> Snapsho
                     restarts=me.restarts,
                 )
             )
-            match_games[d.match_id].append(SideGame(pid, r, tech_loss, adj(me)))
+            filled = timers_filled(rooms.get((draft_id, me.slot)), me.clear_time)
+            match_games[d.match_id].append(SideGame(pid, r, tech_loss, adj(me), filled))
 
     names = display_names(session)
     # Challonge results, with its names matched to the players of each tournament.

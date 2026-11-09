@@ -42,7 +42,9 @@ from .match_checks import (
     game_results,
     match_outcome,
     mode_label,
+    room_times,
     technical_drafts,
+    timers_filled,
 )
 from .organizers import organizer_resolver
 from .player_names import display_names, merges, player_key, shown_name
@@ -123,7 +125,8 @@ def export_xlsx(session: Session, path: str) -> dict[str, int]:
             for pk in picks_by_player[p.id]
         )
 
-    technical = technical_drafts(session, players)
+    rooms = room_times(session)
+    technical = technical_drafts(session, players, rooms)
     # Team events (2x2) stay in the match sheets but not in anyone's personal statistics.
     team_matches = {mid for mid, m in matches.items() if TEAM_EVENT.search(tournaments[m.tournament_id].title)}
     personal = [p for p in players if p.match_id not in team_matches]
@@ -232,7 +235,16 @@ def export_xlsx(session: Session, path: str) -> dict[str, int]:
         challonge = known[m.id].winner if m.id in known and known[m.id].source == "challonge" else None
         by_hand = known[m.id].winner if m.id in known and known[m.id].source == "manual" else None
         o = match_outcome(
-            [SideGame(key(p), result.get(p.id, NO_RESULT), tech_loser.get(p.draft_id) is p, adj(p)) for p in mp],
+            [
+                SideGame(
+                    key(p),
+                    result.get(p.id, NO_RESULT),
+                    tech_loser.get(p.draft_id) is p,
+                    adj(p),
+                    timers_filled(rooms.get((p.draft_id, p.slot)), p.clear_time),
+                )
+                for p in mp
+            ],
             challonge,
             by_hand,
             **waiting(snap.live, snap.challonge, m.tournament_id),
