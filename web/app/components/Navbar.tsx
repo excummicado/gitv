@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router";
-import { clearSession, STAFF_ROLES } from "../auth/client";
+import { clearSession, PLAYER_EDITOR_ROLES, STAFF_ROLES } from "../auth/client";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import { LangSwitch, useLang } from "../i18n";
 import { CoffeeIcon } from "./CoffeeIcon";
 import { NavSearch } from "./NavSearch";
 import { SignOutIcon } from "./SignOutIcon";
+import { fetchUnresolved } from "../unresolved/api";
+import "../unresolved/unresolved.css";
 import "./navbar.css";
 
 // Single source of truth for the site navigation. Items without `to` have no
@@ -19,14 +21,18 @@ const links: { label: [string, string]; to?: string; also?: string[] }[] = [
   { label: ["Abyss", "Бездна"], to: "/abyss", also: ["/abyss/"] },
 ];
 
-function NavItem({ label, to, also = [], className = "" }: { label: string; to?: string; also?: string[]; className?: string }) {
+function NavItem({ label, to, also = [], className = "", badge }: { label: string; to?: string; also?: string[]; className?: string; badge?: number }) {
   const { pathname } = useLocation();
   const { t } = useLang();
   if (!to) {
     return <span className={`gitv-nav-link is-disabled ${className}`} aria-disabled="true" title={t("Coming soon", "Скоро")}>{label}</span>;
   }
   const alsoActive = also.some((prefix) => pathname.startsWith(prefix));
-  return <NavLink to={to} className={({ isActive }) => `gitv-nav-link ${isActive || alsoActive ? "is-active" : ""} ${className}`}>{label}</NavLink>;
+  return (
+    <NavLink to={to} className={({ isActive }) => `gitv-nav-link ${isActive || alsoActive ? "is-active" : ""} ${className}`}>
+      {label}{badge ? <span className="unresolved-count">{badge}</span> : null}
+    </NavLink>
+  );
 }
 
 export function Navbar() {
@@ -36,6 +42,13 @@ export function Navbar() {
   // On phones the sections and the search drop down from a button; on wider screens they stand in the bar (navbar.css).
   const [open, setOpen] = useState(false);
   const nav = useRef<HTMLElement>(null);
+  // Organizers and admins: how many matches of their tournaments need a winner set by hand
+  const editor = user ? PLAYER_EDITOR_ROLES.includes(user.role) : false;
+  const [unresolved, setUnresolved] = useState(0);
+  useEffect(() => {
+    if (!editor) return;
+    fetchUnresolved().then((rows) => setUnresolved(rows.filter((m) => !m.waiting).length)).catch(() => setUnresolved(0));
+  }, [editor, pathname]);
 
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
@@ -59,6 +72,7 @@ export function Navbar() {
         <div id="gitv-nav-menu" className={`gitv-nav-menu${open ? " is-open" : ""}`}>
           {links.map(({ label, ...link }) => <NavItem key={label[0]} label={t(...label)} {...link} />)}
           {user && STAFF_ROLES.includes(user.role) && <NavItem label={t("Analytics", "Аналитика")} to="/analytics" />}
+          {editor && <NavItem label={t("Unresolved", "Неразрешённые")} to="/unresolved" badge={unresolved} />}
           <NavSearch />
         </div>
         {/* Supporting the site; on phones only the icon fits. */}

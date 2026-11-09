@@ -556,6 +556,66 @@ def top_pick(session: SessionDep):
     return latest_top_pick(snapshot(session))
 
 
+class UnresolvedMatch(BaseModel):
+    id: str
+    tournament_id: str
+    tournament: str
+    created_at: datetime
+    sides: list[str]
+    # Why it has no result: "bracket" (a running tournament waits for its Challonge bracket), "tournament_end" (a
+    # running tournament without one holds a technical defeat until it ends), "both_technical" (both took one),
+    # "no_time" (a time not entered) or "unclear" (a technical defeat whose loser can't be told)
+    reason: str
+    waiting: bool  # it may still get its result by itself (the first two reasons)
+
+
+@router.get("/unresolved", response_model=list[UnresolvedMatch])
+def list_unresolved(session: SessionDep, editor: Annotated[User, Depends(get_current_result_editor)]):
+    """Matches without a result in the tournaments the editor runs (organizers.can_run_tournament: all of them for
+    event organizers and admins, an operator's organizer only its own), newest first: for them to set the winner by
+    hand on the match page. Team events aren't in the statistics, so not here either."""
+    snap = snapshot(session)
+    names = display_names(session)
+    games: dict[str, list] = defaultdict(list)
+    for pid, pd in snap.players.items():
+        for g in pd.games:
+            games[g.match_id].append((pid, g))
+    allowed: dict[str, bool] = {}
+    rows = []
+    for mid, o in snap.outcomes.items():
+        sides = list(snap.match_sides.get(mid, {}))
+        if o.decided or len(sides) != 2 or mid in snap.challonge_matches:
+            continue
+        tid = snap.match_tournament[mid]
+        if tid not in allowed:
+            allowed[tid] = can_run_tournament(session, editor, tid)
+        if not allowed[tid]:
+            continue
+        played = [g for _, g in games[mid]]
+        if tid in snap.live:
+            ch = snap.challonge.get(tid)
+            reason = "bracket" if ch and ch.bracket else "tournament_end"
+        elif len({pid for pid, g in games[mid] if g.tech_loss}) == 2:
+            reason = "both_technical"
+        elif any(g.result == NO_RESULT and g.clear_time <= 0 for g in played):
+            reason = "no_time"
+        else:
+            reason = "unclear"
+        created, title = snap.match_info[mid]
+        rows.append(
+            UnresolvedMatch(
+                id=mid,
+                tournament_id=tid,
+                tournament=title,
+                created_at=created,
+                sides=[names.get(s, snap.players[s].name if s in snap.players else str(s)) for s in sides],
+                reason=reason,
+                waiting=reason in ("bracket", "tournament_end"),
+            )
+        )
+    return sorted(rows, key=lambda r: r.created_at, reverse=True)
+
+
 class LiveTournament(BaseModel):
     id: str
     title: str

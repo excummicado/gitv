@@ -1,0 +1,9 @@
+/* Matches without a result, for organizers and admins. */
+.unresolved-row { display: grid; grid-template-columns: 92px minmax(0, 1.2fr) minmax(0, 1.4fr) minmax(0, 1.4fr); gap: 12px; align-items: center; padding: 8px 12px; border-top: 1px dotted var(--gitv-border-muted); font-size: 12px; color: var(--gitv-text); text-decoration: none; }
+.unresolved-row:hover { background: var(--gitv-surface-hover); }
+.unresolved-reason { color: var(--gitv-muted); }
+.unresolved-count { margin-left: 5px; padding: 0 5px; border-radius: 8px; background: var(--gitv-accent); color: #0b1220; font-size: 10px; font-weight: 700; line-height: 15px; }
+@media (max-width: 700px) {
+  .unresolved-row { grid-template-columns: 1fr; gap: 2px; }
+}
+.unresolved-hint { margin: 0; padding: 6px 12px; font-size: 11px; }

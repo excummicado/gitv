@@ -201,3 +201,25 @@ def test_an_organizer_without_a_name_of_its_own_goes_by_its_site_name(session, c
     session.commit()
     sign_in(Role.organizer_icephoenix)
     assert fill(client).status_code == 200
+
+
+def test_matches_without_a_result_go_to_who_runs_their_tournament(session, client):
+    setup(session)
+    # A second match nobody entered times for: no result
+    session.add(Match(id="m2", tournament_id="t", created_at=datetime(2026, 1, 2, tzinfo=UTC), raw="{}"))
+    session.add(MatchDraft(id="m2-g1", match_id="m2", game_no=1, status="FINISHED"))
+    for slot, name in enumerate("AB"):
+        session.add(MatchPlayer(draft_id="m2-g1", match_id="m2", slot=slot, user_id=f"u{name}", full_name=name))
+    players = [{"fullName": n, "clearTimeRoom1": 0, "clearTimeRoom2": 0, "clearTimeRoom3": 0} for n in "AB"]
+    session.add(DraftState(draft_id="m2-g1", match_id="m2", status="FINISHED", raw=json.dumps({"players": players})))
+    session.commit()
+    sign_in(Role.writer)
+    assert client.get("/api/v1/matches/unresolved").status_code == 403
+    sign_in(Role.event_organizer)
+    (row,) = client.get("/api/v1/matches/unresolved").json()  # m1 is decided (B's missing times)
+    assert (row["id"], row["sides"], row["reason"], row["waiting"]) == ("m2", ["A", "B"], "no_time", False)
+    sign_in(Role.organizer_hoth)  # an operator's organizer: only its own tournaments, and "Cup" isn't one
+    assert client.get("/api/v1/matches/unresolved").json() == []
+    sign_in(Role.admin)
+    client.put("/api/v1/matches/m2/winner", json={"side": 0})
+    assert client.get("/api/v1/matches/unresolved").json() == []
