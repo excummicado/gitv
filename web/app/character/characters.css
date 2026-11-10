@@ -111,7 +111,7 @@
 .chars-cons-line .is-bad { color: var(--gitv-loss); }
 @media (max-width: 700px) {
   .chars-cons-panel { padding-left: 14px; }
-  .chars-cons-grid { grid-template-columns: 34px minmax(80px, 2fr) repeat(4, minmax(0, 1fr)); }
+  .chars-cons-grid { grid-template-columns: 34px minmax(80px, 2fr) repeat(3, minmax(0, 1fr)); }
   /* Phones: C, picks, share, winrate, ban rate; W–L, time and players go. */
   .chars-cons-grid > :nth-child(n + 6):nth-child(-n + 8), .chars-cons-line > :nth-child(n + 6) { display: none; }
 }
