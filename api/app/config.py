@@ -26,7 +26,8 @@ class Settings(BaseSettings):
     # also polled every two minutes (services/sync.py, LIVE_INTERVAL).
     # Run the API as a single worker when it's on (the sync lock also keeps two passes from overlapping).
     sync_interval: int = 0
-    # Behind a reverse proxy: tell clients apart by X-Forwarded-For (rate limits). Only with a proxy that sets it.
+    # Behind a reverse proxy: tell clients apart (rate limits) by X-Real-IP, else the last X-Forwarded-For entry.
+    # Only with a proxy that sets them (nginx: proxy_set_header X-Real-IP $remote_addr;).
     trust_forwarded_for: bool = False
     # Telegram app keys from my.telegram.org, for app.cli export-telegram only (reading a channel's history).
     telegram_api_id: int | None = None

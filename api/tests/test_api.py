@@ -49,6 +49,41 @@ class TestRateLimit:
         assert rl.hit(("other",), 2, 60, now=2) == 0  # counted per key
         assert rl.hit(("k",), 2, 60, now=60.5) == 0  # the first hit left the window
 
+    def test_idle_keys_are_dropped(self):
+        rl = RateLimiter()
+        rl.SWEEP_EVERY = 1
+        for n in range(5):
+            rl.hit(("old", n), 5, 60, now=0)
+        rl.hit(("long",), 5, 600, now=0)  # the longest window decides what's old enough to drop
+        rl.hit(("fresh",), 5, 60, now=300)
+        assert len(rl._hits) == 7
+        rl.hit(("fresh",), 5, 60, now=700)
+        assert set(rl._hits) == {("fresh",)}
+
+    def test_never_allowed_key_is_not_kept(self):
+        rl = RateLimiter()
+        assert rl.hit(("k",), 0, 60, now=0) > 0
+        assert ("k",) not in rl._hits
+
+    def test_client_address_behind_the_proxy(self, monkeypatch):
+        from app.config import settings
+
+        limiter.clear()
+        demo = FastAPI()
+
+        @demo.get("/x", dependencies=[Depends(rate_limit("test", 2, 600))])
+        def x():
+            return {}
+
+        c = TestClient(demo)
+        monkeypatch.setattr(settings, "trust_forwarded_for", True)
+        # A forged first X-Forwarded-For entry doesn't give the client a fresh limit: the proxy's entry counts.
+        codes = [c.get("/x", headers={"X-Forwarded-For": f"10.0.0.{n}, 203.0.113.7"}).status_code for n in range(3)]
+        assert codes == [200, 200, 429]
+        # X-Real-IP, set by the proxy, wins over X-Forwarded-For.
+        assert c.get("/x", headers={"X-Real-IP": "198.51.100.1", "X-Forwarded-For": "203.0.113.7"}).status_code == 200
+        limiter.clear()
+
     def test_dependency_answers_429(self):
         limiter.clear()
         demo = FastAPI()

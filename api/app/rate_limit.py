@@ -1,8 +1,8 @@
 """Request limits for sign-in and for everything members write, so a script can't flood the API.
 
 Counts live in memory (per API process) over a sliding window; a restart forgets them, which is fine for
-this purpose. Behind a reverse proxy, set TRUST_FORWARDED_FOR so clients are told apart by the
-X-Forwarded-For address instead of the proxy's.
+this purpose. Behind a reverse proxy, set TRUST_FORWARDED_FOR so clients are told apart by the address
+the proxy reports (X-Real-IP, else the last X-Forwarded-For entry) instead of the proxy's own.
 """
 
 import math
@@ -19,33 +19,60 @@ from .models import User
 
 
 class RateLimiter:
+    # Every this many hits, keys idle for longer than the longest window are dropped, so addresses seen
+    # once don't stay in memory for the life of the process.
+    SWEEP_EVERY = 1000
+
     def __init__(self):
         self._hits: dict[tuple, deque[float]] = defaultdict(deque)
         self._lock = threading.Lock()
+        self._calls = 0
+        self._longest = 0
 
     def hit(self, key: tuple, times: int, seconds: int, now: float | None = None) -> float:
         """Counts a request; returns 0 if it's allowed, else the seconds until the next one is."""
         now = time.monotonic() if now is None else now
         with self._lock:
+            self._longest = max(self._longest, seconds)
+            self._calls += 1
+            if self._calls % self.SWEEP_EVERY == 0:
+                self._sweep(now)
             hits = self._hits[key]
             while hits and hits[0] <= now - seconds:
                 hits.popleft()
             if len(hits) >= times:
+                if not hits:  # times <= 0: nothing to remember for this key
+                    del self._hits[key]
+                    return float(seconds)
                 return hits[0] + seconds - now
             hits.append(now)
             return 0.0
 
+    def _sweep(self, now: float):
+        """Drops keys whose newest hit is older than any window could still count."""
+        cutoff = now - self._longest
+        for key in [k for k, hits in self._hits.items() if not hits or hits[-1] <= cutoff]:
+            del self._hits[key]
+
     def clear(self):
         with self._lock:
             self._hits.clear()
+            self._calls = 0
 
 
 limiter = RateLimiter()
 
 
 def client_ip(request: Request) -> str:
-    if settings.trust_forwarded_for and (forwarded := request.headers.get("x-forwarded-for")):
-        return forwarded.split(",")[0].strip()
+    """The client's address. Behind our proxy, only what the proxy itself wrote is trusted: X-Real-IP, or
+    else the last X-Forwarded-For entry (the proxy appends the address it saw; earlier entries come from
+    the client and can be anything)."""
+    if settings.trust_forwarded_for:
+        if real := request.headers.get("x-real-ip", "").strip():
+            return real
+        if forwarded := request.headers.get("x-forwarded-for"):
+            if last := forwarded.split(",")[-1].strip():
+                return last
     return request.client.host if request.client else "unknown"
 
 
