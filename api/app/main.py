@@ -30,6 +30,7 @@ from .routers import (
     users,
 )
 from .services.abyss import ASSETS as ABYSS_ASSETS
+from .services.analytics import flush_views_forever, flush_views_with
 from .services.media import MEDIA_DIR
 from .services.stats.snapshot import warm_up
 from .services.stream import run_stream_forever
@@ -58,11 +59,17 @@ async def lifespan(app: FastAPI):
         if settings.sync_interval > 0
         else []
     )
+    # Page views are counted in memory and written once a minute, and once more on the way out.
+    tasks.append(asyncio.create_task(flush_views_forever(engine)))
     yield
     for task in tasks:
         task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await task
+    try:
+        await asyncio.to_thread(flush_views_with, engine)
+    except Exception:  # noqa: BLE001
+        logging.getLogger("gitv").exception("writing page views at shutdown failed")
 
 
 # The interactive API docs only when running locally: in production they'd hand out the whole API's map.
