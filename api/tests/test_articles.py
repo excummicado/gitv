@@ -145,9 +145,25 @@ def test_reads_are_counted_once_per_reader(writer):
     assert anyone.post("/api/v1/articles/999/read", headers={"X-GITV": "1"}).status_code == 404
 
 
-def test_only_news_roles():
-    assert Role.writer.can_write_news and Role.event_organizer.can_write_news and Role.admin.can_write_news
-    assert not Role.user.can_write_news
+def test_only_news_roles(session):
+    from datetime import UTC, datetime
+
+    from app.models import UserOrganizer
+    from app.services.organizers import can_write_news
+
+    def member(role):
+        user = User(nickname=f"m{role}", discord_id=role, role=role)
+        session.add(user)
+        session.commit()
+        return user
+
+    assert all(can_write_news(session, member(r)) for r in (Role.writer, Role.event_organizer, Role.admin))
+    user = member(Role.user)
+    assert not can_write_news(session, user)
+    # A member who runs some organizer's tournaments writes news too
+    session.add(UserOrganizer(user_id=user.id, organizer_id="o", created_at=datetime.now(UTC)))
+    session.commit()
+    assert can_write_news(session, user)
 
 
 def test_pictures_are_files_removed_with_their_post(writer, tmp_path, monkeypatch):

@@ -29,8 +29,8 @@ RU = {
     "No such game in this match.": "В этом матче нет такой игры.",
     "This game has no times filled in by hand.": "В этой игре нет времени, заполненного вручную.",
     "This match's winner comes from its bracket or its times: it can't be set by hand.": "Победитель этого матча определён по сетке или по времени: задать его вручную нельзя.",
-    "You can only fill in results of your own tournaments.": "Заполнять результаты можно только в турнирах своего оператора.",
-    "You can only schedule matches of your own tournaments.": "Расписывать можно только матчи турниров своего оператора.",
+    "You can only fill in results of your own tournaments.": "Заполнять результаты можно только в турнирах своих организаторов.",
+    "You can only schedule matches of your own tournaments.": "Расписывать можно только матчи турниров своих организаторов.",
     "No such side in this match.": "В этом матче нет такой стороны.",
     "This player has no page on the site, so they can't be set as the winner.": "У этого игрока нет страницы на сайте, поэтому его нельзя сделать победителем.",
     # Admin
@@ -45,6 +45,10 @@ RU = {
     "Only a super admin can ban an admin.": "Заблокировать админа может только супер-админ.",
     "This member is already banned.": "Участник уже заблокирован.",
     "This member isn't banned.": "Участник не заблокирован.",
+    "You can't change your own organizers.": "Своих организаторов менять нельзя.",
+    "Only a super admin can change an admin's organizers.": "Менять организаторов админа может только супер-админ.",
+    "No organizer with this id.": "Организатора с таким id нет.",
+    "This member doesn't run this organizer.": "Этот участник не ведёт турниры этого организатора.",
     # Matches and players
     "No such match.": "Такого матча нет.",
     "No such tournament.": "Такого турнира нет.",

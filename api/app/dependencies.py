@@ -12,6 +12,7 @@ from .config import settings
 from .database import SessionDep
 from .models import Role, User
 from .security import CSRF_HEADER, SESSION_COOKIE
+from .services.organizers import can_edit_players, can_write_news
 
 # Tokens come from Discord sign-in, so there is no password token URL; a plain Bearer scheme fits.
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -86,8 +87,9 @@ async def get_current_staff(
 
 async def get_current_player_editor(
     current_user: Annotated[User, Depends(get_current_active_user)],
+    session: SessionDep,
 ):
-    if not current_user.role.can_edit_players:
+    if not can_edit_players(session, current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Only event organizers and admins can edit players."
         )
@@ -96,10 +98,11 @@ async def get_current_player_editor(
 
 async def get_current_result_editor(
     current_user: Annotated[User, Depends(get_current_active_user)],
+    session: SessionDep,
 ):
-    """Fills in missing game times and sets match winners: the same people who schedule matches (an operator's
-    organizer only in its own tournaments, checked with organizers.can_run_tournament)."""
-    if not current_user.role.can_edit_players:
+    """Fills in missing game times and sets match winners: the same people who schedule matches (a member granted
+    organizers only in their tournaments, checked with organizers.can_run_tournament)."""
+    if not can_edit_players(session, current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Only event organizers and admins can fill in results."
         )
@@ -108,8 +111,9 @@ async def get_current_result_editor(
 
 async def get_current_news_writer(
     current_user: Annotated[User, Depends(get_current_active_user)],
+    session: SessionDep,
 ):
-    if not current_user.role.can_write_news:
+    if not can_write_news(session, current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Only writers, event organizers and admins can add news."
         )

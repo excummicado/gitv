@@ -64,7 +64,7 @@ from .match_checks import (
     technical_game,
     timers_filled,
 )
-from .organizers import can_run_tournament, organizer_resolver, tournament_operator
+from .organizers import can_run_tournament, organizer_resolver, tournament_organizer_id
 from .player_names import display_names, merges, player_key, shown_name
 from .stats import Snapshot, snapshot, tournament_standings
 from .stats.snapshot import waiting
@@ -560,7 +560,7 @@ def match_detail(session: Session, m: Match, snap: Snapshot | None = None) -> Ma
         technical=scored.outcome.technical,
         result_source=scored.outcome.source if scored.outcome.decided else None,
         winner_set_by=site_setter(set_by),
-        operator=(op := tournament_operator(session, m.tournament_id)) and op.value,
+        organizer_id=tournament_organizer_id(session, m.tournament_id),
         games=games,
         abyss_phase=phase_on(session, m.created_at.date()),
     )

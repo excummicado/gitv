@@ -1,5 +1,6 @@
 import json
 from datetime import UTC, datetime
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -160,47 +161,61 @@ def by_operator(session, organizer_id="hoth-account", alias="House of the Hearth
     session.commit()
 
 
-def test_an_operators_organizer_fills_in_only_its_own_tournaments(session, client):
+def sign_in_running(session, *organizer_ids: str) -> User:
+    """Signs in a member who runs these organizers' tournaments (UserOrganizer)."""
+    from app.models import UserOrganizer
+
+    user = User(nickname=f"orga{len(organizer_ids)}{''.join(organizer_ids)}"[:32], discord_id=str(uuid4()))
+    session.add(user)
+    for oid in organizer_ids:
+        session.add(UserOrganizer(user_id=user.id, organizer_id=oid, created_at=datetime.now(UTC)))
+    session.commit()
+    app.dependency_overrides[get_current_active_user] = lambda: user
+    return user
+
+
+def test_an_organizers_member_fills_in_only_its_own_tournaments(session, client):
     setup(session)
     by_operator(session)
-    assert client.get(f"/api/v1/matches/{MATCH}").json()["operator"] == "organizer_hoth"
-    sign_in(Role.organizer_abyss_cup)
+    assert client.get(f"/api/v1/matches/{MATCH}").json()["organizer_id"] == "hoth-account"
+    sign_in_running(session, "abyss-cup-account")
     response = fill(client)
     assert response.status_code == 403 and "own tournaments" in response.json()["detail"]
     assert client.put(f"/api/v1/matches/{MATCH}/winner", json={"side": 1}).status_code == 403
-    sign_in(Role.organizer_hoth)
+    sign_in_running(session, "hoth-account")
     assert fill(client).status_code == 200
 
 
-def test_a_tournament_of_no_operator_is_for_event_organizers_and_admins(session, client):
+def test_a_merged_account_counts_as_its_organizer(session, client):
+    """A tournament made from a second account of an organizer (merged with set-organizer) is theirs too, and a grant
+    stored before the merge keeps working after it."""
+    from app.models import OrganizerAlias
+
     setup(session)
-    sign_in(Role.organizer_hoth)
+    by_operator(session, organizer_id="hoth-second", alias=None)
+    session.add(OrganizerAlias(organizer_id="hoth-second", into_id="hoth-account", created_at=datetime.now(UTC)))
+    session.commit()
+    assert client.get(f"/api/v1/matches/{MATCH}").json()["organizer_id"] == "hoth-account"
+    sign_in_running(session, "hoth-account")
+    assert fill(client).status_code == 200
+    sign_in_running(session, "hoth-second")
+    assert fill(client).status_code == 200
+
+
+def test_a_tournament_of_no_known_organizer_is_for_event_organizers_and_admins(session, client):
+    setup(session)
+    sign_in_running(session, "hoth-account")
     assert fill(client).status_code == 403
     sign_in(Role.event_organizer)
     assert fill(client).status_code == 200
 
 
-def test_operators_are_told_by_the_organizers_name():
-    from app.services.organizers import operator_of_name
-
-    assert operator_of_name("House of the Hearth") == Role.organizer_hoth
-    assert operator_of_name("abyss new gen") == Role.organizer_newgen
-    assert operator_of_name("icephoenixxx") == Role.organizer_icephoenix
-    assert operator_of_name("Abyss Cup") == Role.organizer_abyss_cup
-    assert operator_of_name("Reverse Cup") is None and operator_of_name(None) is None
-
-
-def test_an_organizer_without_a_name_of_its_own_goes_by_its_site_name(session, client):
+def test_a_member_without_organizers_fills_in_nothing(session, client):
     setup(session)
-    by_operator(session, organizer_id="ice-account", alias=None)
-    from app.models import TournamentInfo
-
-    info = session.get(TournamentInfo, "t")
-    info.organizer_name = "Icephoenixxx"
-    session.add(info)
-    session.commit()
-    sign_in(Role.organizer_icephoenix)
-    assert fill(client).status_code == 200
+    by_operator(session)
+    sign_in_running(session)
+    assert fill(client).status_code == 403
+    assert client.get("/api/v1/matches/unresolved").status_code == 403
 
 
 def test_matches_without_a_result_go_to_who_runs_their_tournament(session, client):
@@ -218,7 +233,7 @@ def test_matches_without_a_result_go_to_who_runs_their_tournament(session, clien
     sign_in(Role.event_organizer)
     (row,) = client.get("/api/v1/matches/unresolved").json()  # m1 is decided (B's missing times)
     assert (row["id"], row["sides"], row["reason"], row["waiting"]) == ("m2", ["A", "B"], "no_time", False)
-    sign_in(Role.organizer_hoth)  # an operator's organizer: only its own tournaments, and "Cup" isn't one
+    sign_in_running(session, "hoth-account")  # only its organizer's tournaments, and "Cup" has none known
     assert client.get("/api/v1/matches/unresolved").json() == []
     sign_in(Role.admin)
     client.put("/api/v1/matches/m2/winner", json={"side": 0})

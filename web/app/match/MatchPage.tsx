@@ -9,7 +9,7 @@ import {
   type Character, type DraftMove, type Game, type GamePlayer, type MatchDetail, type Result,
 } from "./api";
 import { useAuth } from "../auth/useCurrentUser";
-import { ALL_TOURNAMENTS_ROLES } from "../auth/client";
+import { runsTournamentsOf } from "../auth/client";
 import "./match-page.css";
 import { useLang } from "../i18n";
 import { Nick } from "../components/PlayerNick";
@@ -393,8 +393,8 @@ export function MatchPage({ matchId }: { matchId: string }) {
   const [error, setError] = useState("");
   const { t } = useLang();
   const { user } = useAuth();
-  // Event organizers and admins in every tournament; an operator's organizer in that operator's
-  const editor = Boolean(user && match && (ALL_TOURNAMENTS_ROLES.includes(user.role) || user.role === match.operator));
+  // Event organizers and admins in every tournament; a member running some organizers' tournaments in theirs
+  const editor = Boolean(match && runsTournamentsOf(user, match.organizer_id));
 
   useEffect(() => {
     const controller = new AbortController();

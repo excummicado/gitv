@@ -1,6 +1,7 @@
-"""Staff tools: roles (admins: up to the organizer roles, super admins: up to admin) and bans (admins and super
-admins)."""
+"""Staff tools: roles (admins: up to event organizer, super admins: up to admin), the organizers whose tournaments a
+member runs (admins and super admins) and bans (admins and super admins)."""
 
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -9,7 +10,8 @@ from sqlmodel import func, select
 
 from ..database import SessionDep
 from ..dependencies import get_current_staff
-from ..models import Role, User, UserPublic
+from ..models import Role, User, UserOrganizer, UserPublic
+from ..services.organizers import organizer_choices, organizer_root
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -20,11 +22,6 @@ class RoleChange(BaseModel):
         "user",
         "writer",
         "event_organizer",
-        "organizer_abyss_cup",
-        "organizer_hoth",
-        "organizer_newgen",
-        "organizer_icephoenix",
-        "organizer_abyss_ascend",
         "admin",
     ]
 
@@ -55,7 +52,7 @@ def set_role(
     if user.role == Role.super_admin:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This member is a super admin.")
     role = Role(data.role)
-    # Admins move people between member, writer and the organizer roles; anything touching the admin role is for
+    # Admins move people between member, writer and event organizer; anything touching the admin role is for
     # super admins.
     if actor.role != Role.super_admin:
         if role == Role.admin:
@@ -74,6 +71,87 @@ def set_role(
     session.commit()
     session.refresh(user)
     return user
+
+
+# The organizers whose tournaments a member runs: granted by the same admins who set the organizer role. Checks read
+# them from the database on every request, so unlike a role change they take effect without signing in again.
+
+
+class OrganizerOption(BaseModel):
+    id: str  # the draft-site organizer as it counts after merges
+    name: str  # as the site shows it
+
+
+def check_can_grant(actor: User, target: User) -> None:
+    if target.id == actor.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can't change your own organizers.")
+    if target.role == Role.super_admin:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This member is a super admin.")
+    if target.role == Role.admin and actor.role != Role.super_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Only a super admin can change an admin's organizers."
+        )
+
+
+def granted(session: SessionDep, user: User) -> list[OrganizerOption]:
+    """The member's organizers, as they count now, under their shown names (an id no longer known by its own)."""
+    root = organizer_root(session)
+    mine = {
+        root(oid) for oid in session.exec(select(UserOrganizer.organizer_id).where(UserOrganizer.user_id == user.id))
+    }
+    known = {o.id: o.name for o in organizer_choices(session)} if mine else {}
+    return sorted(
+        (OrganizerOption(id=oid, name=known.get(oid, oid)) for oid in mine), key=lambda o: (o.name.lower(), o.id)
+    )
+
+
+@router.get("/organizers", response_model=list[OrganizerOption])
+def list_organizers(session: SessionDep, actor: Annotated[User, Depends(get_current_staff)]):
+    """Every organizer who has created a tournament on the site, to pick from."""
+    return [OrganizerOption(id=o.id, name=o.name) for o in organizer_choices(session)]
+
+
+@router.get("/users/{nickname}/organizers", response_model=list[OrganizerOption])
+def user_organizers(nickname: str, session: SessionDep, actor: Annotated[User, Depends(get_current_staff)]):
+    return granted(session, find_by_nickname(session, nickname))
+
+
+@router.put("/users/{nickname}/organizers/{organizer_id}", response_model=list[OrganizerOption])
+def grant_organizer(
+    nickname: str, organizer_id: str, session: SessionDep, actor: Annotated[User, Depends(get_current_staff)]
+):
+    user = find_by_nickname(session, nickname)
+    check_can_grant(actor, user)
+    # Stored as the account it counts as now, so a merged account's id grants the same as its organizer's.
+    oid = organizer_root(session)(organizer_id)
+    if oid not in {o.id for o in organizer_choices(session)}:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No organizer with this id.")
+    if session.get(UserOrganizer, (user.id, oid)) is None:
+        session.add(UserOrganizer(user_id=user.id, organizer_id=oid, granted_by=actor.id, created_at=datetime.now(UTC)))
+        session.commit()
+    return granted(session, user)
+
+
+@router.delete("/users/{nickname}/organizers/{organizer_id}", response_model=list[OrganizerOption])
+def revoke_organizer(
+    nickname: str, organizer_id: str, session: SessionDep, actor: Annotated[User, Depends(get_current_staff)]
+):
+    user = find_by_nickname(session, nickname)
+    check_can_grant(actor, user)
+    # Every row that counts as this organizer now: one stored before a merge goes too.
+    root = organizer_root(session)
+    oid = root(organizer_id)
+    rows = [
+        r
+        for r in session.exec(select(UserOrganizer).where(UserOrganizer.user_id == user.id))
+        if root(r.organizer_id) == oid
+    ]
+    if not rows:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="This member doesn't run this organizer.")
+    for row in rows:
+        session.delete(row)
+    session.commit()
+    return granted(session, user)
 
 
 def check_can_ban(actor: User, target: User) -> None:

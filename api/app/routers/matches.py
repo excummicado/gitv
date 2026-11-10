@@ -117,7 +117,7 @@ def top_pick(session: SessionDep):
 @router.get("/unresolved", response_model=list[UnresolvedMatch])
 def list_unresolved(session: SessionDep, editor: Annotated[User, Depends(get_current_result_editor)]):
     """Matches without a result in the tournaments the editor runs (organizers.can_run_tournament: all of them for
-    event organizers and admins, an operator's organizer only its own), newest first: for them to set the winner by
+    event organizers and admins, a member granted organizers only theirs), newest first: for them to set the winner by
     hand on the match page. Team events aren't in the statistics, so not here either."""
     return unresolved_matches(session, editor)
 

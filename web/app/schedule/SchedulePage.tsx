@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
 import { useAuth } from "../auth/useCurrentUser";
-import { PLAYER_EDITOR_ROLES, STAFF_ROLES } from "../auth/client";
+import { isPlayerEditor, STAFF_ROLES } from "../auth/client";
 import { fetchPlayers, type PlayerSummary } from "../player/api";
 import { useLang } from "../i18n";
 import { addScheduled, deleteScheduled, listScheduled, localDay, scheduleTournaments, type ScheduledMatch } from "./api";
@@ -23,7 +23,7 @@ export function SchedulePage() {
   const { user, ready } = useAuth();
   const l = useLang();
   const { t } = l;
-  const editor = user ? PLAYER_EDITOR_ROLES.includes(user.role) : false;
+  const editor = isPlayerEditor(user);
   const staff = user ? STAFF_ROLES.includes(user.role) : false;
 
   const [tournaments, setTournaments] = useState<{ id: string; title: string }[]>([]);

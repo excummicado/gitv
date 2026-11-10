@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { STAFF_ROLES } from "../auth/client";
 import { useCurrentUser } from "../auth/useCurrentUser";
-import { NEWS_WRITER_ROLES } from "../articles/api";
+import { isNewsWriter } from "../articles/api";
 import { useLang } from "../i18n";
 import { addNewsItem, deleteNewsItem, editNewsItem, listNewsItems, NEWS_MAX, type NewsItem } from "./api";
 import "./news-column.css";
@@ -131,7 +131,7 @@ function Item({ item, canRemove, onRemove, onEdit }: { item: NewsItem; canRemove
 export function NewsColumn() {
   const { t } = useLang();
   const user = useCurrentUser();
-  const writer = user ? NEWS_WRITER_ROLES.includes(user.role) : false;
+  const writer = isNewsWriter(user);
   const [items, setItems] = useState<NewsItem[] | null>(null);
   const [more, setMore] = useState(false);
   const [writing, setWriting] = useState(false);

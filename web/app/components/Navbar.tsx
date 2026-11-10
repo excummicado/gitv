@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router";
-import { clearSession, PLAYER_EDITOR_ROLES, STAFF_ROLES } from "../auth/client";
+import { clearSession, isPlayerEditor, STAFF_ROLES } from "../auth/client";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import { LangSwitch, useLang } from "../i18n";
 import { CoffeeIcon } from "./CoffeeIcon";
@@ -43,7 +43,7 @@ export function Navbar() {
   const [open, setOpen] = useState(false);
   const nav = useRef<HTMLElement>(null);
   // Organizers and admins: how many matches of their tournaments need a winner set by hand
-  const editor = user ? PLAYER_EDITOR_ROLES.includes(user.role) : false;
+  const editor = isPlayerEditor(user);
   const [unresolved, setUnresolved] = useState(0);
   useEffect(() => {
     if (!editor) return;

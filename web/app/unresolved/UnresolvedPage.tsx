@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
-import { PLAYER_EDITOR_ROLES } from "../auth/client";
+import { isPlayerEditor } from "../auth/client";
 import { useAuth } from "../auth/useCurrentUser";
 import { useLang } from "../i18n";
 import { fetchUnresolved, type UnresolvedMatch, type UnresolvedReason } from "./api";
@@ -20,7 +20,7 @@ const REASONS: Record<UnresolvedReason, [string, string]> = {
 // ones only a winner set by hand settles first, then those still waiting for their bracket or the tournament's end.
 export function UnresolvedPage() {
   const { user, ready } = useAuth();
-  const editor = user ? PLAYER_EDITOR_ROLES.includes(user.role) : false;
+  const editor = isPlayerEditor(user);
   const { t, date } = useLang();
   const [rows, setRows] = useState<UnresolvedMatch[] | null>(null);
   const [error, setError] = useState("");

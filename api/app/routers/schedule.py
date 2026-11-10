@@ -16,7 +16,7 @@ from ..dependencies import get_current_player_editor
 from ..models import ScheduledMatch, StreamMatch, StreamStatus, StreamTeam, User
 from ..rate_limit import rate_limit
 from ..services.challonge import normalize
-from ..services.organizers import operator_of_organizer
+from ..services.organizers import own_organizer_filter
 from ..services.player_names import display_names, known_players
 from ..services.stats import elo_ratings, snapshot
 from ..services.stream import streams, team_key
@@ -289,18 +289,20 @@ def live_streams(session: SessionDep):
 
 @router.get("/tournaments", response_model=list[TournamentOption])
 def schedule_tournaments(session: SessionDep, editor: Annotated[User, Depends(get_current_player_editor)]):
-    """Running and upcoming tournaments on the site (its list, cached for an hour) to attach a match to; an
-    operator's organizer gets only that operator's."""
+    """Running and upcoming tournaments on the site (its list, cached for an hour) to attach a match to; a member
+    granted organizers gets only theirs."""
     return [TournamentOption(id=t["_id"], title=t.get("title", "")) for t in own_tournaments(session, editor)]
 
 
 def own_tournaments(session: SessionDep, editor: User) -> list[dict]:
     """The running tournaments the editor may schedule matches of (organizers.can_run_tournament): all of them, or
-    for an operator's organizer those its operator's accounts created (a new one has no details stored yet)."""
+    for a member granted organizers those their accounts created (by the site's list: a new tournament has no
+    details stored yet)."""
     running = live_tournaments()
     if editor.role.runs_any_tournament:
         return running
-    return [t for t in running if operator_of_organizer(session, t.get("createdBy")) == editor.role]
+    own = own_organizer_filter(session, editor)
+    return [t for t in running if own(t.get("createdBy"))]
 
 
 @router.post(

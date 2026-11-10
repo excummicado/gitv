@@ -8,13 +8,13 @@ import { fetchChampions, type Champion } from "../player/api";
 import { fetchLiveMatches, fetchLiveTournaments, fetchMatches, fetchPopularCharacters, fetchTopPick, type LiveMatch, type LiveTournament, type MatchSummary, type PopularCharacters, type TopPick } from "../match/api";
 import { LiveMatchRow } from "../match/LiveMatches";
 import { EloBadge } from "../components/EloBadge";
-import { excerpt, inLang, listArticles, NEWS_WRITER_ROLES, type Article } from "../articles/api";
+import { excerpt, inLang, listArticles, isNewsWriter, type Article } from "../articles/api";
 import { NewsColumn } from "../news/NewsColumn";
 import { fetchLiveStreams, listScheduled, localDay, streamMatches, type LiveStream, type ScheduledMatch, type StreamDay } from "../schedule/api";
 import { TwitchPlayer } from "../components/TwitchPlayer";
 import { fetchFeaturedTournaments, type FeaturedTournament } from "../tournament/api";
 import { useCurrentUser } from "../auth/useCurrentUser";
-import { PLAYER_EDITOR_ROLES } from "../auth/client";
+import { isPlayerEditor } from "../auth/client";
 import { useLang } from "../i18n";
 import { Nick } from "../components/PlayerNick";
 
@@ -221,7 +221,7 @@ function Articles() {
   const [items, setItems] = useState<Article[] | null>(null);
   const { t, date, lang } = useLang();
   const user = useCurrentUser();
-  const writer = user ? NEWS_WRITER_ROLES.includes(user.role) : false;
+  const writer = isNewsWriter(user);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -266,7 +266,7 @@ function TodaysMatches() {
   const [onAir, setOnAir] = useState<LiveStream[]>([]);
   const { t, locale } = useLang();
   const user = useCurrentUser();
-  const editor = user ? PLAYER_EDITOR_ROLES.includes(user.role) : false;
+  const editor = isPlayerEditor(user);
 
   useEffect(() => {
     const controller = new AbortController();

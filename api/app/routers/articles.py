@@ -36,6 +36,7 @@ from ..services.news import (
     picture_files,
     unused_pictures,
 )
+from ..services.organizers import can_write_news
 
 router = APIRouter(prefix="/articles", tags=["articles"])
 
@@ -107,10 +108,10 @@ def editable(session: SessionDep, news_id: int, user: User) -> NewsPost:
     return row
 
 
-def can_see(row: NewsPost, user: User | None) -> bool:
+def can_see(session: SessionDep, row: NewsPost, user: User | None) -> bool:
     """Anyone sees a published article; a draft only admins and whoever imported it."""
     return row.approved_at is not None or (
-        user is not None and (user.role.is_staff or (row.created_by == user.id and user.role.can_write_news))
+        user is not None and (user.role.is_staff or (row.created_by == user.id and can_write_news(session, user)))
     )
 
 
@@ -126,7 +127,7 @@ def list_news(
     published = session.exec(query.where(NewsPost.approved_at.is_not(None)).limit(limit)).all()
     waiting = []
     if drafts and user is not None:
-        waiting = [r for r in session.exec(query.where(NewsPost.approved_at.is_(None))) if can_see(r, user)]
+        waiting = [r for r in session.exec(query.where(NewsPost.approved_at.is_(None))) if can_see(session, r, user)]
     rows = [*waiting, *published]
     # Only the start of each text: the home page and the list show an excerpt, the article's own page loads the rest
     return [
@@ -143,7 +144,7 @@ def list_news(
 @router.get("/{news_id}", response_model=NewsOut)
 def read_news(news_id: RowId, session: SessionDep, user: Annotated[User | None, Depends(get_optional_user)]):
     row = session.get(NewsPost, news_id)
-    if row is None or not can_see(row, user):
+    if row is None or not can_see(session, row, user):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such article.")
     return out(session, [row])[0]
 

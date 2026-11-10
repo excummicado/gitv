@@ -98,9 +98,9 @@ class MatchDetail(BaseModel):
     result_source: str | None = None
     # Who set the winner by hand, when it was set on the site
     winner_set_by: str | None = None
-    # The organizer role of the tournament's operator (e.g. "organizer_hoth"), whose members may fill in its results
-    # along with event organizers and admins; None for a tournament of no such operator
-    operator: str | None = None
+    # The draft-site organizer the tournament counts under (after merges): members granted it (UserOrganizer, listed
+    # in their /users/me) may fill in its results along with event organizers and admins; None when unknown
+    organizer_id: str | None = None
     games: list[Game]
     # A match of a tournament known only by its bracket: the result, no games
     challonge_only: bool = False

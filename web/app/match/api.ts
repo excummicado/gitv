@@ -26,8 +26,8 @@ export type MatchDetail = {
   result_source: ResultSource; games: Game[];
   // Who set the winner by hand on the site
   winner_set_by: string | null;
-  // The organizer role of the tournament's operator (e.g. "organizer_hoth"), whose members may fill in its results
-  operator?: string | null;
+  // The draft-site organizer the tournament counts under (after merges): members running it may fill in its results
+  organizer_id?: string | null;
   // A match of a tournament played only on Challonge: the result, no games
   challonge_only: boolean;
   // That bracket on Challonge; null for one entered by hand

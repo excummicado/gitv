@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router";
-import { banUser, clearSession, signOutEverywhere, NICKNAME_HINT, NICKNAME_HINT_RU, NICKNAME_PATTERN, ROLE_LABELS, ROLE_LABELS_RU, setRole, unbanUser, updateNickname, type AssignableRole, type Role } from "../auth/client";
+import { banUser, clearSession, grantOrganizer, listOrganizers, memberOrganizers, NICKNAME_HINT, NICKNAME_HINT_RU, NICKNAME_PATTERN, revokeOrganizer, ROLE_LABELS, ROLE_LABELS_RU, setRole, signOutEverywhere, unbanUser, updateNickname, type AssignableRole, type OrganizerOption, type Role } from "../auth/client";
 import { useLang } from "../i18n";
 import { useAuth } from "../auth/useCurrentUser";
 import { Navbar } from "../components/Navbar";
@@ -105,14 +105,12 @@ function useNicknameAction(onEdit?: () => void) {
   return { run, saving, field, result, nickname: nickname.trim(), setMessage };
 }
 
-// Mirrors the API: admins move people between member, writer and the organizer roles; super admins can also give
-// admin.
-const ORGANIZERS: AssignableRole[] = ["event_organizer", "organizer_abyss_cup", "organizer_hoth", "organizer_newgen", "organizer_icephoenix", "organizer_abyss_ascend"];
+// Mirrors the API: admins move people between member, writer and event organizer; super admins can also give admin.
+// Organizers of only some tournaments stay members and get those organizers in OrganizersForm.
 const ASSIGNABLE: Record<"admin" | "super_admin", AssignableRole[]> = {
-  admin: ["user", "writer", ...ORGANIZERS],
-  super_admin: ["user", "writer", ...ORGANIZERS, "admin"],
+  admin: ["user", "writer", "event_organizer"],
+  super_admin: ["user", "writer", "event_organizer", "admin"],
 };
-// "Event organizer" -> "event organizer", but "HotH organizer" keeps its capitals.
 const lowerFirst = (label: string) => label.charAt(0).toLowerCase() + label.slice(1);
 
 function RolesForm({ actorRole }: { actorRole: "admin" | "super_admin" }) {
@@ -158,6 +156,83 @@ function RolesForm({ actorRole }: { actorRole: "admin" | "super_admin" }) {
           </div>
         )}
         {result}
+      </form>
+    </section>
+  );
+}
+
+// The organizers whose tournaments a member runs (schedules matches, fills in results): shown for a nickname, added
+// from every organizer on the site and removed one by one. Takes effect at once, without signing in again.
+function OrganizersForm() {
+  const { t } = useLang();
+  const [nickname, setNickname] = useState("");
+  const [all, setAll] = useState<OrganizerOption[]>([]);
+  const [choice, setChoice] = useState("");
+  // The member whose organizers are listed, and those organizers
+  const [shown, setShown] = useState<{ nickname: string; organizers: OrganizerOption[] } | null>(null);
+  const [message, setMessage] = useState<Message>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    listOrganizers().then((rows) => { setAll(rows); setChoice(rows[0]?.id ?? ""); }).catch(() => setAll([]));
+  }, []);
+
+  // Sends one request about this member and lists their organizers from its answer.
+  async function act(target: string, request: (nickname: string) => Promise<OrganizerOption[]>, done?: string) {
+    if (!target) return setMessage({ text: t("Enter a nickname.", "Введите ник."), ok: false });
+    setSaving(true);
+    try {
+      setShown({ nickname: target, organizers: await request(target) });
+      setMessage(done ? { text: done, ok: true } : null);
+    } catch (err) {
+      setMessage({ text: err instanceof Error ? err.message : t("Couldn't save the change. Try again.", "Не удалось сохранить изменение. Попробуйте ещё раз."), ok: false });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const name = (id: string) => all.find((o) => o.id === id)?.name ?? id;
+
+  return (
+    <section className="player-box profile-panel">
+      <h2 className="player-box-title">{t("Organizers", "Организаторы")}</h2>
+      <form className="profile-panel-body" onSubmit={(event) => { event.preventDefault(); act(nickname.trim(), memberOrganizers); }} noValidate>
+        <div className="profile-edit-row">
+          {shown ? (
+            <>
+              <strong className="profile-organizers-member">{shown.nickname}</strong>
+              <button type="button" className="profile-action profile-action--quiet" onClick={() => { setShown(null); setMessage(null); }}>{t("Other member", "Другой участник")}</button>
+            </>
+          ) : (
+            <>
+              <input className="profile-edit-input profile-edit-input--small" aria-label={t("Nickname", "Ник")} placeholder={t("Nickname", "Ник")}
+                value={nickname} onChange={(event) => { setNickname(event.target.value); setMessage(null); }} maxLength={32} />
+              <button type="submit" className="profile-action" disabled={saving}>{t("Show", "Показать")}</button>
+            </>
+          )}
+        </div>
+        {shown && (
+          <>
+            <ul className="profile-organizers">
+              {shown.organizers.map((o) => (
+                <li key={o.id}>
+                  <span>{o.name}</span>
+                  <button type="button" className="profile-action profile-action--quiet" disabled={saving}
+                    onClick={() => act(shown.nickname, (n) => revokeOrganizer(n, o.id), t(`${shown.nickname} no longer runs ${o.name}'s tournaments.`, `${shown.nickname} больше не ведёт турниры ${o.name}.`))}>{t("Remove", "Снять")}</button>
+                </li>
+              ))}
+              {shown.organizers.length === 0 && <li>{t("Runs no organizer's tournaments.", "Не ведёт турниры ни одного организатора.")}</li>}
+            </ul>
+            <div className="profile-edit-row">
+              <select className="profile-select profile-select--grow" aria-label={t("Organizer", "Организатор")} value={choice} onChange={(event) => setChoice(event.target.value)}>
+                {all.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+              </select>
+              <button type="button" className="profile-action" disabled={saving || !choice}
+                onClick={() => act(shown.nickname, (n) => grantOrganizer(n, choice), t(`${shown.nickname} now runs ${name(choice)}'s tournaments.`, `${shown.nickname} теперь ведёт турниры ${name(choice)}.`))}>{t("Add", "Добавить")}</button>
+            </div>
+          </>
+        )}
+        {message && <div className={message.ok ? "profile-edit-success" : "profile-edit-error"} role="status">{message.text}</div>}
       </form>
     </section>
   );
@@ -249,7 +324,8 @@ export function ProfilePage() {
                     )}
                     {user.discord_username && <div className="profile-discord">@{user.discord_username}</div>}
                   </div>
-                  {user.role !== "user" && <span className="profile-badge">{roleLabel(user.role)}</span>}
+                  {user.role !== "user" ? <span className="profile-badge">{roleLabel(user.role)}</span>
+                    : user.organizers?.length ? <span className="profile-badge">{t("Organizer", "Организатор")}</span> : null}
                 </div>
                 <SignOutButtons />
               </section>
@@ -257,6 +333,7 @@ export function ProfilePage() {
             {ready && (user?.role === "admin" || user?.role === "super_admin") && (
               <div className="profile-panels">
                 <RolesForm actorRole={user.role} />
+                <OrganizersForm />
                 <BansForm />
               </div>
             )}

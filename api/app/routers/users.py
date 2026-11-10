@@ -12,6 +12,7 @@ from ..dependencies import get_current_active_user
 from ..models import NICKNAME_PATTERN, User, UserPublic
 from ..rate_limit import rate_limit
 from ..security import clear_session_cookie
+from ..services.organizers import user_organizers
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -20,11 +21,18 @@ class NicknameUpdate(BaseModel):
     nickname: str = Field(min_length=3, max_length=32, pattern=NICKNAME_PATTERN)
 
 
+def own_view(session: SessionDep, user: User) -> UserPublic:
+    """The member as they see themselves: with the organizers whose tournaments they run, for the site to show them
+    the tools of those tournaments."""
+    return UserPublic.model_validate(user, update={"organizers": sorted(user_organizers(session, user))})
+
+
 @router.get("/me", response_model=UserPublic)
-async def read_users_me(
+def read_users_me(
     current_user: Annotated[User, Depends(get_current_active_user)],
+    session: SessionDep,
 ):
-    return current_user
+    return own_view(session, current_user)
 
 
 @router.patch("/me", response_model=UserPublic, dependencies=[Depends(rate_limit("nickname", 10, 3600, per="user"))])
@@ -47,7 +55,7 @@ def update_users_me(
         session.rollback()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This nickname is taken.") from error
     session.refresh(current_user)
-    return current_user
+    return own_view(session, current_user)
 
 
 @router.post("/me/sign-out-everywhere", status_code=status.HTTP_204_NO_CONTENT)

@@ -38,3 +38,8 @@
 .profile-confirm strong { color: var(--gitv-text); }
 .profile-confirm .profile-action { padding: 6px 12px; }
 .profile-panel--wide { grid-column: 1 / -1; }
+/* The organizers whose tournaments a member runs (OrganizersForm) */
+.profile-organizers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.profile-organizers li { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
+.profile-organizers-member { align-self: center; }
+.profile-select--grow { flex: 1; min-width: 0; }

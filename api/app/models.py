@@ -15,15 +15,9 @@ class Role(StrEnum):
     user = "user"
     # Writes news (imports them from a Word or Google document).
     writer = "writer"
-    # Runs tournaments: schedules matches and fills in missing results, in any tournament.
+    # Runs tournaments: schedules matches and fills in missing results, in any tournament. Organizers of only some
+    # tournaments keep their role and get those organizers' accounts instead (UserOrganizer).
     event_organizer = "event_organizer"
-    # An organizer of one tournament operator: the same, only in that operator's tournaments
-    # (services/organizers.py, OPERATORS)
-    organizer_abyss_cup = "organizer_abyss_cup"
-    organizer_hoth = "organizer_hoth"
-    organizer_newgen = "organizer_newgen"
-    organizer_icephoenix = "organizer_icephoenix"
-    organizer_abyss_ascend = "organizer_abyss_ascend"
     admin = "admin"
     # Can make other users admins; can't be changed from the site, only with app.cli.
     super_admin = "super_admin"
@@ -33,25 +27,12 @@ class Role(StrEnum):
         return self in (Role.admin, Role.super_admin)
 
     @property
-    def is_operator(self) -> bool:
-        """An organizer of one tournament operator only."""
-        return self.value.startswith("organizer_")
-
-    @property
     def runs_any_tournament(self) -> bool:
         """May schedule and fill in results in every tournament."""
         return self in (Role.event_organizer, Role.admin, Role.super_admin)
 
-    @property
-    def can_edit_players(self) -> bool:
-        """May schedule the matches of the day and fill in missing results (an operator's organizer: of its own
-        tournaments)."""
-        return self.runs_any_tournament or self.is_operator
-
-    @property
-    def can_write_news(self) -> bool:
-        """May add news to the home page (and remove their own; admins any)."""
-        return self == Role.writer or self.can_edit_players
+    # Who may schedule matches or write news also depends on the organizers a member runs (UserOrganizer), so those
+    # checks live in services/organizers.py: can_edit_players, can_write_news.
 
 
 class UserBase(SQLModel):
@@ -72,10 +53,23 @@ class User(UserBase, table=True):
     token_version: int = 0
 
 
+class UserOrganizer(SQLModel, table=True):
+    """The draft-site organizers whose tournaments a member runs (schedules matches, fills in results), granted by an
+    admin. organizer_id is the account the organizer counts as after the merges of set-organizer (OrganizerAlias
+    into_id); checks resolve it again, so a later merge doesn't cut anyone off."""
+
+    user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
+    organizer_id: str = Field(primary_key=True)
+    granted_by: uuid.UUID | None = None  # the admin; None for those carried over from the old organizer roles
+    created_at: datetime
+
+
 class UserPublic(UserBase):
     id: uuid.UUID
     discord_username: str | None
     role: Role
+    # The organizers whose tournaments they run (UserOrganizer); filled in only for the member themselves
+    organizers: list[str] = []
 
 
 # Matches imported from the tournament site's API (app.cli import-matches).

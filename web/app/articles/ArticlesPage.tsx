@@ -5,7 +5,7 @@ import { Brand } from "../components/Brand";
 import { useAuth } from "../auth/useCurrentUser";
 import { STAFF_ROLES } from "../auth/client";
 import { useLang } from "../i18n";
-import { approveArticle, deleteArticle, deleteTranslation, editArticle, replaceDocument, excerpt, importArticle, inLang, listArticles, NEWS_WRITER_ROLES, READ_SECONDS, readArticle, reportRead, setTranslation, type Article } from "./api";
+import { approveArticle, deleteArticle, deleteTranslation, editArticle, replaceDocument, excerpt, importArticle, inLang, listArticles, isNewsWriter, READ_SECONDS, readArticle, reportRead, setTranslation, type Article } from "./api";
 import "./articles.css";
 
 function Frame({ children }: { children: React.ReactNode }) {
@@ -249,7 +249,7 @@ export function ArticlePage() {
   // Read in the site's language when there's a translation into it; the reader can switch to the original
   const [original, setOriginal] = useState(false);
   // Whoever imported it, or an admin, may attach its translation
-  const canEdit = Boolean(post && user && (STAFF_ROLES.includes(user.role) || (NEWS_WRITER_ROLES.includes(user.role) && post.imported_by === user.nickname)));
+  const canEdit = Boolean(post && user && (STAFF_ROLES.includes(user.role) || (isNewsWriter(user) && post.imported_by === user.nickname)));
   const shown = post ? (original ? { title: post.title, body: post.body_html, translated: false } : inLang(post, lang)) : null;
   const [error, setError] = useState("");
   const [approving, setApproving] = useState(false);
@@ -356,7 +356,7 @@ export function ArticlePage() {
 export function ArticlesListPage() {
   const { user } = useAuth();
   const { t, date, lang } = useLang();
-  const writer = user ? NEWS_WRITER_ROLES.includes(user.role) : false;
+  const writer = isNewsWriter(user);
   const staff = user ? STAFF_ROLES.includes(user.role) : false;
   const [posts, setPosts] = useState<Article[] | null>(null);
   const [file, setFile] = useState<File | null>(null);

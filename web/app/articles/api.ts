@@ -2,7 +2,7 @@
 // event organizers and admins.
 
 import { getJson } from "../api";
-import { authRequest, PLAYER_EDITOR_ROLES, type Role } from "../auth/client";
+import { authRequest, isPlayerEditor, type User } from "../auth/client";
 
 // author: as given when importing, else who imported it (imported_by)
 export type Article = {
@@ -22,7 +22,10 @@ export function inLang(post: Article, lang: string) {
   return { title: translated ? post.title_tr ?? post.title : post.title, body: translated ? post.body_html_tr! : post.body_html, translated };
 }
 
-export const NEWS_WRITER_ROLES: Role[] = ["writer", ...PLAYER_EDITOR_ROLES];
+// Writers, and whoever schedules matches (event organizers, admins, members running some organizers' tournaments)
+export function isNewsWriter(user: User | null): boolean {
+  return Boolean(user && (user.role === "writer" || isPlayerEditor(user)));
+}
 
 // drafts: the drafts the signed-in member may see come first (the articles page; the home page shows published only).
 export function listArticles(limit = 10, signal?: AbortSignal, drafts = false) {
