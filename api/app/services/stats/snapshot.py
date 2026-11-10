@@ -16,6 +16,7 @@ import logging
 import os
 import threading
 import time as clock
+from bisect import bisect_left, bisect_right
 from collections import Counter, OrderedDict, defaultdict
 from collections.abc import Callable, Hashable
 from dataclasses import dataclass, field, replace
@@ -276,6 +277,41 @@ def tournaments_until(session: Session, until: date) -> set[str]:
     return {tid for tid, first in tournament_starts(session) if first < end}
 
 
+# The days tournaments started on, for the data_key they were read under: span() needs them on every dated request.
+_start_days: tuple[tuple, list[date]] | None = None
+
+
+def start_days(session: Session, key: tuple | None = None) -> list[date]:
+    """The days (UTC) tournaments started on, sorted, each once."""
+    global _start_days
+    key = current_key(session) if key is None else key
+    kept = _start_days
+    if kept is not None and kept[0] == key:
+        return kept[1]
+    days = sorted({first.astimezone(UTC).date() for _, first in tournament_starts(session)})
+    _start_days = (key, days)
+    return days
+
+
+def span(
+    session: Session, since: date | None, until: date | None, key: tuple | None = None
+) -> tuple[date | None, date | None]:
+    """since moved forward to the first day a tournament started on or after it, until back to the last one on or
+    before it: the same tournaments count (they're picked by the day they started), but any two dates between the
+    same tournaments give one cache key, so the cached slices and responses can't be worn out by trying dates.
+    A since after every tournament (an until before them all) becomes date.max (date.min): still nothing counts."""
+    if since is None and until is None:
+        return since, until
+    days = start_days(session, key)
+    if since is not None:
+        i = bisect_left(days, since)
+        since = days[i] if i < len(days) else date.max
+    if until is not None:
+        i = bisect_right(days, until)
+        until = days[i - 1] if i else date.min
+    return since, until
+
+
 def cached_json(session: Session, name: Hashable, body: Callable[[], str | bytes]) -> Response:
     """The response under this name, made by body() only when the data has changed since or it's too old."""
     global _responses_key
@@ -321,7 +357,7 @@ def snapshot(
             _cache["all:"] = build(session, key)
         elif kept.key != key and _building_behind.acquire(blocking=False):
             threading.Thread(target=_build_in_background, args=(session.get_bind(), key), daemon=True).start()
-        return _scoped(session, scope, since, until)
+        return _scoped(session, scope, *span(session, since, until, key))
 
 
 def _build_in_background(engine, key: tuple) -> None:

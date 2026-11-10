@@ -3,7 +3,7 @@
 from datetime import date, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, TypeAdapter
 from sqlmodel import func, select
 
@@ -11,6 +11,7 @@ from ..database import SessionDep
 from ..models import Agent, DraftSystem, Engine, PlayerRoster
 from ..models import RosterCharacter as RosterCharacterRow
 from ..models import RosterWeapon as RosterWeaponRow
+from ..rate_limit import rate_limit
 from ..services.draft_systems import character_cost, cost_tables, weapon_cost
 from ..services.player_names import display_names, merges
 from ..services.roster_stats import character_roster
@@ -26,11 +27,13 @@ from ..services.stats import (
     summary,
     tournament_standings,
 )
-from ..services.stats.snapshot import cached_json, major_tournament_ids, tournaments_since, tournaments_until
+from ..services.stats.snapshot import cached_json, major_tournament_ids, span, tournaments_since, tournaments_until
 from .matches import Character
 from .tournaments import rows as tournament_rows
 
 router = APIRouter(prefix="/players", tags=["players"])
+# The heaviest statistics, counted together with the characters' table (the same name in routers.characters).
+STATS_LIMIT = rate_limit("stats", 120, 60)
 
 
 class EloInfo(BaseModel):
@@ -245,7 +248,7 @@ Scope = Annotated[
 ]
 
 
-@router.get("", response_model=list[PlayerSummary])
+@router.get("", response_model=list[PlayerSummary], dependencies=[Depends(STATS_LIMIT)])
 def list_players(session: SessionDep, scope: Scope = "all"):
     """Everyone who played an imported match (in the scope), most matches first; the page sorts and filters it."""
 
@@ -602,7 +605,7 @@ def player_elo(player_id: str, session: SessionDep):
     }
 
 
-@router.get("/{player_id}/characters", response_model=CharacterRoster)
+@router.get("/{player_id}/characters", response_model=CharacterRoster, dependencies=[Depends(STATS_LIMIT)])
 def read_characters(
     player_id: str,
     session: SessionDep,
@@ -621,6 +624,7 @@ def read_characters(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such player.")
     only = None
     if since or until:
+        since, until = span(session, since, until)
         snap = snapshot(session, "all", since, until)
         only = tournaments_since(session, since) if since else None
         if until:
@@ -719,7 +723,7 @@ class Comparison(BaseModel):
     head_to_head: HeadToHead
 
 
-@router.get("/{player_id}/compare/{other_id}", response_model=Comparison)
+@router.get("/{player_id}/compare/{other_id}", response_model=Comparison, dependencies=[Depends(STATS_LIMIT)])
 def compare_players(player_id: str, other_id: str, session: SessionDep, scope: Scope = "all"):
     """Two players' statistics side by side, and their meetings, in the scope (major: Abyss Cup qualifiers
     and playoffs and the numbered Abyss Fight Club events only)."""

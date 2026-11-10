@@ -683,6 +683,77 @@ def test_characters_between_dates_and_on_abyss_phases(client, session):
     assert client.get("/api/v1/matches/m1").json()["abyss_phase"] == 2
 
 
+def test_dates_between_the_same_tournaments_share_one_cache_key(client, session):
+    import importlib
+    from datetime import date, datetime
+
+    from app.models import Match, MatchDraft, MatchPlayer, Tournament
+
+    # Three tournaments starting March 1, June 1 and September 1; the last one goes on for days
+    played = [("t0", date(2026, 3, 1)), ("t1", date(2026, 6, 1)), ("t2", date(2026, 9, 1)), ("t2", date(2026, 9, 3))]
+    for tid in ("t0", "t1", "t2"):
+        session.add(Tournament(id=tid, title=f"Abyss Fast Soup {tid}"))
+    for n, (tid, day) in enumerate(played):
+        when = datetime(day.year, day.month, day.day, 18, tzinfo=UTC)
+        session.add(Match(id=f"m{n}", tournament_id=tid, created_at=when, raw="{}"))
+        session.add(MatchDraft(id=f"d{n}", match_id=f"m{n}", game_no=1, status="FINISHED"))
+        for slot, name in enumerate("AB"):
+            session.add(
+                MatchPlayer(
+                    draft_id=f"d{n}", match_id=f"m{n}", slot=slot, user_id=name, full_name=name, clear_time=100 + slot
+                )
+            )
+    session.commit()
+    module = importlib.import_module("app.services.stats.snapshot")
+    module._cache.clear()
+    module._responses.clear()
+
+    # Start days stay as they are; dates between them move to the tournaments they let in
+    assert module.span(session, date(2026, 6, 1), date(2026, 6, 1)) == (date(2026, 6, 1), date(2026, 6, 1))
+    assert module.span(session, date(2026, 3, 2), None) == (date(2026, 6, 1), None)
+    assert module.span(session, date(2026, 5, 31), date(2026, 8, 31)) == (date(2026, 6, 1), date(2026, 6, 1))
+    assert module.span(session, None, date(2026, 9, 2)) == (None, date(2026, 9, 1))
+    assert module.span(session, date(2026, 9, 2), date(2026, 2, 1)) == (date.max, date.min)
+
+    def dated_slices():
+        return {name for name in module._cache if name != "all:"}
+
+    def character_responses():
+        return [name for name in module._responses if name[0] == "characters"]
+
+    # Two dates between the same tournaments: one slice, one cached response, the same answer
+    first = client.get("/api/v1/characters?since=2026-03-02")
+    second = client.get("/api/v1/characters?since=2026-05-31")
+    assert first.status_code == 200 and first.content == second.content
+    assert dated_slices() == {"all:2026-06-01"}
+    assert len(character_responses()) == 1
+    a = client.get("/api/v1/players/A?since=2026-03-02&until=2026-06-15").json()
+    assert a == client.get("/api/v1/players/A?since=2026-05-31&until=2026-08-31").json()
+    assert a["matches"] == 1
+    assert client.get("/api/v1/players/A/characters?since=2026-03-02").status_code == 200
+    assert dated_slices() == {"all:2026-06-01", "all:2026-06-01:2026-06-01"}
+
+    # On a start day the answer is what it always was: whole tournaments that started on or after, on or before it
+    assert client.get("/api/v1/players/A?since=2026-06-01").json()["matches"] == 3
+    assert client.get("/api/v1/players/A?until=2026-06-01").json()["matches"] == 2
+    assert client.get("/api/v1/players/A?since=2026-09-01&until=2026-09-01").json()["matches"] == 2
+    assert client.get("/api/v1/players/A?since=2026-09-02").status_code == 404
+    assert client.get("/api/v1/players/A?until=9999-12-31").json()["matches"] == 4
+
+
+def test_statistics_are_rate_limited(client, session):
+    limiter.clear()
+    try:
+        codes = [client.get("/api/v1/players").status_code for _ in range(60)]
+        codes += [client.get("/api/v1/characters").status_code for _ in range(60)]
+        assert codes == [200] * 120
+        # One budget for the players' and the characters' statistics
+        assert client.get("/api/v1/characters").status_code == 429
+        assert client.get("/api/v1/players/A/compare/B").status_code == 429
+    finally:
+        limiter.clear()
+
+
 def test_lists_answer_from_cache_until_the_data_changes(client, session):
     import importlib
     from datetime import datetime

@@ -5,16 +5,17 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlmodel import select
 
 from ..database import SessionDep
 from ..models import Agent, PlayerRoster, RosterCharacter, TournamentInfo
+from ..rate_limit import rate_limit
 from ..services.organizers import organizer_resolver
 from ..services.player_names import display_names, merges
 from ..services.stats import character_constellations, character_players, character_stats, prize_winners, snapshot
-from ..services.stats.snapshot import Snapshot, cached_json, played_during, restrict
+from ..services.stats.snapshot import Snapshot, cached_json, played_during, restrict, span
 from .abyss import phase_spans
 from .matches import Character
 
@@ -22,6 +23,9 @@ router = APIRouter(prefix="/characters", tags=["characters"])
 
 # The organizer key for tournaments whose organizer isn't known (fetch-tournaments not run for them).
 UNKNOWN = "unknown"
+# Each new set of filters is a computation over every game: a client gets so many a minute, counted together with
+# the players' statistics (the same name in routers.players).
+STATS_LIMIT = rate_limit("stats", 120, 60)
 
 
 class TopPlayer(BaseModel):
@@ -138,7 +142,7 @@ def filters(
     )
 
 
-@router.get("", response_model=CharacterTable)
+@router.get("", response_model=CharacterTable, dependencies=[Depends(STATS_LIMIT)])
 def list_characters(
     session: SessionDep,
     scope: Scope = "all",
@@ -151,6 +155,8 @@ def list_characters(
     cons_max: Constellation = 6,
 ):
     """Every character picked or banned under the filters (see filters)."""
+    # Before the cache key is made: dates between the same tournaments share one response
+    since, until = span(session, since, until)
 
     def body() -> str:
         f = filters(session, scope, since, exclude or [], prize, cons_min, cons_max, until, abyss)
