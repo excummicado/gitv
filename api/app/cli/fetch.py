@@ -14,6 +14,7 @@ from ..services.draft_actions import fetch_draft_actions
 from ..services.draft_links import fetch_draft_links
 from ..services.draft_systems import fetch_draft_systems
 from ..services.match_import import import_from_files, import_from_urls
+from ..services.raw_trim import trim_stored_raw
 from ..services.rosters import build_rosters
 from ..services.sync import MIN_INTERVAL, sync, sync_lock, write_state
 from ..services.tournament_info import fetch_tournament_info
@@ -153,6 +154,13 @@ def rebuild_rosters() -> None:
         f"Rosters: {counts['player_tournaments']} player-tournaments, {counts['versions']} versions; "
         f"{counts['changed']} changed mid-tournament."
     )
+
+
+def trim_raw(batch: int) -> None:
+    result = trim_stored_raw(engine, batch, log=print)
+    for table, (before, after) in result.sizes.items():
+        print(f"{table}.raw: {before:,} -> {after:,} bytes, {result.rows[table]} rows rewritten")
+    print("The file shrinks only after VACUUM (it needs free disk space about the database's size).")
 
 
 def fetch_tournaments() -> None:

@@ -39,6 +39,7 @@ from .challonge import normalize
 from .manual_games import PENALTY_STEP
 from .match_checks import adjusted_time
 from .player_names import known_players, merges
+from .raw_trim import draft_raw_json
 from .stats import snapshot
 
 HUB_URL = "https://hoth-hub.site/api/integration/v1/matches"
@@ -272,7 +273,7 @@ def fill_times(
                 raw["players"][slot] |= {f"clearTimeRoom{i + 1}": r for i, r in enumerate(rooms)}
             changed = True
         if state and raw:
-            state.raw = json.dumps(raw, ensure_ascii=False)
+            state.raw = draft_raw_json(raw)
             session.add(state)
     return int(changed)
 

@@ -18,6 +18,7 @@ from sqlmodel import Session, delete, func, select
 
 from ..models import DraftAction, DraftLink, DraftState, Match, MatchDraft, MatchPick, MatchPlayer, Tournament
 from .match_checks import tidy_title
+from .raw_trim import match_raw_json
 
 # The most the site returns per request; asking for more doesn't get more.
 PAGE_SIZE = 100
@@ -97,7 +98,7 @@ def save_match(session: Session, m: dict) -> None:
             is_official=bool(m.get("isOfficial")),
             created_by=m.get("createdBy"),
             created_at=parse_date(m["createdAt"]),
-            raw=json.dumps(m, ensure_ascii=False),
+            raw=match_raw_json(m),
         )
     )
 

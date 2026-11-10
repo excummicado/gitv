@@ -16,6 +16,7 @@ from sqlmodel import Session, delete, select
 
 from ..models import DraftState, GameResult, MatchDraft, MatchPlayer
 from .match_checks import TECH_ROOM_TIME
+from .raw_trim import draft_raw_json
 
 SOURCE = "manual"
 MAX_RESTARTS = 99
@@ -78,7 +79,7 @@ def _write(session: Session, row: GameResult) -> bool:
             players.append({})
         if state_rooms(raw, row.slot) != rooms:
             players[row.slot] |= {f"clearTimeRoom{i + 1}": t for i, t in enumerate(rooms)}
-            state.raw = json.dumps(raw, ensure_ascii=False)
+            state.raw = draft_raw_json(raw)
             session.add(state)
             changed = True
     return changed
@@ -172,7 +173,7 @@ def clear_game_result(session: Session, draft_id: str) -> bool:
         if raw.get("enteredByHand"):
             session.delete(state)  # made for the entries: the site's data can be read again
         else:
-            state.raw = json.dumps(raw, ensure_ascii=False)
+            state.raw = draft_raw_json(raw)
             session.add(state)
     session.exec(delete(GameResult).where(GameResult.draft_id == draft_id))
     session.commit()

@@ -9,6 +9,7 @@ venv/bin/python -m app.cli fetch-draft-links
 venv/bin/python -m app.cli fetch-draft-actions
 venv/bin/python -m app.cli fetch-draft-systems
 venv/bin/python -m app.cli build-rosters
+venv/bin/python -m app.cli trim-raw             # once, then VACUUM: see app/services/raw_trim.py
 venv/bin/python -m app.cli import-catalog
 venv/bin/python -m app.cli fetch-tournaments
 venv/bin/python -m app.cli fetch-challonge
@@ -59,6 +60,7 @@ from .fetch import (
     run_fetch_challonge,
     run_sync,
     run_worker,
+    trim_raw,
 )
 from .players import (
     add_player,
@@ -117,6 +119,8 @@ def main() -> None:
     )
     challonge_cmd.add_argument("--refetch", action="store_true", help="Fetch brackets already stored again")
     commands.add_parser("build-rosters", help="Rebuild every player's roster per tournament from the drafts")
+    trim_cmd = commands.add_parser("trim-raw", help="Drop what nothing reads from the stored drafts' and matches' raw")
+    trim_cmd.add_argument("--batch", type=int, default=200, help="Rows per transaction")
     commands.add_parser("fetch-draft-systems", help="Fetch the draft systems' rules and cost tables")
     sync_cmd = commands.add_parser("sync", help="Import new finished tournaments with their drafts")
     sync_cmd.add_argument(
@@ -245,6 +249,8 @@ def main() -> None:
         fetch_systems()
     elif args.command == "build-rosters":
         rebuild_rosters()
+    elif args.command == "trim-raw":
+        trim_raw(args.batch)
     elif args.command == "fetch-tournaments":
         fetch_tournaments()
     elif args.command == "fetch-challonge":

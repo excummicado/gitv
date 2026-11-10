@@ -22,6 +22,7 @@ from sqlmodel import Session, delete, select
 from ..models import DraftAction, DraftLink, DraftState, MatchPlayer
 from .manual_results import manual_drafts
 from .match_import import is_finished
+from .raw_trim import draft_raw_json
 
 SOCKET = "wss://abyss.darte.gg/socket.io/draft/"
 WORKERS = 8
@@ -82,7 +83,7 @@ def save_draft(session: Session, link: DraftLink, data: dict) -> int:
             finished_at=parse_date(details.get("finishedAt")),
             rooms=json.dumps(details["rooms"]) if "rooms" in details else None,
             bosses=json.dumps(details["bosses"]) if "bosses" in details else None,
-            raw=json.dumps(data, ensure_ascii=False),
+            raw=draft_raw_json(data),
         )
     )
     # actualActions is actions with the undone moves taken out; the judge's own UNDO/PAUSE/CONTINUE stay in raw.
