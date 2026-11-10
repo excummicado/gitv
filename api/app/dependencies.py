@@ -47,6 +47,10 @@ async def get_current_user(
     # so staff always hold short-lived tokens and a demoted admin loses access at once.
     if payload.get("role") != user.role.value:
         raise credentials_exception
+    # Tokens issued before versions existed carry none and count as version 0, so they keep working until the
+    # user signs out everywhere.
+    if payload.get("ver", 0) != user.token_version:
+        raise credentials_exception
     return user
 
 

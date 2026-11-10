@@ -92,6 +92,8 @@ def ban(data: Ban, session: SessionDep, actor: Annotated[User, Depends(get_curre
     if user.disabled:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This member is already banned.")
     user.disabled = True
+    # Ends the member's sessions now, so unbanning later doesn't bring old tokens back to life.
+    user.token_version += 1
     session.add(user)
     session.commit()
     session.refresh(user)

@@ -68,6 +68,8 @@ class User(UserBase, table=True):
     role: Role = Role.user
     # Banned by an admin: can't sign in, and existing sessions stop working.
     disabled: bool = False
+    # Written into every token as "ver"; raising it ends all of the user's sessions (sign-out everywhere, a ban).
+    token_version: int = 0
 
 
 class UserPublic(UserBase):

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
-import { banUser, clearSession, NICKNAME_HINT, NICKNAME_HINT_RU, NICKNAME_PATTERN, ROLE_LABELS, ROLE_LABELS_RU, setRole, unbanUser, updateNickname, type AssignableRole, type Role } from "../auth/client";
+import { banUser, clearSession, signOutEverywhere, NICKNAME_HINT, NICKNAME_HINT_RU, NICKNAME_PATTERN, ROLE_LABELS, ROLE_LABELS_RU, setRole, unbanUser, updateNickname, type AssignableRole, type Role } from "../auth/client";
 import { useLang } from "../i18n";
 import { useAuth } from "../auth/useCurrentUser";
 import { Navbar } from "../components/Navbar";
@@ -185,6 +185,42 @@ function BansForm() {
   );
 }
 
+// Signing out here, or on every device at once (after a confirm: it can't be undone from here).
+function SignOutButtons() {
+  const { t } = useLang();
+  const [confirming, setConfirming] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function confirm() {
+    setSaving(true);
+    setError(null);
+    try {
+      await signOutEverywhere(); // the page then shows the signed-out view
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("Something went wrong. Try again.", "Что-то пошло не так. Попробуйте ещё раз."));
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="profile-signout-row">
+        <button type="button" className="profile-signout" onClick={() => clearSession()}><SignOutIcon />{t("Sign out", "Выйти")}</button>
+        <button type="button" className="profile-signout" onClick={() => setConfirming(true)} disabled={confirming}>{t("Sign out everywhere", "Выйти на всех устройствах")}</button>
+      </div>
+      {confirming && (
+        <div className="profile-confirm" role="alertdialog" aria-label={t("Confirm signing out everywhere", "Подтвердите выход на всех устройствах")}>
+          <span>{t("Sign out on every device, this one included?", "Выйти на всех устройствах, включая это?")}</span>
+          <button type="button" className="profile-action" onClick={confirm} disabled={saving} autoFocus>{t("Sign out", "Выйти")}</button>
+          <button type="button" className="profile-action profile-action--quiet" onClick={() => setConfirming(false)} disabled={saving}>{t("Cancel", "Отмена")}</button>
+        </div>
+      )}
+      {error && <div className="profile-edit-error" role="alert">{error}</div>}
+    </>
+  );
+}
+
 export function ProfilePage() {
   const { user, ready } = useAuth();
   const { t, role: roleLabel } = useProfileText();
@@ -215,7 +251,7 @@ export function ProfilePage() {
                   </div>
                   {user.role !== "user" && <span className="profile-badge">{roleLabel(user.role)}</span>}
                 </div>
-                <button type="button" className="profile-signout" onClick={() => clearSession()}><SignOutIcon />{t("Sign out", "Выйти")}</button>
+                <SignOutButtons />
               </section>
             ) : null}
             {ready && (user?.role === "admin" || user?.role === "super_admin") && (

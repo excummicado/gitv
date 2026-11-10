@@ -54,9 +54,10 @@ def token_minutes(user: User) -> int:
 
 
 def issue_access_token(user: User) -> str:
-    # The role is recorded so a token stops working once that user's role changes.
+    # The role and the token version are recorded so a token stops working once that user's role changes or they
+    # sign out everywhere.
     return create_access_token(
-        data={"sub": str(user.id), "role": user.role.value},
+        data={"sub": str(user.id), "role": user.role.value, "ver": user.token_version},
         expires_delta=timedelta(minutes=token_minutes(user)),
     )
 

@@ -4,6 +4,8 @@
 .profile-signin { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; padding: 7px 14px; border: 1px solid var(--gitv-border); background: var(--gitv-surface); color: var(--gitv-text-soft); font: 12px/1.4 var(--gitv-font); text-decoration: none; cursor: pointer; }
 .profile-signout:hover,
 .profile-signin:hover { border-color: var(--gitv-accent); color: var(--gitv-text); }
+.profile-signout-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.profile-signout:disabled { opacity: 0.7; cursor: default; }
 .profile-name { min-width: 0; flex: 1; margin-bottom: 12px; }
 .profile-name-row { display: flex; align-items: center; gap: 8px; }
 .profile-pen { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 1px solid transparent; background: none; color: var(--gitv-muted); cursor: pointer; }

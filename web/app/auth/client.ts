@@ -86,6 +86,13 @@ export function clearSession() {
   forget();
 }
 
+// Ends every session of the member, on every device (the API raises their token version), then signs this
+// browser out too.
+export async function signOutEverywhere() {
+  await authRequest<null>("POST", "/users/me/sign-out-everywhere");
+  forget();
+}
+
 export function getCurrentUser(): User | null {
   return readStored()?.user ?? null;
 }
