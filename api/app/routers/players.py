@@ -547,7 +547,7 @@ class RosterAccount(BaseModel):
 class CharacterRoster(BaseModel):
     # The player's game accounts, told apart by their rosters (services.roster_stats.split_accounts)
     accounts: list[RosterAccount]
-    account: int | None  # the one everything below is about
+    account: int | None  # the one everything below is about; None: all of them
     tournaments: list[RosterTournament]
     tournament: str | None
     games: int
@@ -611,7 +611,8 @@ def read_characters(
     since: date | None = None,
     until: date | None = None,
 ):
-    """Every character ever in the roster of one of the player's game accounts (or in one tournament's roster) with
+    """Every character ever in the player's rosters (or in one tournament's roster; with account, in that game
+    account's rosters, with the games of its tournaments only) with
     the player's statistics on it and its constellation changes. since, until: only the tournaments that started on
     or after, on or before these dates count, for the rosters and the games both."""
     player_id = merges(session).get(player_id, player_id)

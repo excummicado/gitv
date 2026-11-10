@@ -10,6 +10,7 @@ from collections import defaultdict
 from sqlmodel import Session, select
 
 from ..models import Agent, LiveRoster, PlayerRoster, RosterCharacter, Tournament
+from .catalog import ELEMENT_LETTERS
 from .match_checks import TEAM_EVENT
 from .player_names import display_names, merges
 from .stats.player import avg, pct
@@ -20,6 +21,18 @@ from .stats.snapshot import Snapshot
 # this many of the 5-stars of the account's last roster gone.
 ACCOUNT_CLASHES = 3
 ACCOUNT_GONE = 7
+TRAVELERS = {f"{letter}MC" for letter in ELEMENT_LETTERS.values()}
+
+
+def account_five_stars(session: Session) -> set[str]:
+    """The 5-stars whose constellations tell game accounts apart. Not the Travelers (theirs are free and entered any
+    which way: C6, then C2) nor a character's second entry in the site's list ("Raiden Shogun (Bloom)"), which
+    needn't carry the constellation of the first."""
+    return {
+        agent_id
+        for agent_id, name in session.exec(select(Agent.id, Agent.name_en).where(Agent.rarity == 5))
+        if name not in TRAVELERS and "(" not in (name or "")
+    }
 
 
 def _rosters(session: Session, player_id: str) -> tuple[list[PlayerRoster], dict[int, list[RosterCharacter]]]:
@@ -94,22 +107,15 @@ def character_roster(
     each with: its constellation now (or in that tournament) and every change of it; the tournaments it was in
     the roster for; and the player's games with it: picks, winrate, average time, bans against it.
 
-    All of it for one game account (split_accounts): the given one (1-based), else the one that played the
-    tournament, else the one used last. A player with several gets the games of the account's tournaments only.
+    Over every game account of the player (split_accounts) unless one is given (1-based): then its rosters only, and
+    the games of its tournaments only. The split is a guess from the rosters, so nothing is left out by default.
     only: the tournaments of a date range, which snap is limited to; only their rosters count too (the accounts are
     still told apart over every roster)."""
     versions, chars = _rosters(session, player_id)
-    five_stars = set(session.exec(select(Agent.id).where(Agent.rarity == 5)))
-    accounts = split_accounts(versions, chars, five_stars)
-    numbers = range(1, len(accounts) + 1)
-    played_it = [i for i in numbers if any(v.tournament_id == tournament for v in accounts[i - 1])]
-    if account in (played_it if tournament else numbers):
-        number = account
-    elif played_it:
-        number = played_it[-1]
-    else:
-        number = max(numbers, key=lambda i: max(v.last_seen for v in accounts[i - 1]), default=None)
-    versions = accounts[number - 1] if number else []
+    accounts = split_accounts(versions, chars, account_five_stars(session))
+    number = account if account in range(1, len(accounts) + 1) else None
+    if number:
+        versions = accounts[number - 1]
     if only is not None:
         versions = [v for v in versions if v.tournament_id in only]
     account_list = [
@@ -156,7 +162,7 @@ def character_roster(
         g
         for g in (pd.games if pd else [])
         if (tournament is None or snap.match_tournament[g.match_id] == tournament)
-        and (len(accounts) < 2 or snap.match_tournament[g.match_id] in played)
+        and (number is None or snap.match_tournament[g.match_id] in played)
     ]
     drafts = {g.draft_id for g in games}
     banned: dict[str, int] = defaultdict(int)

@@ -365,20 +365,24 @@ def test_character_roster_history(world):
 
 
 def test_character_roster_accounts_and_team_events(world):
-    """Rosters whose 5-stars clash are separate accounts, each with its own history; a team event is in neither."""
+    """Rosters whose 5-stars clash are separate accounts, each with its own history when asked for; every game counts
+    until then. A team event is in neither."""
     from app.models import Agent, PlayerRoster, RosterCharacter
     from app.services.roster_stats import character_roster
 
     for agent in "abcd":
         world.s.add(Agent(id=agent, rarity=5))
+    # A Traveler and a character's second entry: their constellations tell no accounts apart.
+    world.s.add(Agent(id="traveler", rarity=5, name_en="PMC"))
+    world.s.add(Agent(id="twin", rarity=5, name_en="Raiden Shogun (Bloom)"))
     world.s.add(Agent(id="four", rarity=4))
-    main = {"a": 2, "b": 2, "c": 2, "d": 0, "four": 6}
+    main = {"a": 2, "b": 2, "c": 2, "d": 0, "four": 6, "traveler": 6, "twin": 3}
     rosters = [
         ("Abyss Fast Soup 200", 1, main),
         # Three 5-stars lower: another account. A 4-star doesn't count.
         ("Abyss Fast Soup 201", 2, {"a": 0, "b": 0, "c": 0, "d": 3, "four": 0}),
         # No clash with the first account, one with the second: the first's, with d up.
-        ("Abyss Fast Soup 202", 3, {"a": 2, "b": 2, "c": 3, "d": 1}),
+        ("Abyss Fast Soup 202", 3, {"a": 2, "b": 2, "c": 3, "d": 1, "traveler": 2, "twin": 0}),
         ("Abyss Fast Soup 203", 4, {"a": 0, "b": 1, "c": 0}),
         ("HotH: 2x2", 5, {"a": 6, "b": 6, "c": 6, "d": 6}),
     ]
@@ -405,10 +409,15 @@ def test_character_roster_accounts_and_team_events(world):
             world.s.add(RosterCharacter(roster_id=r.id, agent_id=agent, constellation=cons))
     snap = world.snap()
 
-    latest = character_roster(world.s, snap, "A")
-    assert [a["number"] for a in latest["accounts"]] == [1, 2]
-    assert ids["HotH: 2x2"] not in {t["id"] for t in latest["tournaments"]}
-    # Soup 203 clashes with the first account on three, so it's the second one's, used last.
+    # No account asked for: every roster and every game, the team event's aside.
+    everything = character_roster(world.s, snap, "A")
+    assert [a["number"] for a in everything["accounts"]] == [1, 2]
+    assert everything["account"] is None
+    assert {t["id"] for t in everything["tournaments"]} == {i for title, i in ids.items() if title != "HotH: 2x2"}
+    assert everything["games"] == 8
+
+    # Soup 203 clashes with the first account on three, so it's the second one's.
+    latest = character_roster(world.s, snap, "A", account=2)
     assert latest["account"] == 2
     assert {t["id"] for t in latest["tournaments"]} == {ids["Abyss Fast Soup 201"], ids["Abyss Fast Soup 203"]}
     assert latest["games"] == 4
@@ -416,8 +425,8 @@ def test_character_roster_accounts_and_team_events(world):
     first = character_roster(world.s, snap, "A", account=1)
     assert {t["id"] for t in first["tournaments"]} == {ids["Abyss Fast Soup 200"], ids["Abyss Fast Soup 202"]}
     assert [h["constellation"] for r in first["characters"] if r["character"] == "d" for h in r["history"]] == [0, 1]
-    # A tournament picks the account that played it.
-    assert character_roster(world.s, snap, "A", ids["Abyss Fast Soup 200"])["account"] == 1
+    # A tournament alone picks no account.
+    assert character_roster(world.s, snap, "A", ids["Abyss Fast Soup 200"])["account"] is None
 
 
 def test_split_accounts_one_clash_with_most_of_the_roster_gone():

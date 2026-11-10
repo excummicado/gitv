@@ -123,7 +123,8 @@ export function CharactersTab({ playerId, since, until }: { playerId: string; si
           <label className="chars-roster chars-account">
             <span className="player-label">{t("Game account", "Игровой аккаунт")}</span>
             <select className="match-input" value={data.account ?? ""} aria-label={t("Game account", "Игровой аккаунт")}
-              onChange={(e) => { setTournament(""); setAccount(Number(e.target.value)); }}>
+              onChange={(e) => { setTournament(""); setAccount(Number(e.target.value) || undefined); }}>
+              <option value="">{t("All accounts", "Все аккаунты")}</option>
               {data.accounts.map((a) => (
                 <option key={a.number} value={a.number}>
                   {t(`Account ${a.number}`, `Аккаунт ${a.number}`)} · {count(a.tournaments, ["tournament", "tournaments"], ["турнир", "турнира", "турниров"])} · {date(a.first_seen)} – {date(a.last_seen)}
