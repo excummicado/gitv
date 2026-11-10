@@ -9,3 +9,7 @@ references/
 
 # Vite's dependency cache
 .vite/
+
+# Playwright
+/test-results/
+/playwright-report/

@@ -8,6 +8,7 @@ npm install
 npm run dev        # http://localhost:5173
 npm run typecheck
 npm run build && npm run start   # production build and server
+npm run smoke      # Playwright smoke tests: builds, then opens the pages at 1280 and 375 px on a local test API
 ```
 
 ## Layout

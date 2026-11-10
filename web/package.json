@@ -6,7 +6,8 @@
     "build": "react-router build",
     "dev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js",
-    "typecheck": "react-router typegen && tsc"
+    "typecheck": "react-router typegen && tsc",
+    "smoke": "react-router build && playwright test"
   },
   "dependencies": {
     "@react-router/node": "8.5.1",
@@ -17,6 +18,7 @@
     "react-router": "8.5.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "@react-router/dev": "8.5.1",
     "@tailwindcss/vite": "^4.2.2",
     "@types/node": "^22",
