@@ -1,0 +1,8 @@
+[Unit]
+Description=GITV database backup
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/gitv-backup
+Nice=10
+IOSchedulingClass=idle

@@ -2,9 +2,10 @@
 # Puts a new version of the site on the server: takes a tar.gz on stdin (see .github/workflows/ci.yml) and is all the
 # deploy key can run. Installed as root:root 755 in /usr/local/bin; a change here has to be installed by hand.
 #
-# New dependencies and migrations stop it: they're done by hand, migrations with a copy of the database first. The
-# database, .env, media and brackets aren't in the archive and aren't touched. If the site doesn't come back, the
-# previous version is put back.
+# New dependencies stop it: they're installed by hand. A new migration is run here, with the site stopped and a copy
+# of the database taken first (kept compressed in /opt/gitv/backups); if it fails, the copy and the previous version
+# are put back. .env, media and brackets aren't in the archive and aren't touched. If the site doesn't come back, the
+# previous version is put back (the database stays migrated: migrations only add, and the copy is there).
 set -euo pipefail
 
 API=/opt/gitv/app/api
@@ -31,9 +32,9 @@ cmp -s "$WORK/api/requirements.txt" "$API/requirements.txt" \
   || fail "api/requirements.txt changed: install the dependencies by hand first."
 cmp -s "$WORK/web/package-lock.json" "$WEB/package-lock.json" \
   || fail "web/package-lock.json changed: install the dependencies by hand first."
+new_migrations=()
 for migration in "$WORK"/api/migrations/versions/*.py; do
-  [[ -e $API/migrations/versions/$(basename "$migration") ]] \
-    || fail "new migration $(basename "$migration"): run it by hand with a copy of the database first."
+  [[ -e $API/migrations/versions/$(basename "$migration") ]] || new_migrations+=("$(basename "$migration")")
 done
 # CI runs a newer Python than the server's: what it can't even read must not get as far as the restart.
 PYTHONPYCACHEPREFIX="$WORK/pycache" "$API/venv/bin/python" -m compileall -q "$WORK/api/app" >/dev/null \
@@ -70,9 +71,54 @@ mkdir -p "$PREVIOUS"
 copy "$API/app" "$PREVIOUS/api-app" --delete
 copy "$WEB/build" "$PREVIOUS/web-build" --delete
 
+# The background worker, where it's set up (gitv-worker.service): the same code, restarted with the API.
+worker() {
+  if systemctl cat gitv-worker.service >/dev/null 2>&1; then systemctl "$1" gitv-worker; fi
+}
+
+migrate() {
+  local db=$API/gitv.db backups=/opt/gitv/backups saved
+  saved=$backups/gitv-before-$(date -u +%Y-%m-%dT%H%M%S).db
+  mkdir -p "$backups"
+  chown gitv:gitv "$backups"
+  chmod 700 "$backups"
+  # The copy, then its compressed form beside it for a moment
+  (($(df --output=avail -k "$backups" | tail -1) > $(du -k "$db" | cut -f1) * 2)) \
+    || fail "new migrations (${new_migrations[*]}), but no room for a copy of the database first."
+  systemctl stop gitv-api
+  worker stop
+  runuser -u gitv -- sqlite3 "$db" ".timeout 30000" ".backup '$saved'" \
+    && [[ $(runuser -u gitv -- sqlite3 "$saved" "PRAGMA quick_check") == ok ]] || {
+    rm -f "$saved"
+    systemctl start gitv-api
+    worker start
+    fail "couldn't take a sound copy of the database; nothing was changed."
+  }
+  # The migrations read the new models, so the new code goes in with them.
+  copy "$WORK/api/app" "$API/app"
+  for migration in "${new_migrations[@]}"; do
+    install -o gitv -g gitv -m 644 "$WORK/api/migrations/versions/$migration" "$API/migrations/versions/$migration"
+  done
+  if ! (cd "$API" && runuser -u gitv -- venv/bin/alembic upgrade head) >&2; then
+    echo "The migration failed, putting the database and the previous version back." >&2
+    for migration in "${new_migrations[@]}"; do rm -f "$API/migrations/versions/$migration"; done
+    rm -f "$db-wal" "$db-shm"
+    install -o gitv -g gitv -m 644 "$saved" "$db"
+    copy "$PREVIOUS/api-app" "$API/app" --delete
+    systemctl start gitv-api
+    worker start
+    runuser -u gitv -- gzip -f "$saved"
+    fail "the migration failed; the database is as it was (its copy: $saved.gz)."
+  fi
+  runuser -u gitv -- gzip -f "$saved"
+  echo "Migrated (${new_migrations[*]}); the database before it: $saved.gz"
+}
+
+((${#new_migrations[@]} == 0)) || migrate
 copy "$WORK/api/app" "$API/app"
 copy "$WORK/web/build" "$WEB/build" --delete
 systemctl restart gitv-api gitv-web
+worker restart
 if healthy; then
   echo "Deployed."
   exit 0
@@ -83,5 +129,6 @@ echo "The new version didn't come up, putting the previous one back." >&2
 copy "$PREVIOUS/api-app" "$API/app" --delete
 copy "$PREVIOUS/web-build" "$WEB/build" --delete
 systemctl restart gitv-api gitv-web
+worker restart
 healthy || fail "the previous version didn't come up either: look at the server now."
 fail "the new version didn't come up; the previous one is back."

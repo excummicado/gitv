@@ -1,0 +1,27 @@
+[Unit]
+Description=GITV background sync, live poll and stream
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=gitv
+Group=gitv
+WorkingDirectory=/opt/gitv/app/api
+# At least an hour between syncs whatever is set here; the API beside it runs with SYNC_INTERVAL=0
+# (gitv-api.service.d/no-sync.conf), or both would poll.
+Environment=SYNC_INTERVAL=3600
+ExecStart=/opt/gitv/app/api/venv/bin/python -m app.cli worker
+Restart=on-failure
+RestartSec=30
+# Requests come first: the sync gets the processor when the API leaves it free, and can't take the server's memory.
+Nice=10
+CPUWeight=20
+MemoryHigh=350M
+MemoryMax=500M
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

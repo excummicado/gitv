@@ -1,0 +1,33 @@
+#!/bin/bash
+# A compressed copy of the site's database, kept for KEEP days. The database is the only copy of the site's data
+# (the server's is the master), so this runs every night from gitv-backup.timer. Installed as root:root 755 in
+# /usr/local/bin. The copies stay on this server: fetch them elsewhere too (tools/deploy/README.md).
+set -euo pipefail
+
+DB=/opt/gitv/app/api/gitv.db
+DIR=/opt/gitv/backups
+KEEP=14
+# An uncompressed copy is written first, then compressed: room for both, and some to spare.
+NEEDED_KB=$(($(du -k "$DB" | cut -f1) * 2))
+
+mkdir -p "$DIR"
+chown gitv:gitv "$DIR"
+chmod 700 "$DIR"
+available=$(df --output=avail -k "$DIR" | tail -1)
+if ((available < NEEDED_KB)); then
+  echo "Backup skipped: ${available} KB free, ${NEEDED_KB} KB needed." >&2
+  exit 1
+fi
+
+name=gitv-$(date -u +%Y-%m-%d).db
+trap 'rm -f "$DIR/$name"' EXIT
+# sqlite3's own backup: a consistent copy while the site keeps reading and writing.
+runuser -u gitv -- sqlite3 "$DB" ".timeout 30000" ".backup '$DIR/$name'"
+[[ $(runuser -u gitv -- sqlite3 "$DIR/$name" "PRAGMA quick_check") == ok ]] || {
+  echo "Backup failed: the copy doesn't pass its check." >&2
+  exit 1
+}
+runuser -u gitv -- gzip -f "$DIR/$name"
+# Only this script's own copies, and only once the new one is there.
+find "$DIR" -maxdepth 1 -name 'gitv-????-??-??.db.gz' -mtime +"$KEEP" -delete
+echo "Backup: $DIR/$name.gz ($(du -h "$DIR/$name.gz" | cut -f1))"
