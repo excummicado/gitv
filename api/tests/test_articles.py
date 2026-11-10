@@ -293,3 +293,83 @@ def test_the_document_is_replaced_with_a_new_version(writer):
     new = {"file": ("v2.docx", docx([p("Статья v2"), p("Новый текст")]), "application/octet-stream")}
     done = writer.put(f"/api/v1/articles/{post['id']}/document", files=new).json()
     assert done["title"] == "Статья v2" and "Новый текст" in done["body_html"] and "Старый" not in done["body_html"]
+
+
+def refused(data: bytes, media) -> str:
+    """docx_to_html's refusal of a document, checking it left no picture behind."""
+    from app.services.news import DocumentError
+
+    with pytest.raises(DocumentError) as e:
+        docx_to_html(io.BytesIO(data))
+    assert not (media / "news").exists() or not list((media / "news").iterdir())
+    return str(e.value)
+
+
+def test_a_document_that_unpacks_to_too_much_is_refused(tmp_path, monkeypatch):
+    from app.services import news
+
+    monkeypatch.setattr(news, "MEDIA_DIR", tmp_path)
+    # A small archive of a picture and 201 MB of zeros (about 200 KB packed)
+    out = io.BytesIO(docx([p("Бомба"), picture("img1")], images={"img1": PNG}))
+    with zipfile.ZipFile(out, "a", zipfile.ZIP_DEFLATED) as z, z.open("word/media/zeros.bin", "w") as f:
+        for _ in range(201):
+            f.write(bytes(1024 * 1024))
+    assert len(out.getvalue()) < news.MAX_BYTES
+    assert "unpacks to too much" in refused(out.getvalue(), tmp_path)
+    # So is one of too many entries, and an archive that can't be read
+    out = io.BytesIO(docx([p("Много файлов")]))
+    with zipfile.ZipFile(out, "a") as z:
+        for i in range(news.MAX_ENTRIES):
+            z.writestr(f"word/x{i}.xml", "")
+    assert "unpacks to too much" in refused(out.getvalue(), tmp_path)
+    assert refused(b"PK\x03\x04" + b"\x00" * 100, tmp_path) == "Couldn't read the document."
+
+
+def test_a_too_big_picture_and_pictures_past_the_limit_are_left_out(tmp_path, monkeypatch):
+    from app.services import news
+
+    monkeypatch.setattr(news, "MEDIA_DIR", tmp_path)
+    big = PNG + bytes(news.MAX_PICTURE)
+    title, body, pictures = docx_to_html(
+        io.BytesIO(docx([p("Картинки"), picture("big"), picture("img1")], images={"big": big, "img1": PNG}))
+    )
+    assert len(pictures) == 1 and body.count("<img") == 1
+    assert [f.stat().st_size for f in (tmp_path / "news").iterdir()] == [len(PNG)]
+    # Only the first MAX_PICTURES pictures are kept
+    monkeypatch.setattr(news, "MAX_PICTURES", 2)
+    images = {f"img{i}": PNG for i in range(3)}
+    _, body, pictures = docx_to_html(io.BytesIO(docx([p("Три"), *map(picture, images)], images=images)))
+    assert len(pictures) == 2 and body.count("<img") == 2
+
+
+def test_a_too_big_document_is_refused(writer, tmp_path, monkeypatch):
+    from app.services import news
+
+    monkeypatch.setattr(news, "MEDIA_DIR", tmp_path)
+    data = docx([p("Большой"), picture("img1")], images={"img1": PNG})
+    data += bytes(news.MAX_BYTES + 1 - len(data))  # refused by its size alone
+    r = writer.post("/api/v1/articles", files={"file": ("big.docx", data, "application/octet-stream")})
+    assert r.status_code == 422 and r.json()["detail"] == "The document must be 20 MB or smaller."
+    assert not (tmp_path / "news").exists()
+
+
+def test_a_too_big_google_document_is_refused(monkeypatch):
+    from contextlib import contextmanager
+
+    from app.services import news
+
+    @contextmanager
+    def stream(*args, **kwargs):
+        class Response:
+            status_code = 200
+
+            def iter_bytes(self):
+                yield b"PK"
+                while True:
+                    yield bytes(1024 * 1024)
+
+        yield Response()
+
+    monkeypatch.setattr(news.httpx, "stream", stream)
+    with pytest.raises(news.DocumentError, match="20 MB or smaller"):
+        news.fetch_google_doc("https://docs.google.com/document/d/" + "a" * 30 + "/edit")

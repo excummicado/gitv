@@ -1,5 +1,5 @@
 """Articles (/articles; the short news of the home page's column are routers/news.py): anyone reads them; writers,
-event organizers and admins add one by importing a Word file (.docx, up to 100 MB) or a Google document link
+event organizers and admins add one by importing a Word file (.docx, up to 20 MB) or a Google document link
 (services/news.py), and may attach its translation into the other language the same way; whoever imported it or an
 admin changes or removes it, with its pictures. Nothing is added automatically.
 

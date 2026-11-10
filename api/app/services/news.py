@@ -11,6 +11,7 @@ import re
 import shutil
 import tempfile
 import uuid
+import zipfile
 from typing import BinaryIO
 
 import httpx
@@ -19,7 +20,13 @@ import nh3
 
 from .media import MEDIA_DIR, image_type
 
-MAX_BYTES = 100 * 1024 * 1024
+# The server has little memory and disk: mammoth unpacks a document in memory and its pictures are kept as files
+MAX_BYTES = 20 * 1024 * 1024
+MAX_UNPACKED = 200 * 1024 * 1024  # all of the archive's entries, unpacked
+MAX_ENTRIES = 2000
+MAX_PICTURE = 10 * 1024 * 1024
+MAX_PICTURES = 100
+TOO_BIG = "The document must be 20 MB or smaller."
 GOOGLE_DOC = re.compile(r"https://docs\.google\.com/document/d/([A-Za-z0-9_-]{20,})")
 GOOGLE_EXPORT = "https://docs.google.com/document/d/{id}/export?format=docx"
 TAGS = {
@@ -106,22 +113,44 @@ def brief(body: str, limit: int = 400) -> str:
     return html.escape(text[:limit], quote=False)
 
 
+def check_archive(doc: BinaryIO) -> None:
+    """Refuse a .docx whose zip unpacks to far more than it weighs (or into too many entries) before mammoth unpacks
+    it in memory. The sizes are the ones the archive states; a picture is read only up to MAX_PICTURE anyway."""
+    try:
+        with zipfile.ZipFile(doc) as z:
+            entries = z.infolist()
+    except (zipfile.BadZipFile, zipfile.LargeZipFile, OSError, EOFError, ValueError) as e:
+        raise DocumentError("Couldn't read the document.") from e
+    finally:
+        doc.seek(0)
+    if len(entries) > MAX_ENTRIES or sum(e.file_size for e in entries) > MAX_UNPACKED:
+        raise DocumentError("The document unpacks to too much. Make it smaller, or with smaller pictures.")
+
+
 def docx_to_html(doc: BinaryIO) -> tuple[str, str, list[str]]:
     """(title found in it, cleaned HTML body, its pictures' paths under MEDIA_DIR) of a .docx file. Each picture
     is checked by its bytes (PNG, JPEG, GIF or WebP; others, like Word's vector drawings, are left out) and saved as a
     file; nothing is left behind if the document can't be read."""
     doc.seek(0, 2)
     if doc.tell() > MAX_BYTES:
-        raise DocumentError("The document must be 100 MB or smaller.")
+        raise DocumentError(TOO_BIG)
     doc.seek(0)
     if doc.read(2) != b"PK":
         raise DocumentError("That isn't a Word document (.docx).")
     doc.seek(0)
+    check_archive(doc)
     saved: list[str] = []
+    seen = 0
 
     def save_picture(image) -> dict:
+        nonlocal seen
+        seen += 1
+        if seen > MAX_PICTURES:
+            return {}
         with image.open() as data:
-            content = data.read()
+            content = data.read(MAX_PICTURE + 1)
+        if len(content) > MAX_PICTURE:
+            return {}
         ext = image_type(content[:16]) or ("gif" if content[:6] in (b"GIF87a", b"GIF89a") else None)
         if ext is None:
             return {}
@@ -183,7 +212,7 @@ def fetch_google_doc(url: str) -> BinaryIO:
             for chunk in r.iter_bytes():
                 out.write(chunk)
                 if out.tell() > MAX_BYTES:
-                    raise DocumentError("The document must be 100 MB or smaller.")
+                    raise DocumentError(TOO_BIG)
     except httpx.HTTPError as e:
         raise DocumentError("Couldn't reach Google Docs. Try again.") from e
     out.seek(0)

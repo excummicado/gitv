@@ -68,6 +68,10 @@ RU = {
     "The article is empty.": "Статья пустая.",
     "The document is empty.": "Документ пустой.",
     "It has no translation.": "У статьи нет перевода.",
+    "The document must be 20 MB or smaller.": "Документ должен быть не больше 20 МБ.",
+    "That isn't a Word document (.docx).": "Это не документ Word (.docx).",
+    "Couldn't read the document.": "Не удалось прочитать документ.",
+    "The document unpacks to too much. Make it smaller, or with smaller pictures.": "Документ слишком большой в распакованном виде. Уменьшите его или картинки в нём.",
 }
 
 # Messages with numbers or dates in them.

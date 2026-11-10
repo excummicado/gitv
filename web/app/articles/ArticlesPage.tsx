@@ -417,7 +417,7 @@ export function ArticlesListPage() {
           <h2 className="player-box-title">{t("Add an article", "Добавить статью")}</h2>
           <form className="news-form" onSubmit={submit} key={formKey} noValidate>
             <label className="news-field">
-              <span className="player-label">{t("Word document (.docx, up to 100 MB)", "Документ Word (.docx, до 100 МБ)")}</span>
+              <span className="player-label">{t("Word document (.docx, up to 20 MB)", "Документ Word (.docx, до 20 МБ)")}</span>
               <input className="match-input" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 onChange={(e) => { setFile(e.target.files?.[0] ?? null); setMessage(null); }} />
             </label>
