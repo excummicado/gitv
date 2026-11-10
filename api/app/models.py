@@ -4,6 +4,7 @@ import uuid
 from datetime import date, datetime
 from enum import StrEnum
 
+from sqlalchemy import event, text
 from sqlmodel import Field, SQLModel
 
 # Letters, digits, underscores and periods: the same characters Discord usernames use.
@@ -200,6 +201,49 @@ class DraftState(SQLModel, table=True):
     rooms: str | None = None
     bosses: str | None = None
     raw: str
+
+
+class RoomTime(SQLModel, table=True):
+    """A player's room times in a game, copied out of draftstate.raw by the database itself (ROOM_TIME_TRIGGERS) on
+    every write to it, whoever makes it. The statistics read these few numbers for every game at each build; taking
+    them from raw meant parsing all of it (most of the database) each time. A migration that rebuilds draftstate
+    (batch_alter_table) drops the triggers with the old table and has to create them again."""
+
+    draft_id: str = Field(primary_key=True)
+    slot: int = Field(primary_key=True)
+    # As raw has them: None where a room has no time
+    room1: int | None = None
+    room2: int | None = None
+    room3: int | None = None
+    room_count: int | None = None  # raw's roomCount: a game played on fewer rooms than three
+
+
+# A raw that isn't JSON (none so far) leaves no times instead of failing the write.
+_ROOM_TIME_ROWS = """
+    INSERT INTO roomtime (draft_id, slot, room1, room2, room3, room_count)
+    SELECT NEW.draft_id, CAST(p.key AS INTEGER),
+           json_extract(p.value, '$.clearTimeRoom1'), json_extract(p.value, '$.clearTimeRoom2'),
+           json_extract(p.value, '$.clearTimeRoom3'),
+           CASE WHEN json_valid(NEW.raw) THEN json_extract(NEW.raw, '$.roomCount') END
+    FROM json_each(CASE WHEN json_valid(NEW.raw) THEN NEW.raw ELSE '{}' END, '$.players') p;
+"""
+ROOM_TIME_TRIGGERS = [
+    f"""CREATE TRIGGER IF NOT EXISTS roomtime_insert AFTER INSERT ON draftstate BEGIN
+    DELETE FROM roomtime WHERE draft_id = NEW.draft_id;{_ROOM_TIME_ROWS}END""",
+    f"""CREATE TRIGGER IF NOT EXISTS roomtime_update AFTER UPDATE OF draft_id, raw ON draftstate BEGIN
+    DELETE FROM roomtime WHERE draft_id IN (OLD.draft_id, NEW.draft_id);{_ROOM_TIME_ROWS}END""",
+    """CREATE TRIGGER IF NOT EXISTS roomtime_delete AFTER DELETE ON draftstate BEGIN
+    DELETE FROM roomtime WHERE draft_id = OLD.draft_id;
+END""",
+]
+
+
+@event.listens_for(SQLModel.metadata, "after_create")
+def _room_time_triggers(_, connection, **__):
+    """For databases made from the models (the tests'); the real one gets them from its migration."""
+    if connection.dialect.name == "sqlite":
+        for trigger in ROOM_TIME_TRIGGERS:
+            connection.execute(text(trigger))
 
 
 class DraftAction(SQLModel, table=True):

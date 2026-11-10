@@ -136,19 +136,14 @@ def timers_filled(rooms: tuple[int, ...] | None, clear_time: int) -> bool:
 
 
 def room_times(session: Session, draft_ids: list[str] | None = None) -> dict[tuple[str, int], tuple[int, ...]]:
-    """{(draft id, slot): (room 1, room 2, room 3)} from the stored socket data, for every draft or only the given
-    ones; 0 where a room is missing. A game played on fewer rooms (roomCount in its data, e.g. old tournaments
-    with two) has only those."""
-    query = """
-        SELECT s.draft_id, CAST(p.key AS INTEGER),
-               json_extract(p.value, '$.clearTimeRoom1'), json_extract(p.value, '$.clearTimeRoom2'),
-               json_extract(p.value, '$.clearTimeRoom3'), json_extract(s.raw, '$.roomCount')
-        FROM draftstate s, json_each(s.raw, '$.players') p
-    """
+    """{(draft id, slot): (room 1, room 2, room 3)} from the stored socket data (the roomtime table the database keeps
+    from it), for every draft or only the given ones; 0 where a room is missing. A game played on fewer rooms
+    (roomCount in its data, e.g. old tournaments with two) has only those."""
+    query = "SELECT draft_id, slot, room1, room2, room3, room_count FROM roomtime"
     if draft_ids is not None:
         if not draft_ids:
             return {}
-        statement = text(query + " WHERE s.draft_id IN :ids").bindparams(bindparam("ids", expanding=True))
+        statement = text(query + " WHERE draft_id IN :ids").bindparams(bindparam("ids", expanding=True))
         rows = session.exec(statement, params={"ids": list(draft_ids)}).all()
     else:
         rows = session.exec(text(query)).all()

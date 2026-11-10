@@ -13,6 +13,7 @@ drafted for, a game played elsewhere): Elo and match records count them too.
 
 import json
 import logging
+import os
 import threading
 import time as clock
 from collections import Counter, OrderedDict, defaultdict
@@ -216,6 +217,45 @@ def data_key(session: Session) -> tuple:
     )
 
 
+# What data_key last answered, and the database's files as they were just before it was asked.
+_checked: tuple[tuple, tuple] | None = None
+# A write this soon before the check may share its timestamp with the next one (file times are only so fine).
+STAMP_SETTLED = 0.5
+
+
+def file_stamp(session: Session) -> tuple | None:
+    """The database file's and its write-ahead log's (time changed, size): every committed write changes one of them.
+    None when that can't be told (a database in memory, not SQLite) or when they changed a moment ago."""
+    bind = session.get_bind()
+    path = bind.url.database if bind.dialect.name == "sqlite" else None
+    if not path or path == ":memory:":
+        return None
+    stamp = []
+    for name in (path, path + "-wal"):
+        try:
+            st = os.stat(name)
+        except OSError:
+            stamp.append(None)
+            continue
+        if clock.time() - st.st_mtime < STAMP_SETTLED:
+            return None
+        stamp.append((st.st_mtime_ns, st.st_size))
+    return tuple(stamp)
+
+
+def current_key(session: Session) -> tuple:
+    """data_key, asked of the database only when its files have changed since the last time: it takes a couple of
+    dozen queries, and every request for statistics needs it, most of them several times."""
+    global _checked
+    stamp = file_stamp(session)
+    if stamp is not None and _checked is not None and _checked[0] == stamp:
+        return _checked[1]
+    key = data_key(session)
+    # The stamp was read before the key: a write in between gives a newer stamp next time, and the key is asked again.
+    _checked = (stamp, key) if stamp is not None else None
+    return key
+
+
 def tournament_starts(session: Session) -> list[tuple[str, datetime]]:
     """Every tournament with its first match (Challonge-only ones: their start), in UTC."""
     rows = session.exec(select(Match.tournament_id, func.min(Match.created_at)).group_by(Match.tournament_id)).all()
@@ -270,7 +310,8 @@ def snapshot(
 ) -> Snapshot:
     """scope: "all" or "major"; since, until: count only tournaments that started on or after, on or before these
     dates. fresh: what was just written must be in it (an import going on from it), even if that takes a build."""
-    key = data_key(session)
+    # fresh: the caller's own writes may not be committed yet, and only the database itself knows of those.
+    key = data_key(session) if fresh else current_key(session)
     # One build at a time: a page fires several requests at once, and without the lock each of them would build
     # the same snapshot in parallel. The others wait, then find it ready.
     with _lock:
@@ -409,10 +450,12 @@ def build(session: Session, key: tuple, only: set[str] | None = None) -> Snapsho
     technical = technical_drafts(session, players, rooms)
     agents_by_player: dict[int, list[str]] = defaultdict(list)
     constellations: dict[int, dict[str, int]] = defaultdict(dict)
-    for pk in sorted(session.exec(select(MatchPick)), key=lambda pk: pk.position):
-        agents_by_player[pk.player_id].append(pk.agent_id)
-        if pk.agent_mindscape >= 0:  # UNKNOWN_CONSTELLATION: e.g. a team read off a post, constellations not shown
-            constellations[pk.player_id].setdefault(pk.agent_id, pk.agent_mindscape)
+    # Columns, not rows: tens of thousands of picks, and only these three values of each are needed.
+    picks = select(MatchPick.player_id, MatchPick.agent_id, MatchPick.agent_mindscape)
+    for player_id, agent_id, mindscape in session.exec(picks.order_by(MatchPick.position, MatchPick.id)):
+        agents_by_player[player_id].append(agent_id)
+        if mindscape >= 0:  # UNKNOWN_CONSTELLATION: e.g. a team read off a post, constellations not shown
+            constellations[player_id].setdefault(agent_id, mindscape)
     bans = session.exec(
         select(DraftAction.draft_id, DraftAction.slot, DraftAction.agent_id).where(
             DraftAction.type.in_(["BAN", "PREBAN"]), DraftAction.agent_id.is_not(None)

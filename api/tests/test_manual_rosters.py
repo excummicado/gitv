@@ -34,6 +34,24 @@ def test_a_hand_entered_roster_is_added(session):
     assert len(session.exec(select(PlayerRoster)).all()) == 1
 
 
+def test_rebuilding_one_tournament_leaves_the_others(session):
+    """Only the named tournaments' rosters are made again: another one's stay, hand-entered ones included."""
+    setup(session)
+    session.add(Tournament(id="other", title="Other"))
+    session.add(Match(id="other-m1", tournament_id="other", created_at=datetime(2025, 8, 1, tzinfo=UTC), raw="{}"))
+    session.add(MatchPlayer(draft_id="other-m1-g1", match_id="other-m1", slot=0, user_id="u1", full_name="xoyira"))
+    session.commit()
+    both = ENTRY | {"tournaments": ["afc", "other"]}
+    assert build_rosters(session, [both])["manual"] == 2
+    kept = session.exec(select(PlayerRoster.id).where(PlayerRoster.tournament_id == "other")).one()
+    assert build_rosters(session, [both], tournaments={"afc"})["manual"] == 1
+    rows = {r.tournament_id: r.id for r in session.exec(select(PlayerRoster))}
+    assert set(rows) == {"afc", "other"} and rows["other"] == kept
+    assert len(session.exec(select(RosterCharacter)).all()) == 4
+    assert build_rosters(session, [both], tournaments=set())["versions"] == 0  # nothing new: nothing touched
+    assert {r.id for r in session.exec(select(PlayerRoster))} == set(rows.values())
+
+
 def test_an_unknown_character_is_left_out(session, caplog):
     setup(session)
     build_rosters(session, [ENTRY | {"characters": [*ENTRY["characters"], ["Невиллет", 90, 0]]}])

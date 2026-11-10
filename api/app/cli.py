@@ -178,6 +178,32 @@ def fetch_systems() -> None:
     )
 
 
+def run_worker() -> None:
+    """Everything the API otherwise does in the background (the hourly sync, the live poll, the stream), as a
+    process of its own, so that work doesn't take the API's processor time from requests. The API it runs beside
+    needs SYNC_INTERVAL=0, or both would do it (tools/deploy/README.md)."""
+    import asyncio
+    import logging
+
+    from .config import settings
+    from .services.stream import run_stream_forever
+    from .services.sync import MIN_INTERVAL, run_forever, run_live_forever
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+
+    async def main() -> None:
+        await asyncio.gather(
+            run_forever(engine, max(settings.sync_interval, MIN_INTERVAL)),
+            run_live_forever(engine),
+            run_stream_forever(engine),
+        )
+
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass
+
+
 def rebuild_rosters() -> None:
     with Session(engine) as session:
         counts = build_rosters(session)
@@ -841,6 +867,7 @@ def main() -> None:
     sync_cmd.add_argument(
         "--watch", type=int, metavar="SECONDS", help="Repeat every SECONDS (at least 3600) until stopped"
     )
+    commands.add_parser("worker", help="Run the background sync, live poll and stream as a process of their own")
     export_cmd = commands.add_parser("export-xlsx", help="Export imported matches to an Excel workbook")
     export_cmd.add_argument("path", nargs="?", default="matches.xlsx")
     check_cmd = commands.add_parser("check-matches", help="List suspicious data in the imported matches")
@@ -957,6 +984,8 @@ def main() -> None:
         fetch_actions(args.refresh)
     elif args.command == "sync":
         run_sync(args.watch)
+    elif args.command == "worker":
+        run_worker()
     elif args.command == "fetch-draft-systems":
         fetch_systems()
     elif args.command == "build-rosters":

@@ -57,9 +57,11 @@ def site(monkeypatch):
         lambda client, url: matches.get(url.split("tournament=")[1].split("&")[0], []),
     )
     for name in ("fetch_draft_links", "fetch_draft_actions", "fetch_challonge"):
-        monkeypatch.setattr(sync_service, name, lambda session, **kw: SimpleNamespace(saved=0, errors=[]))
+        monkeypatch.setattr(
+            sync_service, name, lambda session, **kw: SimpleNamespace(saved=0, errors=[], matches=set())
+        )
     for name in ("fetch_draft_systems", "build_rosters", "fetch_tournament_info"):
-        monkeypatch.setattr(sync_service, name, lambda session: {})
+        monkeypatch.setattr(sync_service, name, lambda session, **kw: {})
     monkeypatch.setattr(sync_service, "maybe_fetch_abyss", lambda session: None)  # never alioth.wiki
     # Spectator keys of a match's drafts, counted per match asked for
     asked: list[str] = []

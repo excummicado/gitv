@@ -24,6 +24,7 @@ use it as their floor.
 import fcntl
 import json
 import logging
+import os
 import re
 import time
 from collections import defaultdict
@@ -80,7 +81,11 @@ def read_state() -> dict:
 def write_state(**changes) -> None:
     state = read_state()
     state.update(changes)
-    STATE_FILE.write_text(json.dumps(state, ensure_ascii=False))
+    # Written beside it and moved into place: the API and the worker (app.cli worker) both read this file, and
+    # neither may find it half written.
+    fresh = STATE_FILE.with_name(f"{STATE_FILE.name}.{os.getpid()}.tmp")
+    fresh.write_text(json.dumps(state, ensure_ascii=False))
+    os.replace(fresh, STATE_FILE)
 
 
 MATCHES_URL = API + "/draft_sets/tournament?skip=0&tournament={id}"
@@ -120,6 +125,13 @@ def site_tournaments(client: httpx.Client, finished: bool) -> list[dict]:
     return client.get(f"{API}/tournaments", params=params).raise_for_status().json().get("items", [])
 
 
+def tournaments_of(session: Session, match_ids: set[str]) -> set[str]:
+    """The tournaments of these matches: the ones whose rosters new drafts can have changed."""
+    if not match_ids:
+        return set()
+    return set(session.exec(select(Match.tournament_id).where(Match.id.in_(match_ids))))
+
+
 def sync(session: Session, cookie: str | None = None) -> SyncResult:
     result = SyncResult()
     with httpx.Client(timeout=60) as client:
@@ -138,9 +150,10 @@ def sync(session: Session, cookie: str | None = None) -> SyncResult:
         result.matches_saved = imported.saved
         result.errors += imported.errors
         result.draft_links = fetch_draft_links(session).saved
-        result.drafts = fetch_draft_actions(session).saved
+        drafts = fetch_draft_actions(session)
+        result.drafts = drafts.saved
         fetch_draft_systems(session)
-        build_rosters(session)
+        build_rosters(session, tournaments=tournaments_of(session, drafts.matches))
         # Only tournaments with at least one finished match exist here; refresh their details.
         fetch_tournament_info(session)
         # Their Challonge brackets, once each: the source of results and places.
@@ -183,6 +196,12 @@ def live_tournaments() -> list[dict]:
         _live_cache = (saved.get("at", 0.0), saved.get("items", []))
     if time.time() - _live_cache[0] < LIVE_CACHE_SECONDS:
         return _live_cache[1]
+    # Another process (the worker beside the API) may have asked since: its answer is this hour's.
+    saved = read_state().get("live") or {}
+    if saved.get("at", 0.0) > _live_cache[0]:
+        _live_cache = (saved["at"], saved.get("items", []))
+        if time.time() - _live_cache[0] < LIVE_CACHE_SECONDS:
+            return _live_cache[1]
     items = _live_cache[1]
     try:
         with httpx.Client(timeout=15) as client:
@@ -255,9 +274,10 @@ def poll_live(session: Session) -> SyncResult:
     if imported.saved:
         result.imported = add_running_info(session, running)
         result.draft_links = fetch_draft_links(session).saved
-        result.drafts = fetch_draft_actions(session).saved
+        drafts = fetch_draft_actions(session)
+        result.drafts = drafts.saved
         fetch_draft_systems(session)
-        build_rosters(session)
+        build_rosters(session, tournaments=tournaments_of(session, drafts.matches))
     # Their brackets, for when the final has a winner (only those with matches here have details and a link).
     result.errors += fetch_challonge(session, running={t["_id"] for t in running}).errors
     return result

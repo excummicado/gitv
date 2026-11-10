@@ -738,3 +738,67 @@ def test_popular_characters_of_an_abyss_phase(world):
 
     # A phase that hasn't begun doesn't count, whatever's dated in it
     assert settled_phase(snap, [ahead], today) is None
+
+
+def test_data_key_is_asked_only_after_a_write(tmp_path, monkeypatch):
+    """With the database in a file, the key is read again only once the file has changed; a caller with writes of
+    its own still uncommitted (fresh) always asks."""
+    import importlib
+
+    from sqlmodel import Session, SQLModel, create_engine
+
+    from app.models import Tournament
+
+    module = importlib.import_module("app.services.stats.snapshot")
+    engine = create_engine(f"sqlite:///{tmp_path / 'stats.db'}")
+    SQLModel.metadata.create_all(engine)
+    asked = []
+    data_key = module.data_key
+    monkeypatch.setattr(module, "data_key", lambda session: asked.append(1) or data_key(session))
+    monkeypatch.setattr(module, "STAMP_SETTLED", 0)
+    monkeypatch.setattr(module, "_checked", None)
+    module._cache.clear()
+    with Session(engine) as s:
+        first = module.snapshot(s).key
+        assert module.snapshot(s).key == first and module.snapshot(s, "major").key == first
+        assert len(asked) == 1
+        s.add(Tournament(id="t", title="Abyss Fast Soup 1"))
+        s.flush()
+        assert module.snapshot(s).key == first and len(asked) == 1  # not committed: the file is as it was
+        assert module.snapshot(s, fresh=True).key != first and len(asked) == 2
+        s.commit()
+        second = module.snapshot(s).key
+        assert second != first and len(asked) == 3
+        assert module.snapshot(s).key == second and len(asked) == 3
+    module._cache.clear()
+
+
+def test_room_times_follow_the_stored_draft(session):
+    """The database copies room times out of a draft's data on every write to it, and drops them with it."""
+    import json
+
+    from app.models import DraftState
+    from app.services.match_checks import room_times
+
+    def raw(second: int, **more) -> str:
+        players = [{"clearTimeRoom1": 90, "clearTimeRoom2": second, "clearTimeRoom3": 70}, {"clearTimeRoom1": 80}]
+        return json.dumps({"players": players, **more})
+
+    state = DraftState(draft_id="d", match_id="m", status="FINISHED", raw=raw(100))
+    session.add(state)
+    session.commit()
+    assert room_times(session) == {("d", 0): (90, 100, 70), ("d", 1): (80, 0, 0)}
+    state.raw = raw(120, roomCount=2)
+    session.add(state)
+    session.commit()
+    assert room_times(session, ["d"]) == {("d", 0): (90, 120), ("d", 1): (80, 0)}
+    state.raw = "not JSON"
+    session.add(state)
+    session.commit()
+    assert room_times(session) == {}
+    state.raw = raw(100)
+    session.add(state)
+    session.commit()
+    session.delete(state)
+    session.commit()
+    assert room_times(session) == {}

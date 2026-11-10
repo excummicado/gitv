@@ -18,6 +18,7 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from functools import lru_cache
 from urllib.parse import urlsplit
 
 import httpx
@@ -198,8 +199,10 @@ def places(bracket: Bracket) -> dict[str, tuple[int, int]]:
     return result
 
 
+@lru_cache(maxsize=65536)
 def normalize(name: str) -> str:
-    """Names compared without case, spaces or punctuation: "Rer" = "rer", "Divizor_" = "divizor"."""
+    """Names compared without case, spaces or punctuation: "Rer" = "rer", "Divizor_" = "divizor". Remembered: a build
+    of the statistics asks for the same few thousand names a couple of hundred thousand times."""
     return "".join(ch for ch in name.casefold() if ch.isalnum())
 
 

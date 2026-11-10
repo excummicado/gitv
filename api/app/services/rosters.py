@@ -55,8 +55,11 @@ def _player_id(session: Session, entry: dict) -> str | None:
     return (here or [u for u, _ in named] or [None])[0]
 
 
-def add_manual_rosters(session: Session, entries: list[dict], taken: set[tuple[str, str]]) -> int:
-    """The hand-entered rosters (see the module) as version 1 of their player's tournaments not in taken."""
+def add_manual_rosters(
+    session: Session, entries: list[dict], taken: set[tuple[str, str]], only: set[str] | None = None
+) -> int:
+    """The hand-entered rosters (see the module) as version 1 of their player's tournaments not in taken. only: of
+    these tournaments (the ones being rebuilt; the others still have theirs)."""
     agents = _agent_ids(session)
     unknown = sorted({c[0] for e in entries for c in e["characters"] if c[0] not in agents})
     if unknown:  # left out: a typo in the file mustn't stop the hourly sync, which rebuilds the rosters
@@ -70,7 +73,7 @@ def add_manual_rosters(session: Session, entries: list[dict], taken: set[tuple[s
         chars = {agents[name]: (level, c) for name, level, c in entry["characters"] if name in agents}
         roster_hash = "manual-" + hashlib.sha1(json.dumps(sorted(chars.items())).encode()).hexdigest()[:16]
         for tid in entry["tournaments"]:
-            if (player, tid) in taken:
+            if (player, tid) in taken or (only is not None and tid not in only):
                 continue
             row = PlayerRoster(
                 player_id=player,
@@ -96,28 +99,31 @@ def add_manual_rosters(session: Session, entries: list[dict], taken: set[tuple[s
     return added
 
 
-def build_rosters(session: Session, manual: list[dict] | None = None) -> dict[str, int]:
+def build_rosters(
+    session: Session, manual: list[dict] | None = None, tournaments: set[str] | None = None
+) -> dict[str, int]:
+    """Rebuilds the rosters from the stored drafts. tournaments: only theirs (the ones whose drafts were just stored),
+    the rest stay as they are: a roster belongs to one player in one tournament, so nothing else can change. Without
+    it, every tournament's: after a change to the hand-entered file or to how rosters are read."""
+    if tournaments is not None and not tournaments:
+        return {"player_tournaments": 0, "changed": 0, "versions": 0, "manual": 0}
     user_by_slot = {
         (d, slot): u for d, slot, u in session.exec(select(MatchPlayer.draft_id, MatchPlayer.slot, MatchPlayer.user_id))
     }
-    rows = session.exec(
-        select(
-            DraftState.draft_id,
-            DraftState.started_at,
-            DraftState.raw,
-            Match.tournament_id,
-            Match.created_at,
-            MatchDraft.game_no,
-        )
+    # Games in the order they were played; a draft's start time, else its match's creation.
+    when = func.coalesce(DraftState.started_at, Match.created_at)
+    query = (
+        select(DraftState.draft_id, when, DraftState.raw, Match.tournament_id)
         .join(Match, Match.id == DraftState.match_id)
         .join(MatchDraft, MatchDraft.id == DraftState.draft_id)
-    ).all()
-    # Games in the order they were played; a draft's start time, else its match's creation.
-    rows = sorted(rows, key=lambda r: (r[1] or r[4], r[5]))
+        .order_by(when, MatchDraft.game_no)
+    )
+    if tournaments is not None:
+        query = query.where(Match.tournament_id.in_(tournaments))
 
     versions: dict[tuple[str, str], dict[str, dict]] = {}  # (player, tournament) -> hash -> version
-    for draft_id, started, raw, tournament_id, created, _ in rows:
-        when: datetime = started or created
+    # A few drafts at a time: their data is most of the database, and all of it at once didn't fit the server's memory.
+    for draft_id, played, raw, tournament_id in session.exec(query.execution_options(yield_per=50)):
         draft = json.loads(raw)
         for slot, player in enumerate(draft.get("players") or []):
             roster = player.get("roster") or {}
@@ -128,28 +134,31 @@ def build_rosters(session: Session, manual: list[dict] | None = None) -> dict[st
             v = seen.get(roster["hash"])
             if v is None:
                 seen[roster["hash"]] = {
-                    "roster": roster,
-                    "first": (draft_id, when),
-                    "last": (draft_id, when),
+                    # Only what a version stores: the roster's other fields needn't stay in memory.
+                    "agents": roster.get("agents") or [],
+                    "engines": roster.get("engines") or [],
+                    "first": (draft_id, played),
+                    "last": (draft_id, played),
                     "games": 1,
                     "system": draft.get("system"),
                 }
             else:
-                v["last"] = (draft_id, when)
+                v["last"] = (draft_id, played)
                 v["games"] += 1
 
-    session.exec(delete(RosterCharacter))
-    session.exec(delete(RosterWeapon))
-    session.exec(delete(PlayerRoster))
+    old = select(PlayerRoster.id)
+    if tournaments is not None:
+        old = old.where(PlayerRoster.tournament_id.in_(tournaments))
+    session.exec(delete(RosterCharacter).where(RosterCharacter.roster_id.in_(old)))
+    session.exec(delete(RosterWeapon).where(RosterWeapon.roster_id.in_(old)))
+    session.exec(delete(PlayerRoster).where(PlayerRoster.id.in_(old)))
     changed = 0
     for (user, tournament_id), seen in versions.items():
         changed += len(seen) > 1
         for number, (roster_hash, v) in enumerate(sorted(seen.items(), key=lambda kv: kv[1]["first"][1]), start=1):
-            agents = v["roster"].get("agents") or []
+            agents = v["agents"]
             weapons = Counter(
-                (e.get("engine"), e.get("level"), e.get("refinement"))
-                for e in v["roster"].get("engines") or []
-                if e.get("engine")
+                (e.get("engine"), e.get("level"), e.get("refinement")) for e in v["engines"] if e.get("engine")
             )
             row = PlayerRoster(
                 player_id=user,
@@ -179,7 +188,8 @@ def build_rosters(session: Session, manual: list[dict] | None = None) -> dict[st
                 for (engine, level, refinement), n in weapons.items()
             )
     # After the drafts' rosters: the agent ids they use decide which id a shared name stands for
-    manual_added = add_manual_rosters(session, load_manual_rosters() if manual is None else manual, set(versions))
+    entries = load_manual_rosters() if manual is None else manual
+    manual_added = add_manual_rosters(session, entries, set(versions), tournaments)
     session.commit()
     return {
         "player_tournaments": len(versions) + manual_added,

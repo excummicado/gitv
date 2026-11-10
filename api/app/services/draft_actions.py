@@ -34,6 +34,7 @@ class ActionsResult:
     saved: int = 0
     actions: int = 0
     errors: list[str] = field(default_factory=list)
+    matches: set[str] = field(default_factory=set)  # the matches whose drafts were stored
 
 
 def fetch_init(draft_id: str, key: str) -> dict:
@@ -185,6 +186,7 @@ def fetch_draft_actions(session: Session, refresh: bool = False) -> ActionsResul
                 continue
             result.actions += save_draft(session, link, data)
             result.saved += 1
+            result.matches.add(link.match_id)
             if n % 100 == 0 or n == len(links):
                 session.commit()
                 print(f"[{n}/{len(links)}] drafts", flush=True)
