@@ -4,9 +4,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = "My React Router API"
+    app_name: str = "GITV API"
     api_prefix: str = "/api/v1"
-    # SQLite is only for the time being; set DATABASE_URL to the real database later.
+    # SQLite; DATABASE_URL points tests and scripts at another file.
     database_url: str = "sqlite:///gitv.db"
     # to get a string like this run:
     # openssl rand -hex 32

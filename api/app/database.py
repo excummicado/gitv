@@ -8,7 +8,7 @@ from sqlmodel import Session, create_engine
 
 from .config import settings
 
-# SQLite only for the time being; check_same_thread is a SQLite-only option.
+# check_same_thread is a SQLite-only option.
 # timeout: wait up to 30 s for another process's write (sync running while the API reads) instead of 5 s.
 connect_args = {"check_same_thread": False, "timeout": 30}
 # No ceiling on connections: with SQLite each is just an open file. Under a crowd the default 15 ran out: requests that

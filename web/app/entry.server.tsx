@@ -45,6 +45,10 @@ export default function handleRequest(
   responseHeaders: Headers,
   routerContext: EntryContext,
 ) {
+  // Only with the production CSP: in dev nothing checks it, and the browser would show it to React's hydration.
+  const nonce = process.env.NODE_ENV === "production" ? randomBytes(16).toString("base64") : undefined;
+  if (nonce) securityHeaders(responseHeaders, request, nonce);
+
   // https://httpwg.org/specs/rfc9110.html#HEAD
   if (request.method.toUpperCase() === "HEAD") {
     return new Response(null, {
@@ -52,10 +56,6 @@ export default function handleRequest(
       headers: responseHeaders,
     });
   }
-
-  // Only with the production CSP: in dev nothing checks it, and the browser would show it to React's hydration.
-  const nonce = process.env.NODE_ENV === "production" ? randomBytes(16).toString("base64") : undefined;
-  if (nonce) securityHeaders(responseHeaders, request, nonce);
 
   return new Promise((resolve, reject) => {
     let shellRendered = false;
