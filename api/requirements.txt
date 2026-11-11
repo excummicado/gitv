@@ -1,6 +1,6 @@
 # Exact versions, so a new build installs what the tests ran against. Upgrade on purpose: change a version, run
 # the tests, commit.
-fastapi[standard]==0.143.0
+fastapi[standard]==0.162.2
 sqlmodel==0.0.48
 pyjwt==2.15.1
 pydantic-settings==2.15.0
