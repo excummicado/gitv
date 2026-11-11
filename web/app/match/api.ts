@@ -137,3 +137,10 @@ export function setMatchWinner(matchId: string, side: number) {
 export function clearMatchWinner(matchId: string) {
   return authRequest<MatchDetail>("DELETE", `/matches/${encodeURIComponent(matchId)}/winner`);
 }
+
+// Reads the match's games again from the draft site; games with times filled in by hand keep them (their numbers in kept).
+export type Refetched = { games: number; kept: number[]; errors: number; match: MatchDetail };
+
+export function refetchMatch(matchId: string) {
+  return authRequest<Refetched>("POST", `/matches/${encodeURIComponent(matchId)}/refetch`);
+}

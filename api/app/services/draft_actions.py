@@ -16,10 +16,12 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 import certifi
+import httpx
 import websocket
-from sqlmodel import Session, delete, select
+from sqlmodel import Session, col, delete, select
 
-from ..models import DraftAction, DraftLink, DraftState, MatchPlayer
+from ..models import DraftAction, DraftLink, DraftState, MatchDraft, MatchPlayer
+from .draft_links import draft_url, fetch_match
 from .manual_results import manual_drafts
 from .match_import import is_finished
 from .raw_trim import draft_raw_json
@@ -156,17 +158,88 @@ def refresh_times(session: Session, matches: list[dict], fetch=fetch_init) -> Ti
                 result.errors.append(f"{link.draft_id}: {e}")
                 continue
             save_draft(session, link, data)
-            for slot, p in rows.items():
-                if slot < len(data.get("players") or []):
-                    fresh = data["players"][slot]
-                    p.clear_time = fresh.get("clearTime") or 0
-                    p.restarts = fresh.get("restarts") or 0
-                    p.clear_points = fresh.get("clearPoints") or 0
-                    p.time_source = None
-                    session.add(p)
+            update_players(session, rows, data)
             result.games += 1
     session.commit()
     return result
+
+
+def update_players(session: Session, rows: dict[int, MatchPlayer], data: dict) -> None:
+    """Writes a game's players' times as the draft's socket data has them. A time HotH Hub filled in stays while the
+    site has none."""
+    site = data.get("players") or []
+    for slot, p in rows.items():
+        if slot >= len(site):
+            continue
+        fresh = site[slot]
+        if p.time_source and not fresh.get("clearTime"):
+            continue
+        p.clear_time = fresh.get("clearTime") or 0
+        p.restarts = fresh.get("restarts") or 0
+        p.clear_points = fresh.get("clearPoints") or 0
+        p.time_source = None
+        session.add(p)
+
+
+@dataclass
+class RefetchResult:
+    games: int = 0  # games read again
+    kept: list[int] = field(default_factory=list)  # numbers of the games left as they are: times filled in by hand
+    errors: list[str] = field(default_factory=list)
+
+
+def refetch_match(session: Session, match_id: str, fetch=None, keys_of=None) -> RefetchResult:
+    """Reads every game of a stored match again from the draft site, whatever is stored (an organizer asking for it
+    on the match page): bans, picks, room times and the players' times. A game with times filled in by hand keeps
+    them (they win over the site's until removed); a game that can't be read stays as it is. keys_of(match id) gives
+    {draft id: spectator key} for drafts without a stored link (the site's, by default); fetch reads a draft
+    (fetch_init by default)."""
+    fetch = fetch or fetch_init
+    keys_of = keys_of or site_keys
+    result = RefetchResult()
+    drafts = list(
+        session.exec(select(MatchDraft).where(MatchDraft.match_id == match_id).order_by(col(MatchDraft.game_no)))
+    )
+    links = {link.draft_id: link for link in session.exec(select(DraftLink).where(DraftLink.match_id == match_id))}
+    if any(d.id not in links for d in drafts):
+        try:
+            keys = keys_of(match_id)
+        except (httpx.HTTPError, ValueError, KeyError) as e:
+            keys = {}
+            result.errors.append(f"links: {e}")
+        for d in drafts:
+            if d.id not in links and d.id in keys:
+                links[d.id] = DraftLink(
+                    draft_id=d.id, match_id=match_id, spectator_key=keys[d.id], url=draft_url(d.id, keys[d.id])
+                )
+                session.add(links[d.id])
+    filled = manual_drafts(session)
+    players: dict[str, dict[int, MatchPlayer]] = defaultdict(dict)
+    for p in session.exec(select(MatchPlayer).where(MatchPlayer.match_id == match_id)):
+        players[p.draft_id][p.slot] = p
+    for d in drafts:
+        if d.id in filled:
+            result.kept.append(d.game_no)
+            continue
+        link = links.get(d.id)
+        if link is None:
+            result.errors.append(f"game {d.game_no}: no link to its draft")
+            continue
+        try:
+            data = fetch(link.draft_id, link.spectator_key)
+        except (websocket.WebSocketException, OSError, ValueError) as e:
+            result.errors.append(f"game {d.game_no}: {e}")
+            continue
+        save_draft(session, link, data)
+        update_players(session, players[d.id], data)
+        result.games += 1
+    session.commit()
+    return result
+
+
+def site_keys(match_id: str) -> dict[str, str]:
+    with httpx.Client(headers={"Accept": "application/json"}, timeout=30) as client:
+        return fetch_match(client, match_id)
 
 
 def fetch_draft_actions(session: Session, refresh: bool = False) -> ActionsResult:

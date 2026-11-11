@@ -5,7 +5,7 @@ import { Brand } from "../components/Brand";
 import { OrganizerName } from "./OrganizerName";
 import { PhaseBody, usePhase } from "../abyss/AbyssView";
 import {
-  clearGameResult, clearMatchWinner, fetchMatch, fillGameResult, setMatchWinner,
+  clearGameResult, clearMatchWinner, fetchMatch, fillGameResult, refetchMatch, setMatchWinner,
   type Character, type DraftMove, type Game, type GamePlayer, type MatchDetail, type Result,
 } from "./api";
 import { useAuth } from "../auth/useCurrentUser";
@@ -306,31 +306,54 @@ function MatchAbyss({ match }: { match: MatchDetail }) {
   );
 }
 
-// The match's winner set by hand: only without a result from the bracket or the times (none, a technical defeat, or
-// set by hand before).
+// The match's winner set by hand, over whatever decided it (the bracket, the times, a technical defeat), and reading
+// the match again from the draft site.
 function WinnerControl({ match, onSaved }: { match: MatchDetail; onSaved: (m: MatchDetail) => void }) {
   const { t } = useLang();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [note, setNote] = useState("");
   if (match.challonge_only || match.sides.length !== 2) return null;
-  if (match.winner != null && match.result_source !== "technical" && match.result_source !== "manual") return null;
+  const onSite = !/^(challonge|manual)-/.test(match.tournament_id) && !match.id.includes("-");
   const run = (request: Promise<MatchDetail>) => {
     setSaving(true);
     setError("");
+    setNote("");
     request.then(onSaved)
       .catch((err) => setError(err instanceof Error ? err.message : t("Couldn't save.", "Не удалось сохранить.")))
       .finally(() => setSaving(false));
   };
+  const pick = (i: number) => {
+    const decided = match.winner != null && match.result_source !== "manual";
+    if (decided && match.winner !== i && !window.confirm(t(
+      `Override the result and set ${match.sides[i].name} as the winner?`,
+      `Перебить результат и сделать победителем ${match.sides[i].name}?`))) return;
+    run(setMatchWinner(match.id, i));
+  };
+  const refetch = () => run(refetchMatch(match.id).then((r) => {
+    const parts = [t(`Games read again: ${r.games}.`, `Перечитано игр: ${r.games}.`)];
+    if (r.kept.length) parts.push(t(`Kept with times filled in by hand: game ${r.kept.join(", ")}.`, `Оставлены с временем, внесённым вручную: игра ${r.kept.join(", ")}.`));
+    if (r.errors) parts.push(t(`Couldn't read: ${r.errors}.`, `Не удалось прочитать: ${r.errors}.`));
+    setNote(parts.join(" "));
+    return r.match;
+  }));
   return (
     <div className="match-winner-control">
       <span className="player-label">{t("Set the winner by hand:", "Задать победителя вручную:")}</span>
       {match.sides.map((side, i) => (
         <button type="button" key={i} className={match.result_source === "manual" && match.winner === i ? "suggest-button" : "match-input"}
-          disabled={saving} onClick={() => run(setMatchWinner(match.id, i))}>{side.name}</button>
+          disabled={saving} onClick={() => pick(i)}>{side.name}</button>
       ))}
       {match.result_source === "manual" && (
         <button type="button" className="match-input" disabled={saving} onClick={() => run(clearMatchWinner(match.id))}>{t("Remove", "Убрать")}</button>
       )}
+      {onSite && (
+        <button type="button" className="match-input" disabled={saving} onClick={refetch}
+          title={t("Read the games again from the draft site, for times entered or changed there since.", "Заново прочитать игры с сайта драфтов: время, внесённое или исправленное там с тех пор.")}>
+          {saving ? t("Working…", "Подождите…") : t("Re-read from the draft site", "Перечитать с сайта драфтов")}
+        </button>
+      )}
+      {note && <span className="player-note">{note}</span>}
       {error && <span className="match-result-error" role="alert">{error}</span>}
     </div>
   );

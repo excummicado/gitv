@@ -110,11 +110,81 @@ def test_sync_overwriting_the_game_is_undone(session, client):
     assert session.exec(select(MatchPlayer).where(MatchPlayer.slot == 1)).one().clear_time == 270
 
 
-def test_winner_set_by_hand_only_without_a_result_from_the_data(session, client):
+def test_winner_set_by_hand_overrides_the_result_from_the_data(session, client):
     setup(session, b_rooms=(90, 90, 90))  # complete: B wins on time
     sign_in(Role.admin)
-    response = client.put(f"/api/v1/matches/{MATCH}/winner", json={"side": 0})
-    assert response.status_code == 400 and "bracket or its times" in response.json()["detail"]
+    assert client.get(f"/api/v1/matches/{MATCH}").json()["result_source"] == "time"
+    match = client.put(f"/api/v1/matches/{MATCH}/winner", json={"side": 0}).json()
+    assert match["winner"] == 0 and match["result_source"] == "manual"
+    match = client.delete(f"/api/v1/matches/{MATCH}/winner").json()
+    assert match["winner"] == 1 and match["result_source"] == "time"
+
+
+def site_draft(b_rooms):
+    """The draft's socket data with B's times entered since."""
+    rooms = [(100, 100, 100), b_rooms]
+    return {
+        "status": "FINISHED",
+        "players": [
+            {"fullName": n, "clearTime": sum(r), "restarts": 0} | {f"clearTimeRoom{i + 1}": t for i, t in enumerate(r)}
+            for n, r in zip("AB", rooms, strict=True)
+        ],
+    }
+
+
+def test_a_match_is_read_again_from_the_draft_site(session, client, monkeypatch):
+    from app.services import draft_actions
+
+    setup(session)  # B never entered times: A wins by technical defeat
+    asked = []
+    monkeypatch.setattr(draft_actions, "site_keys", lambda m: asked.append(m) or {GAME: "key"})
+    monkeypatch.setattr(draft_actions, "fetch_init", lambda d, k: site_draft((80, 80, 80)))
+    sign_in(Role.writer)
+    assert client.post(f"/api/v1/matches/{MATCH}/refetch").status_code == 403
+    sign_in(Role.event_organizer)
+    body = client.post(f"/api/v1/matches/{MATCH}/refetch").json()
+    assert body["games"] == 1 and body["kept"] == [] and body["errors"] == 0 and asked == [MATCH]
+    assert body["match"]["winner"] == 1 and body["match"]["result_source"] == "time"
+    assert body["match"]["games"][0]["players"][1]["rooms"] == [80, 80, 80]
+    assert session.get(draft_actions.DraftLink, GAME).spectator_key == "key"  # kept for the next time
+
+
+def test_reading_again_keeps_times_filled_in_by_hand(session, client, monkeypatch):
+    from app.services import draft_actions
+
+    setup(session)
+    sign_in(Role.admin)
+    fill(client)
+    monkeypatch.setattr(draft_actions, "site_keys", lambda m: {GAME: "key"})
+    monkeypatch.setattr(draft_actions, "fetch_init", lambda d, k: pytest.fail("a game filled in by hand was read"))
+    body = client.post(f"/api/v1/matches/{MATCH}/refetch").json()
+    assert body["games"] == 0 and body["kept"] == [1]
+    assert session.exec(select(MatchPlayer).where(MatchPlayer.slot == 1)).one().clear_time == 270
+
+
+def test_reading_again_when_the_site_is_down(session, client, monkeypatch):
+    from app.services import draft_actions
+
+    setup(session)
+    sign_in(Role.admin)
+    monkeypatch.setattr(draft_actions, "site_keys", lambda m: {GAME: "key"})
+
+    def down(d, k):
+        raise OSError("refused")
+
+    monkeypatch.setattr(draft_actions, "fetch_init", down)
+    assert client.post(f"/api/v1/matches/{MATCH}/refetch").status_code == 502
+    assert session.exec(select(MatchPlayer).where(MatchPlayer.slot == 1)).one().clear_time == 0
+
+
+def test_a_match_entered_by_hand_cant_be_read_again(session, client):
+    session.add(Tournament(id="manual-cup", title="Cup"))
+    session.add(
+        Match(id="manual-cup-1", tournament_id="manual-cup", created_at=datetime(2026, 1, 1, tzinfo=UTC), raw="{}")
+    )
+    session.commit()
+    sign_in(Role.admin)
+    assert client.post("/api/v1/matches/manual-cup-1/refetch").status_code == 400
 
 
 def test_winner_of_a_technical_defeat_can_be_set_and_removed(session, client):

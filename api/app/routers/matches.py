@@ -11,6 +11,7 @@ from sqlmodel import func, select
 from ..database import MAX_ROW_ID, SessionDep
 from ..dependencies import get_current_result_editor
 from ..models import IgnoredTournament, Match, MatchDraft, MatchWinner, Tournament, User
+from ..rate_limit import rate_limit
 from ..schemas.matches import (
     Character,  # noqa: F401 -- other routers import it from here
     CharacterArt,
@@ -23,12 +24,15 @@ from ..schemas.matches import (
     Organizer,  # noqa: F401 -- other routers import it from here
     PopularAbyss,
     PopularCharacters,
+    RefetchOut,
     TopPick,
     TournamentItem,
     UnresolvedMatch,
     WinnerIn,
 )
 from ..services import manual_results
+from ..services.draft_actions import refetch_match
+from ..services.draft_links import OFF_SITE
 from ..services.match_checks import tidy_title
 from ..services.match_views import (
     SITE_SOURCE,
@@ -248,16 +252,11 @@ def clear_game_result(
 def set_winner(
     match_id: str, data: WinnerIn, session: SessionDep, editor: Annotated[User, Depends(get_current_result_editor)]
 ):
-    """Sets the match's winner by hand: only for a match without a result, decided by a technical defeat, or whose
-    winner was set by hand before. The bracket's or the times' result can't be overridden here."""
+    """Sets the match's winner by hand, whatever decided it before (none, the bracket, the times, a technical defeat):
+    the winner set by hand comes first in match_checks.match_outcome, until removed."""
     m = editable_match(session, match_id, editor)
     current = session.get(MatchWinner, m.id)
     detail = match_detail(session, m)
-    if current is None and detail.winner is not None and detail.result_source not in ("technical", "manual"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="This match's winner comes from its bracket or its times: it can't be set by hand.",
-        )
     if not 0 <= data.side < len(detail.sides):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No such side in this match.")
     player = detail.sides[data.side].user_id
@@ -282,3 +281,23 @@ def clear_winner(match_id: str, session: SessionDep, editor: Annotated[User, Dep
         session.delete(current)
         session.commit()
     return fresh_detail(session, m)
+
+
+@router.post(
+    "/{match_id}/refetch",
+    response_model=RefetchOut,
+    dependencies=[Depends(rate_limit("refetch-match", 20, 600, per="user"))],
+)
+def refetch(match_id: str, session: SessionDep, editor: Annotated[User, Depends(get_current_result_editor)]):
+    """Reads the match's games again from the draft site (draft_actions.refetch_match), for a result that changed
+    there since it was stored: a game with times filled in by hand keeps them. 502 when no game could be read."""
+    m = editable_match(session, match_id, editor)
+    if m.tournament_id.startswith(OFF_SITE) or "-" in m.id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This match isn't on the draft site.")
+    done = refetch_match(session, m.id)
+    if done.games == 0 and done.errors:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail="The draft site didn't answer. Try again later."
+        )
+    session.expire_all()
+    return RefetchOut(games=done.games, kept=done.kept, errors=len(done.errors), match=fresh_detail(session, m))

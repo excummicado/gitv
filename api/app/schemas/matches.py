@@ -260,3 +260,13 @@ class GameResultIn(BaseModel):
 
 class WinnerIn(BaseModel):
     side: int  # index into the match's sides
+
+
+class RefetchOut(BaseModel):
+    """A match read again from the draft site: how many games were, the numbers of those kept for their times filled
+    in by hand, how many couldn't be read, and the match as it is now."""
+
+    games: int
+    kept: list[int]
+    errors: int
+    match: MatchDetail
