@@ -16,9 +16,9 @@ from app.models import (
     RosterWeapon,
     Tournament,
 )
-from app.routers.matches import rooms_of
 from app.services.draft_actions import save_draft
 from app.services.match_checks import room_times
+from app.services.match_views import rooms_of
 from app.services.raw_trim import draft_raw_json, match_raw_json, trim_draft_raw, trim_match_raw, trim_stored_raw
 from app.services.rosters import build_rosters
 
