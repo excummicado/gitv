@@ -72,6 +72,7 @@ export function Navbar() {
         <div id="gitv-nav-menu" className={`gitv-nav-menu${open ? " is-open" : ""}`}>
           {links.map(({ label, ...link }) => <NavItem key={label[0]} label={t(...label)} {...link} />)}
           {user && STAFF_ROLES.includes(user.role) && <NavItem label={t("Analytics", "Аналитика")} to="/analytics" />}
+          {user?.role === "super_admin" && <NavItem label={t("Bundles", "Связки")} to="/bundles" />}
           {editor && <NavItem label={t("Unresolved", "Неразрешённые")} to="/unresolved" badge={unresolved} />}
           <NavSearch />
         </div>

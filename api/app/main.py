@@ -18,6 +18,7 @@ from .routers import (
     admin,
     analytics,
     articles,
+    bundles,
     characters,
     discord,
     health,
@@ -114,6 +115,7 @@ app.include_router(preview.router, prefix=settings.api_prefix)
 app.include_router(tournaments.router, prefix=settings.api_prefix)
 app.include_router(characters.router, prefix=settings.api_prefix)
 app.include_router(analytics.router, prefix=settings.api_prefix)
+app.include_router(bundles.router, prefix=settings.api_prefix)
 app.include_router(abyss.router, prefix=settings.api_prefix)
 
 # Spiral Abyss icons downloaded from alioth.wiki (services/abyss.py): game assets only, never uploads.

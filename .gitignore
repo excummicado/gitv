@@ -20,3 +20,7 @@ api/telegram/
 
 # Old tournaments saved from draft.aspirine.su (app.cli export-aspirine)
 api/aspirine/
+
+# Bundle statistics for /bundles: built by tools/bundle-stats/site_export.py and put on the server by hand,
+# since the repository is public and the page is not
+api/app/data/bundle_stats.json

@@ -18,6 +18,7 @@ export default [
   route("login", "routes/login.tsx"),
   route("profile", "routes/profile.tsx"),
   route("analytics", "routes/site-stats.tsx"),
+  route("bundles", "routes/bundles.tsx"),
   route("unresolved", "routes/unresolved.tsx"),
   route("auth/discord", "routes/auth.discord.tsx"),
   route("abyss", "routes/abyss.tsx"),
