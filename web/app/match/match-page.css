@@ -92,7 +92,9 @@
 .match-player-link:hover { text-decoration: underline; }
 
 /* Times and winner filled in by hand (event organizers and admins) */
-.match-edit-button { margin-left: auto; padding: 4px 10px; font-size: 12px; }
+.match-edit-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.match-edit-buttons .match-input { padding: 4px 10px; font-size: 12px; }
+.match-technical-control { margin: 0; padding: 12px 14px; border-bottom: 1px solid var(--gitv-border); }
 .match-filled { margin: 0; padding: 8px 14px; border-bottom: 1px solid var(--gitv-border); }
 .match-result-form { display: grid; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--gitv-border); }
 .match-result-form .player-note { margin: 0; }

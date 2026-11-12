@@ -11,10 +11,12 @@ export type DraftMove = { seq: number; slot: number | null; type: string; charac
 export type Game = {
   id: string; game_no: number; status: string; first_pick_slot: number | null; started_at: string | null; finished_at: string | null; url: string | null;
   technical: boolean; technical_reasons: string[]; winner_slot: number | null; players: GamePlayer[]; moves: DraftMove[];
-  // Event organizers and admins may fill in its times (some are missing, or they were filled in by hand before)
+  // Event organizers and admins may enter its times and give a technical defeat in it by hand
   editable: boolean;
-  // Who filled in its times by hand, if anyone did
+  // Who entered its times by hand, if anyone did
   filled_by: string | null;
+  // Who gave its technical defeat by hand; null when it's told from the times, or there's none
+  technical_by: string | null;
 };
 export type ResultSource = "manual" | "challonge" | "technical" | "time" | null;
 export type Organizer = { id: string; name: string; played: boolean };
@@ -128,6 +130,15 @@ export function fillGameResult(matchId: string, gameId: string, players: RoomEnt
 
 export function clearGameResult(matchId: string, gameId: string) {
   return authRequest<MatchDetail>("DELETE", `/matches/${encodeURIComponent(matchId)}/games/${encodeURIComponent(gameId)}/result`);
+}
+
+// A technical defeat given to the game's player in this slot by hand: it comes before whatever the times say.
+export function setTechnicalDefeat(matchId: string, gameId: string, slot: number) {
+  return authRequest<MatchDetail>("PUT", `/matches/${encodeURIComponent(matchId)}/games/${encodeURIComponent(gameId)}/technical`, { slot });
+}
+
+export function clearTechnicalDefeat(matchId: string, gameId: string) {
+  return authRequest<MatchDetail>("DELETE", `/matches/${encodeURIComponent(matchId)}/games/${encodeURIComponent(gameId)}/technical`);
 }
 
 export function setMatchWinner(matchId: string, side: number) {

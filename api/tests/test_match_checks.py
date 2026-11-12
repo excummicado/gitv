@@ -112,6 +112,20 @@ class TestTechnicalGame:
         t = technical_game([player(0, 0), player(1, 320)], {0: (0, 0, 0), 1: (83, 115, 122)})
         assert t is not None and t.loser_slot == 0
 
+    def test_a_defeat_given_by_hand_comes_before_the_times(self):
+        a, b = player(0, 150), player(1, 160)
+        t = technical_game([a, b], {0: (50, 50, 50), 1: (60, 50, 50)}, by_hand=0)  # a fine game, A faster
+        assert t is not None and t.loser_slot == 0 and t.by_hand
+        assert game_results(a, b, t, 150, 160) == ("L", "W")
+        # Over what the times say: B entered 300 s, the organizer gave the defeat to A
+        t = technical_game([player(0, 150), player(1, 900)], {0: (50, 50, 50), 1: (TECH_ROOM_TIME,) * 3}, by_hand=0)
+        assert t.loser_slot == 0
+        # And without socket data
+        assert technical_game([a, b], {0: None, 1: None}, by_hand=1).loser_slot == 1
+
+    def test_a_defeat_given_to_nobody_in_the_game_is_ignored(self):
+        assert technical_game([player(0, 150), player(1, 160)], {0: (50, 50, 50), 1: (60, 50, 50)}, by_hand=5) is None
+
 
 class TestGameResults:
     def test_lower_time_wins(self):
@@ -239,6 +253,14 @@ class TestMatchOutcome:
 
     def test_needs_two_sides(self):
         assert not match_outcome(self.games(("a", "W", False, 100))).decided
+
+    def test_a_technical_defeat_given_by_hand_doesnt_wait(self):
+        by_hand = self.games(("a", "L", True, 100, False, True), ("b", "W", False, 120, False, True))
+        for held in ({"holding_technical": True}, {"awaiting_bracket": True}):
+            o = match_outcome(by_hand, **held)
+            assert (o.winner, o.source) == ("b", "technical")
+        o = match_outcome(by_hand, challonge_winner="a", awaiting_bracket=True)  # the bracket still comes first
+        assert (o.winner, o.source) == ("a", "challonge")
 
 
 def test_tidy_title():

@@ -9,7 +9,19 @@ from sqlmodel import select
 from app.database import get_session
 from app.dependencies import get_current_active_user
 from app.main import app
-from app.models import DraftState, GameResult, Match, MatchDraft, MatchPlayer, MatchWinner, Role, Tournament, User
+from app.models import (
+    DraftState,
+    GameResult,
+    Match,
+    MatchDraft,
+    MatchPlayer,
+    MatchWinner,
+    Role,
+    TechnicalDefeat,
+    Tournament,
+    TournamentInfo,
+    User,
+)
 from app.services.manual_results import apply_manual_results
 
 MATCH = "m1"
@@ -74,11 +86,26 @@ def test_filled_in_times_decide_the_game(session, client):
     assert not game["technical"]
 
 
-def test_a_complete_game_cant_be_filled_in(session, client):
-    setup(session, b_rooms=(90, 90, 90))
+def test_a_complete_game_can_be_corrected_and_put_back(session, client):
+    setup(session, b_rooms=(90, 90, 90))  # complete: B wins on time
     sign_in(Role.admin)
-    response = fill(client)
-    assert response.status_code == 400 and "complete" in response.json()["detail"]
+    before = client.get(f"/api/v1/matches/{MATCH}").json()
+    assert before["games"][0]["editable"] and before["winner"] == 1
+    match = fill(client, rooms=(110, 110, 110), restarts=2).json()
+    game = match["games"][0]
+    assert game["players"][1]["rooms"] == [110, 110, 110] and game["players"][1]["clear_time"] == 330
+    assert game["players"][1]["restarts"] == 2 and game["filled_by"] == "orga"
+    assert game["winner_slot"] == 0 and match["winner"] == 0
+    # A sync pass writing the site's times again doesn't undo the correction
+    p = session.exec(select(MatchPlayer).where(MatchPlayer.slot == 1)).one()
+    p.clear_time, p.restarts, p.time_source = 270, 0, None
+    session.add(p)
+    session.commit()
+    assert apply_manual_results(session) == 1
+    match = client.delete(f"/api/v1/matches/{MATCH}/games/{GAME}/result").json()
+    game = match["games"][0]
+    assert game["players"][1]["rooms"] == [90, 90, 90] and game["players"][1]["clear_time"] == 270
+    assert game["players"][1]["restarts"] == 0 and game["filled_by"] is None and match["winner"] == 1
 
 
 def test_a_room_out_of_range_is_refused(session, client):
@@ -308,3 +335,83 @@ def test_matches_without_a_result_go_to_who_runs_their_tournament(session, clien
     sign_in(Role.admin)
     client.put("/api/v1/matches/m2/winner", json={"side": 0})
     assert client.get("/api/v1/matches/unresolved").json() == []
+
+
+# Technical defeats given by hand
+
+
+def give(client, slot=1):
+    return client.put(f"/api/v1/matches/{MATCH}/games/{GAME}/technical", json={"slot": slot})
+
+
+def test_only_organizers_and_admins_can_give_a_technical_defeat(session, client):
+    setup(session, b_rooms=(90, 90, 90))
+    sign_in(Role.writer)
+    assert give(client).status_code == 403
+    assert client.delete(f"/api/v1/matches/{MATCH}/games/{GAME}/technical").status_code == 403
+    sign_in(Role.event_organizer)
+    assert give(client).status_code == 200
+
+
+def test_a_technical_defeat_given_by_hand_decides_the_game_whatever_the_times(session, client):
+    setup(session, b_rooms=(90, 90, 90))  # complete: B wins on time
+    sign_in(Role.admin)
+    match = give(client, slot=1).json()
+    game = match["games"][0]
+    assert game["technical"] and game["technical_by"] == "orga" and game["winner_slot"] == 0
+    assert [p["result"] for p in game["players"]] == ["W", "L"]
+    assert game["players"][1]["rooms"] == [90, 90, 90]  # the times stay as they are
+    assert (match["winner"], match["result_source"], match["technical"]) == (0, "technical", True)
+    # Given to the other player instead: one per game
+    match = give(client, slot=0).json()
+    assert match["games"][0]["winner_slot"] == 1 and match["winner"] == 1
+    assert len(session.exec(select(TechnicalDefeat)).all()) == 1
+
+
+def test_removing_a_technical_defeat_puts_the_times_result_back(session, client):
+    setup(session, b_rooms=(90, 90, 90))
+    sign_in(Role.admin)
+    give(client, slot=1)
+    match = client.delete(f"/api/v1/matches/{MATCH}/games/{GAME}/technical").json()
+    game = match["games"][0]
+    assert not game["technical"] and game["technical_by"] is None
+    assert (match["winner"], match["result_source"]) == (1, "time")
+    assert client.delete(f"/api/v1/matches/{MATCH}/games/{GAME}/technical").status_code == 404
+
+
+def test_a_technical_defeat_needs_a_player_of_the_game(session, client):
+    setup(session, b_rooms=(90, 90, 90))
+    sign_in(Role.admin)
+    assert give(client, slot=2).status_code == 400
+    assert client.put(f"/api/v1/matches/{MATCH}/games/nope/technical", json={"slot": 0}).status_code == 404
+
+
+def test_the_statistics_the_lists_and_the_export_agree_on_it(session, client, tmp_path):
+    from openpyxl import load_workbook
+
+    from app.services.match_export import export_xlsx
+    from app.services.stats import snapshot
+
+    setup(session, b_rooms=(90, 90, 90))
+    sign_in(Role.admin)
+    give(client, slot=1)
+    snap = snapshot(session, fresh=True)
+    assert (snap.outcomes[MATCH].winner, snap.outcomes[MATCH].source) == ("uA", "technical")
+    (game,) = snap.players["uB"].games
+    assert game.result == "L" and game.tech_loss and game.technical
+    row = client.get("/api/v1/matches").json()["items"][0]
+    assert (row["winner"], row["result_source"], row["technical"]) == (0, "technical", True)
+    path = tmp_path / "out.xlsx"
+    export_xlsx(session, str(path))
+    cells = [str(c) for ws in load_workbook(path) for r in ws.iter_rows(values_only=True) for c in r if c]
+    assert "A (тех.)" in cells
+
+
+def test_in_a_running_tournament_it_counts_at_once(session, client):
+    setup(session)  # B's times missing: a technical defeat told from the times
+    session.add(TournamentInfo(tournament_id="t", is_finished=False))
+    session.commit()
+    sign_in(Role.admin)
+    assert client.get(f"/api/v1/matches/{MATCH}").json()["winner"] is None  # held until the tournament ends
+    match = give(client, slot=1).json()
+    assert (match["winner"], match["result_source"]) == (0, "technical")

@@ -453,9 +453,9 @@ class MatchWinner(SQLModel, table=True):
 
 
 class GameResult(SQLModel, table=True):
-    """A player's times in a game filled in by hand on the match page (services/manual_results.py) by an event
-    organizer or admin, where the draft site's are missing. Written into matchplayer and draftstate like the site's,
-    and again after every sync, so this table is what counts; the values it replaced are kept to undo it."""
+    """A player's times in a game entered by hand on the match page (services/manual_results.py) by an event
+    organizer or admin: missing on the draft site, or wrong there. Written into matchplayer and draftstate like the
+    site's, and again after every sync, so this table is what counts; the values it replaced are kept to undo it."""
 
     draft_id: str = Field(primary_key=True, foreign_key="matchdraft.id")
     slot: int = Field(primary_key=True)
@@ -467,6 +467,18 @@ class GameResult(SQLModel, table=True):
     before: str | None = None
     set_by: str  # the nickname of who entered it
     updated_at: datetime
+
+
+class TechnicalDefeat(SQLModel, table=True):
+    """A technical defeat given to a player in a game by hand on the match page (services/manual_results.py) by an
+    event organizer or admin. It comes before what the game's times say (match_checks.technical_game), on the site,
+    in the statistics and in export-xlsx alike; kept apart from imported tables so re-importing never undoes it."""
+
+    draft_id: str = Field(primary_key=True, foreign_key="matchdraft.id")
+    slot: int  # who took it
+    match_id: str = Field(foreign_key="match.id", index=True)
+    set_by: str  # the nickname of who gave it
+    created_at: datetime
 
 
 class IgnoredTournament(SQLModel, table=True):

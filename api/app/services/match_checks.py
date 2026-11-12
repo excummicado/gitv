@@ -10,6 +10,9 @@ playing and the loser either enters 300 s per room (from the room they gave up o
 room times (from the draft socket, see draft_actions) show it: a room missing, all three at 300, or rooms
 that don't add up to the total. The game is lost by whoever took the technical defeat (see
 technical_loser) and is left out of time averages (see technical_drafts). Everything else found here is only reported.
+
+An organizer can also give a player a technical defeat in a game by hand (models.TechnicalDefeat): it comes before
+whatever the game's times say (see technical_game).
 """
 
 import re
@@ -22,7 +25,7 @@ from typing import NamedTuple
 from sqlalchemy import bindparam
 from sqlmodel import Session, select, text
 
-from ..models import Match, MatchDraft, MatchPick, MatchPlayer, Tournament
+from ..models import Match, MatchDraft, MatchPick, MatchPlayer, TechnicalDefeat, Tournament
 
 # A time this many times below or above the tournament's median is reported as suspicious.
 FAST_RATIO = 0.4
@@ -158,6 +161,8 @@ class TechnicalGame:
     loser_slot: int | None
     # Which rule picked the loser
     rule: str | None
+    # Given by hand by an organizer (models.TechnicalDefeat), not told from the times
+    by_hand: bool = False
 
 
 def room_status(r: tuple[int, ...], clear_time: int) -> tuple[str | None, str]:
@@ -224,17 +229,30 @@ def technical_loser(
     return None, None
 
 
+BY_HAND_RULE = "назначено вручную"
+
+
+def defeats_by_hand(session: Session, match_ids: list[str] | None = None) -> dict[str, int]:
+    """{draft id: slot of the player given a technical defeat by hand}, for every game or those of the given matches."""
+    query = select(TechnicalDefeat.draft_id, TechnicalDefeat.slot)
+    if match_ids is not None:
+        query = query.where(TechnicalDefeat.match_id.in_(match_ids))
+    return dict(session.exec(query).all())
+
+
 def technical_drafts(
     session: Session,
     players: list[MatchPlayer] | None = None,
     rooms: dict[tuple[str, int], tuple[int, ...]] | None = None,
 ) -> dict[str, TechnicalGame]:
-    """Games that look unfinished after a technical defeat, with who took it. rooms: room_times, when read already.
+    """Games with a technical defeat given by hand, and games that look unfinished after one, with who took it.
+    rooms: room_times, when read already.
 
-    Only drafts with socket data can be checked; run fetch-draft-actions first.
+    Without one given by hand, only drafts with socket data can be checked; run fetch-draft-actions first.
     """
     if rooms is None:
         rooms = room_times(session)
+    by_hand = defeats_by_hand(session)
     if players is None:
         players = list(session.exec(select(MatchPlayer)))
     by_draft: dict[str, list[MatchPlayer]] = defaultdict(list)
@@ -242,17 +260,25 @@ def technical_drafts(
         by_draft[p.draft_id].append(p)
     found: dict[str, TechnicalGame] = {}
     for draft_id, dp in by_draft.items():
-        game = technical_game(dp, {p.slot: rooms.get((draft_id, p.slot)) for p in dp})
+        game = technical_game(dp, {p.slot: rooms.get((draft_id, p.slot)) for p in dp}, by_hand.get(draft_id))
         if game:
             found[draft_id] = game
     return found
 
 
-def technical_game(players: list[MatchPlayer], rooms: dict[int, tuple[int, ...] | None]) -> TechnicalGame | None:
+def technical_game(
+    players: list[MatchPlayer], rooms: dict[int, tuple[int, ...] | None], by_hand: int | None = None
+) -> TechnicalGame | None:
     """The TechnicalGame for one game's two players and their room times by slot, or None if the game is fine
-    or can't be checked (no socket data)."""
+    or can't be checked (no socket data). by_hand: the slot of the player an organizer gave a technical defeat
+    (models.TechnicalDefeat), which comes before whatever the times say."""
     dp = sorted(players, key=lambda p: p.slot)
-    if len(dp) != 2 or any(rooms.get(p.slot) is None for p in dp):
+    if len(dp) != 2:
+        return None
+    given = next((p for p in dp if p.slot == by_hand), None)
+    if given is not None:
+        return TechnicalGame([f"{given.full_name}: тех. поражение {BY_HAND_RULE}"], given.slot, BY_HAND_RULE, True)
+    if any(rooms.get(p.slot) is None for p in dp):
         return None
     statuses, reasons = [], []
     for p in dp:
@@ -297,6 +323,7 @@ class SideGame(NamedTuple):
     tech_loss: bool  # took the technical defeat in this game
     adjusted: int  # adjusted time
     filled: bool = False  # entered every timer of the game (timers_filled); unknown counts as not
+    tech_by_hand: bool = False  # the game's technical defeat was given by hand by an organizer
 
 
 @dataclass
@@ -323,7 +350,8 @@ def match_outcome(
        bracket) leaves it without a result, and holding_technical (it has none) does the same to a technical defeat.
        Players enter their times after a game is marked finished, so a missing time is often only a late one. But
        when both players filled in every timer of every game (SideGame.filled), there's no doubt left: the match
-       gets its result at once by the rules below, a technical defeat included.
+       gets its result at once by the rules below, a technical defeat included. So does a match with a technical
+       defeat an organizer gave by hand (SideGame.tech_by_hand): that is a decision, not a time still to come.
     4. A technical defeat in any game loses the match; no result if both players took one.
     5. Otherwise the lower total adjusted time wins, once every game has a result; equal totals are a draw.
     """
@@ -335,8 +363,8 @@ def match_outcome(
         return MatchOutcome(set_winner, True, bool(tech), "manual")
     if challonge_winner is not None and challonge_winner in sides:
         return MatchOutcome(challonge_winner, True, bool(tech), "challonge")
-    filled = all(g.filled for g in games)
-    if not filled and (awaiting_bracket or holding_technical and tech):
+    settled = all(g.filled for g in games) or any(g.tech_by_hand for g in games)
+    if not settled and (awaiting_bracket or holding_technical and tech):
         return MatchOutcome(None, False, bool(tech), None)
     if tech:
         if len(tech) == 1:

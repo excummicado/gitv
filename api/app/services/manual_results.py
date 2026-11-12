@@ -1,11 +1,14 @@
-"""Game times filled in by hand on the match page by event organizers and admins, where the draft site's are missing:
-a room without a time, or a player with no time at all (a time never entered there makes a technical defeat).
+"""What event organizers and admins enter by hand on the match page, over the draft site's data.
 
-Each entry (GameResult, one per player of a game) is written into the game's matchplayer row (clear time = the rooms'
-sum, restarts, time_source "manual") and its draftstate (the room times), so every page and statistic counts it like
-the site's own. Sync doesn't read such a game from the site again (draft_actions.refresh_times skips it) and writes
-the entries again after each pass, so they win over the site until removed; removing them puts back what the game
-had. Only an incomplete game, or one already filled in by hand, can be filled in.
+Game times: missing on the site (a room without a time, or a player with no time at all, which makes a technical
+defeat) or wrong there. Each entry (GameResult, one per player of a game) is written into the game's matchplayer row
+(clear time = the rooms' sum, restarts, time_source "manual") and its draftstate (the room times), so every page and
+statistic counts it like the site's own. Sync doesn't read such a game from the site again
+(draft_actions.refresh_times skips it) and writes the entries again after each pass, so they win over the site until
+removed; removing them puts back what the game had.
+
+A technical defeat in a game (TechnicalDefeat, one per game): read by match_checks.technical_game before the times,
+which stay as they are.
 """
 
 import json
@@ -14,7 +17,7 @@ from datetime import UTC, datetime
 
 from sqlmodel import Session, delete, select
 
-from ..models import DraftState, GameResult, MatchDraft, MatchPlayer
+from ..models import DraftState, GameResult, MatchDraft, MatchPlayer, TechnicalDefeat
 from .match_checks import TECH_ROOM_TIME
 from .raw_trim import draft_raw_json
 
@@ -38,26 +41,6 @@ def state_rooms(raw: dict | None, slot: int) -> list[int] | None:
     if slot >= len(players):
         return None
     return [players[slot].get(f"clearTimeRoom{k}") or 0 for k in range(1, room_count(raw) + 1)]
-
-
-def is_incomplete(players: list[MatchPlayer], raw: dict | None) -> bool:
-    """A game where a player has no time or a room without one; a game without its socket data counts too."""
-    if raw is None:
-        return True
-    return any(p.clear_time <= 0 or 0 in (state_rooms(raw, p.slot) or [0]) for p in players)
-
-
-def editable_drafts(session: Session, match_id: str) -> dict[str, bool]:
-    """{draft id: whether it can be filled in by hand} for the match's games."""
-    players = list(session.exec(select(MatchPlayer).where(MatchPlayer.match_id == match_id)))
-    states = {s.draft_id: s for s in session.exec(select(DraftState).where(DraftState.match_id == match_id))}
-    manual = set(session.exec(select(GameResult.draft_id).where(GameResult.match_id == match_id)))
-    out = {}
-    for d in session.exec(select(MatchDraft).where(MatchDraft.match_id == match_id)):
-        state = states.get(d.id)
-        raw = json.loads(state.raw) if state else None
-        out[d.id] = d.id in manual or is_incomplete([p for p in players if p.draft_id == d.id], raw)
-    return out
 
 
 def _write(session: Session, row: GameResult) -> bool:
@@ -86,13 +69,11 @@ def _write(session: Session, row: GameResult) -> bool:
 
 
 def set_game_result(session: Session, draft_id: str, entries: list[Entry], nickname: str) -> None:
-    """Stores the entries for the game (see the module). Raises ValueError when the game can't be filled in or an
-    entry is out of range; LookupError when there's no such game."""
+    """Stores the entries for the game (see the module), whatever times it had. Raises ValueError when an entry is
+    out of range; LookupError when there's no such game."""
     draft = session.get(MatchDraft, draft_id)
     if draft is None:
         raise LookupError(draft_id)
-    if not editable_drafts(session, draft.match_id).get(draft_id):
-        raise ValueError("This game's times are complete: only a game with missing times can be filled in.")
     players = {p.slot: p for p in session.exec(select(MatchPlayer).where(MatchPlayer.draft_id == draft_id))}
     state = session.get(DraftState, draft_id)
     if state is None:
@@ -195,3 +176,33 @@ def apply_manual_results(session: Session) -> int:
 
 def manual_drafts(session: Session) -> set[str]:
     return set(session.exec(select(GameResult.draft_id)))
+
+
+def set_technical_defeat(session: Session, draft_id: str, slot: int, nickname: str) -> None:
+    """Gives the game's player in this slot a technical defeat (see the module), in place of one given by hand before.
+    Raises ValueError when the game hasn't two players or none in the slot; LookupError when there's no such game."""
+    draft = session.get(MatchDraft, draft_id)
+    if draft is None:
+        raise LookupError(draft_id)
+    slots = set(session.exec(select(MatchPlayer.slot).where(MatchPlayer.draft_id == draft_id)))
+    if len(slots) != 2:
+        raise ValueError("A technical defeat can only be given in a game of two players.")
+    if slot not in slots:
+        raise ValueError("No such player in this game.")
+    row = session.get(TechnicalDefeat, draft_id) or TechnicalDefeat(
+        draft_id=draft_id, slot=slot, match_id=draft.match_id, set_by=nickname, created_at=datetime.now(UTC)
+    )
+    row.slot, row.set_by, row.created_at = slot, nickname, datetime.now(UTC)
+    session.add(row)
+    session.commit()
+
+
+def clear_technical_defeat(session: Session, draft_id: str) -> bool:
+    """Removes the game's technical defeat given by hand: its result comes from its times again. Returns whether
+    there was one."""
+    row = session.get(TechnicalDefeat, draft_id)
+    if row is None:
+        return False
+    session.delete(row)
+    session.commit()
+    return True

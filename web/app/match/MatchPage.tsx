@@ -5,7 +5,7 @@ import { Brand } from "../components/Brand";
 import { OrganizerName } from "./OrganizerName";
 import { PhaseBody, usePhase } from "../abyss/AbyssView";
 import {
-  clearGameResult, clearMatchWinner, fetchMatch, fillGameResult, refetchMatch, setMatchWinner,
+  clearGameResult, clearMatchWinner, clearTechnicalDefeat, fetchMatch, fillGameResult, refetchMatch, setMatchWinner, setTechnicalDefeat,
   type Character, type DraftMove, type Game, type GamePlayer, type MatchDetail, type Result,
 } from "./api";
 import { useAuth } from "../auth/useCurrentUser";
@@ -171,8 +171,8 @@ function DraftMoves({ game }: { game: Game }) {
   );
 }
 
-// Room times filled in by hand: each player's rooms (empty for one still unknown) and restarts. Event organizers and
-// admins only, on a game with missing times or one filled in by hand before.
+// Room times entered by hand: each player's rooms (empty for one still unknown) and restarts. Event organizers and
+// admins only, on any game: one with missing times, or one whose times on the draft site are wrong.
 function ResultForm({ match, game, onSaved, onClose }: { match: MatchDetail; game: Game; onSaved: (m: MatchDetail) => void; onClose: () => void }) {
   const { t } = useLang();
   const count = Math.max(...game.players.map((p) => p.rooms?.length ?? 0), 0) || 3;
@@ -204,8 +204,8 @@ function ResultForm({ match, game, onSaved, onClose }: { match: MatchDetail; gam
   return (
     <form className="match-result-form" onSubmit={save}>
       <p className="player-note">{t(
-        "Enter the missing times in seconds; leave a room empty if its time is still unknown. Times entered here win over the draft site's.",
-        "Впишите недостающее время в секундах; комнату, время которой неизвестно, оставьте пустой. Время отсюда главнее времени с сайта драфтов.")}</p>
+        "Enter or correct the times in seconds; leave a room empty if its time is still unknown. The total is the rooms' sum. Times entered here win over the draft site's until removed.",
+        "Впишите или исправьте время в секундах; комнату, время которой неизвестно, оставьте пустой. Общее время — сумма комнат. Время отсюда главнее времени с сайта драфтов, пока его не уберут.")}</p>
       {game.players.map((p, i) => (
         <div className="match-result-row" key={p.slot}>
           <span className="match-result-name">{p.name}</span>
@@ -237,9 +237,40 @@ function ResultForm({ match, game, onSaved, onClose }: { match: MatchDetail; gam
   );
 }
 
-function GameSection({ game, match, editor, onSaved }: { game: Game; match: MatchDetail; editor: boolean; onSaved: (m: MatchDetail) => void }) {
-  const [editing, setEditing] = useState(false);
+// A technical defeat given to one of the game's players by hand, over whatever its times say; the same people as the
+// times form.
+function TechnicalControl({ match, game, onSaved, onClose }: { match: MatchDetail; game: Game; onSaved: (m: MatchDetail) => void; onClose: () => void }) {
   const { t } = useLang();
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const loser = game.technical_by ? game.players.find((p) => p.slot !== game.winner_slot)?.slot : undefined;
+  const run = (request: Promise<MatchDetail>) => {
+    setSaving(true);
+    setError("");
+    request.then((m) => { onSaved(m); onClose(); })
+      .catch((err) => setError(err instanceof Error ? err.message : t("Couldn't save.", "Не удалось сохранить.")))
+      .finally(() => setSaving(false));
+  };
+  return (
+    <div className="match-winner-control match-technical-control">
+      <span className="player-label">{t("Technical defeat in this game goes to:", "Тех. поражение в этой игре получает:")}</span>
+      {game.players.map((p) => (
+        <button type="button" key={p.slot} className={loser === p.slot ? "suggest-button" : "match-input"} disabled={saving}
+          onClick={() => run(setTechnicalDefeat(match.id, game.id, p.slot))}>{p.name}</button>
+      ))}
+      {game.technical_by && (
+        <button type="button" className="match-input" disabled={saving} onClick={() => run(clearTechnicalDefeat(match.id, game.id))}>{t("Remove", "Снять")}</button>
+      )}
+      <button type="button" className="match-input" disabled={saving} onClick={onClose}>{t("Cancel", "Отмена")}</button>
+      {error && <span className="match-result-error" role="alert">{error}</span>}
+    </div>
+  );
+}
+
+function GameSection({ game, match, editor, onSaved }: { game: Game; match: MatchDetail; editor: boolean; onSaved: (m: MatchDetail) => void }) {
+  const [editing, setEditing] = useState<"times" | "technical" | null>(null);
+  const { t } = useLang();
+  const incomplete = game.players.some((p) => p.clear_time <= 0 || !p.rooms || p.rooms.some((time) => time <= 0));
   const duration = durationMinutes(game.started_at, game.finished_at);
   const [a, b] = game.players;
   // A technical game's times don't count, and a game without times has nothing to compare.
@@ -252,16 +283,26 @@ function GameSection({ game, match, editor, onSaved }: { game: Game; match: Matc
         {duration && <span className="match-game-meta">{duration} {t("min", "мин")}</span>}
         {game.url && <a className="match-link" href={game.url} target="_blank" rel="noreferrer">{t("Open draft ↗", "Открыть драфт ↗")}</a>}
         {editor && game.editable && !editing && (
-          <button type="button" className="match-input match-edit-button" onClick={() => setEditing(true)}>
-            {game.filled_by ? t("Edit times", "Изменить время") : t("Fill in times", "Заполнить время")}
-          </button>
+          <span className="match-edit-buttons">
+            <button type="button" className="match-input" onClick={() => setEditing("times")}>
+              {game.filled_by ? t("Edit times", "Изменить время") : incomplete ? t("Fill in times", "Заполнить время") : t("Correct times", "Исправить время")}
+            </button>
+            <button type="button" className="match-input" onClick={() => setEditing("technical")}>
+              {game.technical_by ? t("Change technical defeat", "Изменить тех. поражение") : t("Give technical defeat", "Назначить тех. поражение")}
+            </button>
+          </span>
         )}
       </h2>
-      {game.filled_by && <p className="player-note match-filled">{t("Times filled in by hand by", "Время заполнено вручную:")} {game.filled_by}</p>}
-      {editing && <ResultForm match={match} game={game} onSaved={onSaved} onClose={() => setEditing(false)} />}
+      {game.filled_by && <p className="player-note match-filled">{t("Times entered by hand by", "Время внесено вручную:")} {game.filled_by}</p>}
+      {game.technical_by && <p className="player-note match-filled">{t("Technical defeat given by hand by", "Тех. поражение назначено вручную:")} {game.technical_by}</p>}
+      {editing === "times" && <ResultForm match={match} game={game} onSaved={onSaved} onClose={() => setEditing(null)} />}
+      {editing === "technical" && <TechnicalControl match={match} game={game} onSaved={onSaved} onClose={() => setEditing(null)} />}
       {game.technical && (
         <p className="match-notice">
-          {game.winner_slot != null
+          {game.technical_by
+            ? t("An organizer gave a technical defeat in this game: the winner below comes from it, whatever the times, and the times aren't counted in player stats.",
+                "Организатор назначил в этой игре техническое поражение: победитель ниже определён по нему, каким бы ни было время, а время не учитывается в статистике игроков.")
+            : game.winner_slot != null
             ? t("Unfinished after a technical defeat: the winner below comes from the technical-defeat rule, and the times aren't counted in player stats.",
                 "Игра не доиграна после технического поражения: победитель ниже определён по правилу тех. поражения, а время не учитывается в статистике игроков.")
             : t("Unfinished, and neither player's defeat can be told: no result, and the times aren't counted in player stats.",

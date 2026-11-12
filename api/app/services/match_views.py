@@ -23,6 +23,7 @@ from ..models import (
     MatchPlayer,
     MatchWinner,
     PlayerName,
+    TechnicalDefeat,
     Tournament,
     TournamentInfo,
     User,
@@ -48,7 +49,6 @@ from ..schemas.matches import (
     TournamentItem,
     UnresolvedMatch,
 )
-from . import manual_results
 from .draft_links import draft_url
 from .events import stage_members
 from .match_checks import (
@@ -57,6 +57,7 @@ from .match_checks import (
     SideGame,
     TechnicalGame,
     adjusted_time,
+    defeats_by_hand,
     game_results,
     match_outcome,
     mode_label,
@@ -154,13 +155,16 @@ def score_match(
     merged: dict[str, str],
     snap: Snapshot,
     by_hand: str | None | object = FROM_SNAPSHOT,
+    defeats: dict[str, int] | None = None,
 ) -> ScoredMatch:
     """Scores a match from its drafts (in game order), players and room times by (draft, slot), by the shared rule
     (match_checks.match_outcome): a winner set by hand first, then Challonge, then a running tournament's wait for
     its bracket, then technical defeats, then total time. by_hand: the winner set by hand as read from the database
     (a merged account as the one it's merged into), for a page that must show it before the snapshot has it; the
-    snapshot's by default."""
+    snapshot's by default. defeats: the technical defeats given by hand, {draft id: slot}
+    (match_checks.defeats_by_hand)."""
     paid = json.loads(m.paid_restarts or "[]")
+    defeats = defeats or {}
 
     def adj(p: MatchPlayer) -> int:
         return adjusted_time(p.clear_time, p.restarts, m.free_restarts, paid)
@@ -177,7 +181,7 @@ def score_match(
     side_games: list[SideGame] = []
     for d in drafts:
         dp = sorted((p for p in players if p.draft_id == d.id), key=lambda p: p.slot)
-        tech = technical_game(dp, {p.slot: rooms.get((d.id, p.slot)) for p in dp})
+        tech = technical_game(dp, {p.slot: rooms.get((d.id, p.slot)) for p in dp}, defeats.get(d.id))
         results = game_results(dp[0], dp[1], tech, adj(dp[0]), adj(dp[1])) if len(dp) == 2 else (NO_RESULT,) * len(dp)
         for p, r in zip(dp, results, strict=True):
             i = side_of.get(key(p))
@@ -189,6 +193,7 @@ def score_match(
                     bool(tech and tech.loser_slot == p.slot),
                     adj(p),
                     timers_filled(rooms.get((d.id, p.slot)), p.clear_time),
+                    bool(tech and tech.by_hand),
                 )
             )
             if i is not None:
@@ -233,9 +238,10 @@ def summaries(session: Session, matches: list[Match], snap: Snapshot) -> list[Ma
     )
     merged = merges(session)
     names = display_names(session)
+    defeats = defeats_by_hand(session, ids)
     rows = []
     for m in matches:
-        scored = score_match(m, drafts[m.id], players[m.id], rooms, merged, snap)
+        scored = score_match(m, drafts[m.id], players[m.id], rooms, merged, snap, defeats=defeats)
         rows.append(
             MatchSummary(
                 id=m.id,
@@ -480,10 +486,11 @@ def match_detail(session: Session, m: Match, snap: Snapshot | None = None) -> Ma
     rooms = {(d, slot): tuple(times) for d, by_slot in room_lists.items() for slot, times in by_slot.items()}
     set_by = session.get(MatchWinner, m.id)
     by_hand = merged.get(set_by.player_id, set_by.player_id) if set_by else None
-    scored = score_match(m, drafts, players, rooms, merged, snap or snapshot(session), by_hand)
+    given = {r.draft_id: r for r in session.exec(select(TechnicalDefeat).where(TechnicalDefeat.match_id == m.id))}
+    defeats = {draft_id: r.slot for draft_id, r in given.items()}
+    scored = score_match(m, drafts, players, rooms, merged, snap or snapshot(session), by_hand, defeats)
     sides = scored.sides(names, merged)
 
-    editable = manual_results.editable_drafts(session, m.id)
     filled = {r.draft_id: r.set_by for r in session.exec(select(GameResult).where(GameResult.match_id == m.id))}
     games: list[Game] = []
     for d, dp, tech, results in scored.games:
@@ -539,8 +546,9 @@ def match_detail(session: Session, m: Match, snap: Snapshot | None = None) -> Ma
                     for a in actions
                     if a.draft_id == d.id
                 ],
-                editable=editable.get(d.id, False),
+                editable=len(dp) == 2,
                 filled_by=filled.get(d.id),
+                technical_by=given[d.id].set_by if tech and tech.by_hand else None,
             )
         )
 

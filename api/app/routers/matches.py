@@ -25,6 +25,7 @@ from ..schemas.matches import (
     PopularAbyss,
     PopularCharacters,
     RefetchOut,
+    TechnicalDefeatIn,
     TopPick,
     TournamentItem,
     UnresolvedMatch,
@@ -224,7 +225,8 @@ def fill_game_result(
     session: SessionDep,
     editor: Annotated[User, Depends(get_current_result_editor)],
 ):
-    """Fills in a game's missing times: each player's room times (0 for one still unknown) and restarts."""
+    """Enters a game's times by hand, missing or not: each player's room times (0 for one still unknown) and
+    restarts. They win over the draft site's until removed."""
     m = editable_match(session, match_id, editor)
     match_draft(session, m, draft_id)
     entries = [manual_results.Entry(slot=p.slot, rooms=p.rooms, restarts=p.restarts) for p in data.players]
@@ -245,6 +247,40 @@ def clear_game_result(
     match_draft(session, m, draft_id)
     if not manual_results.clear_game_result(session, draft_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="This game has no times filled in by hand.")
+    return fresh_detail(session, m)
+
+
+@router.put("/{match_id}/games/{draft_id}/technical", response_model=MatchDetail)
+def set_technical_defeat(
+    match_id: str,
+    draft_id: str,
+    data: TechnicalDefeatIn,
+    session: SessionDep,
+    editor: Annotated[User, Depends(get_current_result_editor)],
+):
+    """Gives a player a technical defeat in a game by hand: it comes before whatever the game's times say, and a
+    running tournament's match gets its result from it at once (match_checks.match_outcome)."""
+    m = editable_match(session, match_id, editor)
+    match_draft(session, m, draft_id)
+    try:
+        manual_results.set_technical_defeat(session, draft_id, data.slot, editor.nickname)
+    except ValueError as e:
+        session.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+    return fresh_detail(session, m)
+
+
+@router.delete("/{match_id}/games/{draft_id}/technical", response_model=MatchDetail)
+def clear_technical_defeat(
+    match_id: str, draft_id: str, session: SessionDep, editor: Annotated[User, Depends(get_current_result_editor)]
+):
+    """Removes the technical defeat given by hand: the game's result comes from its times again."""
+    m = editable_match(session, match_id, editor)
+    match_draft(session, m, draft_id)
+    if not manual_results.clear_technical_defeat(session, draft_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="This game has no technical defeat given by hand."
+        )
     return fresh_detail(session, m)
 
 

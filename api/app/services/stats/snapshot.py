@@ -39,6 +39,7 @@ from ...models import (
     MatchPlayer,
     MatchWinner,
     OffsitePlayer,
+    TechnicalDefeat,
     Tournament,
     TournamentInfo,
     TournamentPlayer,
@@ -197,6 +198,7 @@ def data_key(session: Session) -> tuple:
                 session.exec(select(GameResult.draft_id, GameResult.slot, GameResult.rooms, GameResult.restarts)).all()
             )
         ),
+        tuple(sorted(session.exec(select(TechnicalDefeat.draft_id, TechnicalDefeat.slot)).all())),
         tuple(sorted(session.exec(select(OffsitePlayer.id, OffsitePlayer.name)).all())),
         # Tournament titles (a rename), and characters' names (import-catalog, the Travelers' element names): both
         # cached in the snapshot
@@ -547,7 +549,7 @@ def build(session: Session, key: tuple, only: set[str] | None = None) -> Snapsho
                 )
             )
             filled = timers_filled(rooms.get((draft_id, me.slot)), me.clear_time)
-            match_games[d.match_id].append(SideGame(pid, r, tech_loss, adj(me), filled))
+            match_games[d.match_id].append(SideGame(pid, r, tech_loss, adj(me), filled, bool(t and t.by_hand)))
 
     names = display_names(session)
     # Challonge results, with its names matched to the players of each tournament.

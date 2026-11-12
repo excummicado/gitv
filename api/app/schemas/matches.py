@@ -59,10 +59,13 @@ class Game(BaseModel):
     winner_slot: int | None
     players: list[GamePlayer]
     moves: list[DraftMove]
-    # Event organizers and admins may fill in its times: some are missing, or they were filled in by hand before
+    # Event organizers and admins may enter its times and give a technical defeat in it by hand
     editable: bool = False
-    # Who filled in its times by hand, if anyone did
+    # Who entered its times by hand, if anyone did
     filled_by: str | None = None
+    # Who gave its technical defeat by hand (the loser is the other player than winner_slot); None when it's told
+    # from the times, or there's none
+    technical_by: str | None = None
 
 
 class Organizer(BaseModel):
@@ -256,6 +259,10 @@ class RoomEntry(BaseModel):
 
 class GameResultIn(BaseModel):
     players: list[RoomEntry]
+
+
+class TechnicalDefeatIn(BaseModel):
+    slot: int  # the game's player who takes it
 
 
 class WinnerIn(BaseModel):

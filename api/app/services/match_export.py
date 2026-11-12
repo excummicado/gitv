@@ -242,6 +242,7 @@ def export_xlsx(session: Session, path: str) -> dict[str, int]:
                     tech_loser.get(p.draft_id) is p,
                     adj(p),
                     timers_filled(rooms.get((p.draft_id, p.slot)), p.clear_time),
+                    p.draft_id in technical and technical[p.draft_id].by_hand,
                 )
                 for p in mp
             ],
