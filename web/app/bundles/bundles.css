@@ -93,6 +93,9 @@
 .bs-cell { padding: 6px 4px; background: color-mix(in srgb, var(--bs-color) 16%, var(--gitv-surface-2)); border: 1px solid color-mix(in srgb, var(--bs-color) 50%, transparent); text-align: center; font-variant-numeric: tabular-nums; }
 .bs-cell b { display: block; color: var(--gitv-text); font-size: 13px; }
 .bs-cell small { display: block; color: var(--gitv-muted); font-size: 10px; }
+.bs-cell b.is-faster { color: var(--gitv-text); }
+.bs-cell b.is-slower { color: var(--gitv-muted); }
+.bs-cell .bs-dir { color: var(--gitv-text-soft); }
 .bs-cell--empty { background: none; border: 1px dashed var(--gitv-border); }
 .bs-item .bs-num, .bs-item .bs-quiet { white-space: nowrap; }
 

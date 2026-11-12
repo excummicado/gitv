@@ -21,8 +21,6 @@ function useFormat() {
       /** "26.2 s faster" / "3.9 s slower": what a negative or positive effect means, in words. */
       speed: (v: number) => (Math.abs(v) < 0.05 ? t("no difference", "без разницы")
         : v < 0 ? t(`${number(v)} s faster`, `быстрее на ${number(v)} ${s}`) : t(`${number(v)} s slower`, `медленнее на ${number(v)} ${s}`)),
-      /** The same with a sign, for the tight cells of a grid. */
-      signed: (v: number) => `${v > 0.04 ? "+" : v < -0.04 ? "−" : ""}${number(v)}`,
       /** The 90% interval in words. */
       range: (lo: number, hi: number) => (hi <= 0 ? t(`likely ${number(hi)}–${number(lo)} s faster`, `скорее всего быстрее на ${number(hi)}–${number(lo)} ${s}`)
         : lo >= 0 ? t(`likely ${number(lo)}–${number(hi)} s slower`, `скорее всего медленнее на ${number(lo)}–${number(hi)} ${s}`)
@@ -75,6 +73,18 @@ function Effect({ value, lo, hi, scale }: { value: number | null; lo?: number | 
   );
 }
 
+/** The same effect for the tight cells of a grid: the direction in small letters over the seconds. */
+function Delta({ value }: { value: number }) {
+  const f = useFormat();
+  if (Math.abs(value) < 0.05) return <b>{f.t("no difference", "без разницы")}</b>;
+  return (
+    <>
+      <small className="bs-dir">{value < 0 ? f.t("faster by", "быстрее на") : f.t("slower by", "медленнее на")}</small>
+      <b className={value < 0 ? "is-faster" : "is-slower"}>{f.number(value)} {f.t("s", "с")}</b>
+    </>
+  );
+}
+
 /** What a tab shows and what each of its columns means, always open above the table. */
 function About({ lead, terms }: { lead: ReactNode; terms: [string, ReactNode][] }) {
   return (
@@ -124,7 +134,7 @@ function ConstGrid({ pair, agents }: { pair: Pair; agents: Record<string, AgentI
                   const [, games, players, total, own, volume] = cell;
                   return (
                     <td key={cb} className={`bs-cell bs-${volume}`} title={`${f.speed(whole ? total : own)} · ${f.games(games, players)}`}>
-                      <b>{f.signed(whole ? total : own)}</b>
+                      <Delta value={whole ? total : own} />
                       <small>{f.t(`${games} games`, `${games} игр`)}</small>
                     </td>
                   );
@@ -136,8 +146,8 @@ function ConstGrid({ pair, agents }: { pair: Pair; agents: Record<string, AgentI
       </div>
       <p className="bs-hint">
         {whole
-          ? f.t(`Seconds per game: minus is faster. Counted against ${a} C0 and ${b} C0 playing apart, so the number holds both what their constellations give and what the pair gives.`,
-            `Секунды на игру: минус — быстрее. Отсчёт от «${a} C0 и ${b} C0 играют порознь», то есть в числе и то, что дают созвездия, и то, что даёт сама пара.`)
+          ? f.t(`Seconds per game against ${a} C0 and ${b} C0 playing apart, so the number holds both what their constellations give and what the pair gives.`,
+            `Секунды на игру относительно «${a} C0 и ${b} C0 играют порознь», то есть в числе и то, что дают созвездия, и то, что даёт сама пара.`)
           : f.t("Only what the pair adds on top of the two characters. It is almost the same in every cell: the data doesn't show bundles growing stronger with constellations, so one cost for all constellations is fair.",
             "Только то, что пара добавляет сверх самих персонажей. Оно почти одинаково во всех клетках: данные не показывают, что связка усиливается от созвездий, поэтому одна цена на все созвездия честна.")}
         {" "}{f.t("Constellations and cells with too few games (under 20, or under 5 players) are left out.", "Созвездия и клетки, по которым мало игр (меньше 20 или меньше 5 игроков), не показаны.")}
@@ -226,7 +236,7 @@ function Levels({ data }: { data: BundleStats }) {
           "Что созвездия персонажа дают таймеру сами по себе — рядом с ценой каждого уровня в драфте. Уровень, который экономит много времени за мало лишних очков, недооценён.")}
         terms={[
           [f.t("Base", "База"), f.t("The character's lowest constellation with enough games. Every other level is compared with it.", "Самое низкое созвездие персонажа, по которому хватает игр. С ним сравниваются остальные уровни.")],
-          [f.t("Number in a cell", "Число в клетке"), f.t("Seconds per game against the base: minus is faster. Under it, the level's cost and the games played.", "Секунды на игру относительно базы: минус — быстрее. Под ним — цена уровня и число игр.")],
+          [f.t("Number in a cell", "Число в клетке"), f.t("How many seconds per game the level is faster or slower than the base. Under it, the level's cost and the games played.", "На сколько секунд за игру уровень быстрее или медленнее базы. Под ним — цена уровня и число игр.")],
           [f.t("Caution", "Осторожно"), f.t("A player's constellation rarely changes, so levels always compare different people. A yellow cell may hold as few as 15 of them.", "Созвездие у игрока обычно одно, поэтому уровни — всегда сравнение разных людей. В жёлтой клетке их может быть всего 15.")],
         ]} />
       <div className="player-controls">
@@ -249,7 +259,7 @@ function Levels({ data }: { data: BundleStats }) {
                     if (!l) return <td key={c} className="bs-cell bs-cell--empty" />;
                     return (
                       <td key={c} className={`bs-cell bs-${l.v}`} title={`${c === base ? f.t("Base", "База") : f.speed(l.e)} · ${f.games(l.n, l.p)}`}>
-                        <b>{c === base ? f.t("base", "база") : f.signed(l.e)}</b>
+                        {c === base ? <b>{f.t("base", "база")}</b> : <Delta value={l.e} />}
                         <small>{f.points(l.cost)}</small>
                         <small>{f.t(`${l.n} games`, `${l.n} игр`)}</small>
                       </td>
