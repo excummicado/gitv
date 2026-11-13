@@ -71,6 +71,11 @@ def test_odds_start_from_elo_and_move_with_the_bets():
     assert bets.odds(p) == (1.52, 2.48)
     # 500 on an even match: as if 2000 of 3500 stood on that player
     assert bets.odds(0.5, 500, 0) == (1.65, 2.2)
+    # A big gap: Elo gives the weaker player 11.6%, and their odds are the fair ones for that, not better
+    assert bets.odds(bets.start_probability(1950, 1598)) == (1.05, 8.58)
+    assert bets.odds(bets.start_probability(1598, 1950)) == (8.58, 1.05)
+    # ...and their chance is never taken for less than 10%
+    assert bets.odds(bets.start_probability(3000, 1000)) == (1.04, 9.43)
     # However lopsided, a win still pays something
     assert bets.odds(bets.start_probability(3000, 1000), 5000, 0)[0] == bets.MIN_ODDS
 

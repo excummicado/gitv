@@ -4,7 +4,8 @@ Points: everyone starts a calendar month (Moscow time) with START, last month's 
 (HANDICAP); the first visit of a day gives DAILY, every STREAK_DAYS-th day in a row STREAK_BONUS more. The month's
 table is by balance; the prize is given by hand.
 
-Odds: the first player's chance starts from the Elo of the two (both must have one), pushed SKEW further from even,
+Odds: the first player's chance starts from the Elo of the two (both must have one), pushed SKEW further from even
+(but the weaker player's odds never beat the fair ones by Elo, see start_probability),
 as if the site had put VIRTUAL points on the match by that chance; every bet adds to its side and moves the chance.
 The odds are 1 / (chance * (1 + MARGIN)), and a bet keeps the odds it was made at. Bets are taken until the match's
 start, on one player per match, MIN_BET to MAX_PER_MATCH in all, and can't be taken back.
@@ -27,7 +28,7 @@ START, DAILY, STREAK_DAYS, STREAK_BONUS = 1000, 50, 7, 150
 HANDICAP = (300, 200, 100)
 MIN_BET, MAX_PER_MATCH = 10, 500
 SKEW, MARGIN, VIRTUAL = 1.2, 0.06, 3000
-MIN_CHANCE, MIN_ODDS = 0.05, 1.01
+MIN_CHANCE, MIN_ODDS = 0.1, 1.01
 # A Discord account younger than this can't bet: a second account made for the points costs half a year of waiting.
 MIN_DISCORD_AGE = timedelta(days=183)
 DISCORD_EPOCH_MS = 1420070400000
@@ -76,9 +77,12 @@ def old_enough(user: User, now: datetime) -> bool:
 
 
 def start_probability(elo1: float, elo2: float) -> float:
-    """The first player's chance by Elo, pushed SKEW further from even."""
+    """The first player's chance by Elo, pushed SKEW further from even. The weaker player's chance isn't pushed
+    below their Elo chance / (1 + MARGIN), so their odds never beat the fair ones by Elo, nor below MIN_CHANCE."""
     expected = 1 / (1 + 10 ** ((elo2 - elo1) / 400))
-    return min(1 - MIN_CHANCE, max(MIN_CHANCE, 0.5 + (expected - 0.5) * SKEW))
+    weaker = min(expected, 1 - expected)
+    chance = max(0.5 - (0.5 - weaker) * SKEW, weaker / (1 + MARGIN), MIN_CHANCE)
+    return chance if expected < 0.5 else 1 - chance
 
 
 def odds(start_p1: float, stake1: int = 0, stake2: int = 0) -> tuple[float, float]:
