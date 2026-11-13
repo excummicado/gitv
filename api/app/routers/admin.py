@@ -1,5 +1,5 @@
 """Staff tools: roles (admins: up to event organizer, super admins: up to admin), the organizers whose tournaments a
-member runs (admins and super admins) and bans (admins and super admins)."""
+member runs (admins and super admins), bans (admins and super admins) and bet testers (super admins)."""
 
 from datetime import UTC, datetime
 from typing import Annotated, Literal
@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlmodel import func, select
 
 from ..database import SessionDep
-from ..dependencies import get_current_staff
+from ..dependencies import get_current_staff, get_current_super_admin
 from ..models import Role, User, UserOrganizer, UserPublic
 from ..services.organizers import organizer_choices, organizer_root
 
@@ -189,3 +189,38 @@ def unban(nickname: str, session: SessionDep, actor: Annotated[User, Depends(get
     session.commit()
     session.refresh(user)
     return user
+
+
+# Bet testers: the members who see and place bets while they are being tested (services/bets.py). Only a super admin
+# marks them; like organizers and unlike a role, it takes effect without signing in again.
+
+
+def set_bet_tester(session: SessionDep, nickname: str, value: bool) -> User:
+    user = find_by_nickname(session, nickname)
+    if user.bet_tester == value:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This member is already a bet tester." if value else "This member isn't a bet tester.",
+        )
+    user.bet_tester = value
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+@router.get("/bet-testers", response_model=list[str])
+def list_bet_testers(session: SessionDep, actor: Annotated[User, Depends(get_current_super_admin)]):
+    """Their nicknames, in alphabetical order."""
+    rows = session.exec(select(User.nickname).where(User.bet_tester)).all()
+    return sorted(rows, key=str.lower)
+
+
+@router.put("/users/{nickname}/bet-tester", response_model=UserPublic)
+def grant_bet_tester(nickname: str, session: SessionDep, actor: Annotated[User, Depends(get_current_super_admin)]):
+    return set_bet_tester(session, nickname, True)
+
+
+@router.delete("/users/{nickname}/bet-tester", response_model=UserPublic)
+def revoke_bet_tester(nickname: str, session: SessionDep, actor: Annotated[User, Depends(get_current_super_admin)]):
+    return set_bet_tester(session, nickname, False)

@@ -1,0 +1,53 @@
+/* Bets for points (BetsPage). */
+.bets-wallet { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 22px; padding: 14px; }
+.bets-balance { font: 700 28px/1 var(--gitv-font-display); color: var(--gitv-text); }
+.bets-balance small { margin-left: 6px; font: 400 12px/1 var(--gitv-font); color: var(--gitv-muted); }
+.bets-wallet-fact { font-size: 12px; color: var(--gitv-muted); }
+.bets-wallet-fact b { color: var(--gitv-text); font-weight: 600; }
+.bets-bonus { color: var(--gitv-win); font-size: 12px; font-weight: 600; }
+.bets-note { margin: 0; padding: 8px 14px; border-top: 1px dotted var(--gitv-border-muted); font-size: 12px; color: var(--gitv-warn); }
+.bets-rules { margin: 0; padding: 10px 14px 12px 30px; font-size: 12px; line-height: 1.6; color: var(--gitv-muted); }
+
+.bets-match { padding: 10px 12px 12px; border-top: 1px dotted var(--gitv-border-muted); }
+.bets-match-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; margin-bottom: 8px; font-size: 11px; color: var(--gitv-muted); }
+.bets-state { color: var(--gitv-faint); }
+.bets-state--open { color: var(--gitv-win); }
+.bets-state--started { color: var(--gitv-warn); }
+.bets-sides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.bets-side { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; border: 1px solid var(--gitv-border); background: var(--gitv-surface); color: var(--gitv-text); font: inherit; text-align: left; }
+button.bets-side { cursor: pointer; }
+button.bets-side:hover:not(:disabled) { border-color: var(--gitv-accent); }
+button.bets-side:disabled { cursor: default; opacity: 0.6; }
+.bets-side.is-chosen { border-color: var(--gitv-accent); background: var(--gitv-surface-hover); }
+.bets-side.is-winner { border-color: var(--gitv-win); }
+.bets-side-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.bets-side-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 600; }
+.bets-side-odds { font: 700 16px/1 var(--gitv-font-display); color: var(--gitv-accent); }
+.bets-side-sub { font-size: 11px; color: var(--gitv-faint); }
+.bets-mine { margin: 8px 0 0; font-size: 12px; color: var(--gitv-text-soft); }
+.bets-mine .is-won { color: var(--gitv-win); }
+.bets-mine .is-lost { color: var(--gitv-loss); }
+.bets-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.bets-amount { width: 96px; padding: 7px 8px; border: 1px solid var(--gitv-border); background: var(--gitv-surface); color: var(--gitv-text); font: 13px/1.2 var(--gitv-font); }
+.bets-amount:focus { outline: none; border-color: var(--gitv-accent); }
+.bets-form .profile-action { padding: 9px 14px; }
+.bets-form-win { font-size: 12px; color: var(--gitv-muted); }
+.bets-settle { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; font-size: 12px; color: var(--gitv-muted); }
+.bets-settle .profile-action { padding: 7px 10px; }
+.bets-error { margin: 8px 0 0; font-size: 12px; color: var(--gitv-loss); }
+
+.bets-table-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 10px; padding: 7px 12px; border-top: 1px dotted var(--gitv-border-muted); font-size: 13px; }
+.bets-table-row.is-me { background: var(--gitv-surface-hover); }
+.bets-table-row b { font-weight: 600; }
+.bets-place { color: var(--gitv-faint); }
+.bets-place--1 { color: var(--gitv-gold); }
+.bets-place--2 { color: var(--gitv-silver); }
+.bets-place--3 { color: var(--gitv-bronze); }
+.bets-history-row { display: grid; grid-template-columns: 92px minmax(0, 1.6fr) minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding: 7px 12px; border-top: 1px dotted var(--gitv-border-muted); font-size: 12px; }
+.bets-history-row .is-won { color: var(--gitv-win); }
+.bets-history-row .is-lost { color: var(--gitv-loss); }
+.bets-history-row .is-quiet { color: var(--gitv-muted); }
+@media (max-width: 700px) {
+  .bets-sides { grid-template-columns: minmax(0, 1fr); }
+  .bets-history-row { grid-template-columns: 1fr; gap: 2px; }
+}

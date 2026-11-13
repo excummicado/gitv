@@ -5,8 +5,8 @@
 import { ApiError, errorFrom, tr, UNREACHABLE, type Message } from "../api";
 
 // organizers: the draft-site organizers whose tournaments they run (granted by an admin); missing from a user saved
-// before the API sent it, until /users/me refreshes it.
-export type User = { id: string; nickname: string; discord_username: string | null; role: Role; organizers?: string[] };
+// before the API sent it, until /users/me refreshes it. bet_tester: marked by a super admin to try the bets.
+export type User = { id: string; nickname: string; discord_username: string | null; role: Role; organizers?: string[]; bet_tester?: boolean };
 export type Role = "user" | "writer" | "event_organizer" | "admin" | "super_admin";
 export const ROLE_LABELS: Record<Role, string> = {
   user: "Member", writer: "Writer", event_organizer: "Event organizer", admin: "Admin", super_admin: "Super admin",
@@ -27,6 +27,11 @@ export function isPlayerEditor(user: User | null): boolean {
 export function runsTournamentsOf(user: User | null, organizerId: string | null | undefined): boolean {
   if (!user) return false;
   return ALL_TOURNAMENTS_ROLES.includes(user.role) || Boolean(organizerId && user.organizers?.includes(organizerId));
+}
+
+// Bets are being tested: only the super admin and the members a super admin marked see them (app/bets).
+export function mayBet(user: User | null): boolean {
+  return Boolean(user && (user.role === "super_admin" || user.bet_tester));
 }
 type Session = { user: User };
 const AUTH_HEADER = { "X-GITV": "1" };
@@ -191,6 +196,19 @@ export function grantOrganizer(nickname: string, organizerId: string) {
 
 export function revokeOrganizer(nickname: string, organizerId: string) {
   return authRequest<OrganizerOption[]>("DELETE", `/admin/users/${encodeURIComponent(nickname)}/organizers/${encodeURIComponent(organizerId)}`);
+}
+
+// Bet testers, marked by a super admin; it takes effect at once, without signing in again.
+export function listBetTesters() {
+  return authRequest<string[]>("GET", "/admin/bet-testers");
+}
+
+export function grantBetTester(nickname: string) {
+  return adminRequest("PUT", `/users/${encodeURIComponent(nickname)}/bet-tester`);
+}
+
+export function revokeBetTester(nickname: string) {
+  return adminRequest("DELETE", `/users/${encodeURIComponent(nickname)}/bet-tester`);
 }
 
 export function banUser(nickname: string) {

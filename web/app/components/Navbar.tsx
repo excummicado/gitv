@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router";
-import { clearSession, isPlayerEditor, STAFF_ROLES } from "../auth/client";
+import { clearSession, isPlayerEditor, mayBet, STAFF_ROLES } from "../auth/client";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import { LangSwitch, useLang } from "../i18n";
 import { CoffeeIcon } from "./CoffeeIcon";
 import { NavSearch } from "./NavSearch";
 import { SignOutIcon } from "./SignOutIcon";
 import { fetchUnresolved } from "../unresolved/api";
+import { visit } from "../bets/api";
 import "../unresolved/unresolved.css";
 import "./navbar.css";
 
@@ -37,7 +38,7 @@ function NavItem({ label, to, also = [], className = "", badge }: { label: strin
 
 export function Navbar() {
   const user = useCurrentUser();
-  const { t } = useLang();
+  const { t, locale } = useLang();
   const { pathname } = useLocation();
   // On phones the sections and the search drop down from a button; on wider screens they stand in the bar (navbar.css).
   const [open, setOpen] = useState(false);
@@ -49,6 +50,14 @@ export function Navbar() {
     if (!editor) return;
     fetchUnresolved().then((rows) => setUnresolved(rows.filter((m) => !m.waiting).length)).catch(() => setUnresolved(0));
   }, [editor, pathname]);
+
+  // Bet testers: any page counts as the day's visit (it gives the daily points), and the menu shows the points
+  const bettor = mayBet(user);
+  const [points, setPoints] = useState<number | null>(null);
+  useEffect(() => {
+    if (!bettor) return;
+    visit().then((wallet) => setPoints(wallet.balance)).catch(() => setPoints(null));
+  }, [bettor, pathname]);
 
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
@@ -73,6 +82,7 @@ export function Navbar() {
           {links.map(({ label, ...link }) => <NavItem key={label[0]} label={t(...label)} {...link} />)}
           {user && STAFF_ROLES.includes(user.role) && <NavItem label={t("Analytics", "Аналитика")} to="/analytics" />}
           {user?.role === "super_admin" && <NavItem label={t("Bundles", "Связки")} to="/bundles" />}
+          {bettor && <NavItem label={points == null ? t("Bets", "Ставки") : `${t("Bets", "Ставки")} · ${points.toLocaleString(locale)}`} to="/bets" />}
           {editor && <NavItem label={t("Unresolved", "Неразрешённые")} to="/unresolved" badge={unresolved} />}
           <NavSearch />
         </div>

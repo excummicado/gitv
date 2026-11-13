@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router";
-import { banUser, clearSession, grantOrganizer, listOrganizers, memberOrganizers, NICKNAME_HINT, NICKNAME_HINT_RU, NICKNAME_PATTERN, revokeOrganizer, ROLE_LABELS, ROLE_LABELS_RU, setRole, signOutEverywhere, unbanUser, updateNickname, type AssignableRole, type OrganizerOption, type Role } from "../auth/client";
+import { banUser, clearSession, grantBetTester, grantOrganizer, listBetTesters, listOrganizers, revokeBetTester, memberOrganizers, NICKNAME_HINT, NICKNAME_HINT_RU, NICKNAME_PATTERN, revokeOrganizer, ROLE_LABELS, ROLE_LABELS_RU, setRole, signOutEverywhere, unbanUser, updateNickname, type AssignableRole, type OrganizerOption, type Role } from "../auth/client";
 import { useLang } from "../i18n";
 import { useAuth } from "../auth/useCurrentUser";
 import { Navbar } from "../components/Navbar";
@@ -260,6 +260,38 @@ function BansForm() {
   );
 }
 
+// Bet testers (super admin only): the members who see and place bets while they are being tested. Marked and
+// unmarked by nickname; the list shows who is one now.
+function BetTestersForm() {
+  const { t } = useLang();
+  const { run, saving, field, result } = useNicknameAction();
+  const [testers, setTesters] = useState<string[]>([]);
+  const refresh = () => listBetTesters().then(setTesters).catch(() => {});
+  useEffect(() => { refresh(); }, []);
+
+  const change = (request: (nickname: string) => Promise<{ nickname: string }>, done: (nickname: string) => string) =>
+    run(async (nickname) => { const n = (await request(nickname)).nickname; await refresh(); return done(n); });
+
+  return (
+    <section className="player-box profile-panel">
+      <h2 className="player-box-title">{t("Bet testers", "Тестеры ставок")}</h2>
+      <form className="profile-panel-body" onSubmit={(event) => event.preventDefault()} noValidate>
+        <div className="profile-edit-row">
+          {field}
+          <button type="button" className="profile-action" disabled={saving}
+            onClick={() => change(grantBetTester, (n) => t(`${n} is now a bet tester.`, `${n} теперь тестер ставок.`))}>{t("Add", "Добавить")}</button>
+          <button type="button" className="profile-action profile-action--quiet" disabled={saving}
+            onClick={() => change(revokeBetTester, (n) => t(`${n} is no longer a bet tester.`, `${n} больше не тестер ставок.`))}>{t("Remove", "Снять")}</button>
+        </div>
+        {result}
+        <div className="profile-edit-hint">
+          {testers.length ? `${t("Testers now:", "Сейчас тестеры:")} ${testers.join(", ")}` : t("Nobody is a tester yet.", "Тестеров пока нет.")}
+        </div>
+      </form>
+    </section>
+  );
+}
+
 // Signing out here, or on every device at once (after a confirm: it can't be undone from here).
 function SignOutButtons() {
   const { t } = useLang();
@@ -326,6 +358,7 @@ export function ProfilePage() {
                   </div>
                   {user.role !== "user" ? <span className="profile-badge">{roleLabel(user.role)}</span>
                     : user.organizers?.length ? <span className="profile-badge">{t("Organizer", "Организатор")}</span> : null}
+                  {user.bet_tester && <span className="profile-badge">{t("Bet tester", "Тестер ставок")}</span>}
                 </div>
                 <SignOutButtons />
               </section>
@@ -335,6 +368,7 @@ export function ProfilePage() {
                 <RolesForm actorRole={user.role} />
                 <OrganizersForm />
                 <BansForm />
+                {user.role === "super_admin" && <BetTestersForm />}
               </div>
             )}
             {!ready || user ? null : (

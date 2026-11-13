@@ -51,6 +51,9 @@ class User(UserBase, table=True):
     disabled: bool = False
     # Written into every token as "ver"; raising it ends all of the user's sessions (sign-out everywhere, a ban).
     token_version: int = 0
+    # May see and place bets while they are being tested (services/bets.py); set by a super admin only. Not a role,
+    # so a writer or an organizer can be one too and nobody has to sign in again.
+    bet_tester: bool = False
 
 
 class UserOrganizer(SQLModel, table=True):
@@ -70,6 +73,7 @@ class UserPublic(UserBase):
     role: Role
     # The organizers whose tournaments they run (UserOrganizer); filled in only for the member themselves
     organizers: list[str] = []
+    bet_tester: bool = False
 
 
 # Matches imported from the tournament site's API (app.cli import-matches).
@@ -675,3 +679,55 @@ class ReferrerDay(SQLModel, table=True):
     day: date = Field(primary_key=True)
     host: str = Field(primary_key=True, max_length=120)  # the referring site, e.g. discord.com
     visits: int = 0
+
+
+# Bets for points (services/bets.py): for now only for the super admin and members marked as bet testers.
+
+
+class BetBalance(SQLModel, table=True):
+    """A member's points in one calendar month (Moscow time, "2026-11"): everyone starts the month with the same
+    points, last month's top three with a head start. The daily visit bonus and its streak are kept here too and
+    carried into the next month's row."""
+
+    user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
+    month: str = Field(primary_key=True)
+    balance: int
+    handicap: int = 0  # the head start for last month's place, already in the balance
+    streak: int = 0  # days in a row with a visit, up to last_bonus_day
+    last_bonus_day: date | None = None  # the Moscow day of the last visit bonus
+
+
+class BetMarket(SQLModel, table=True):
+    """Bets on who wins one announced match (ScheduledMatch), made at the first bet or when it is settled. It keeps
+    the match's names itself, so the history survives the announcement being removed (its id may be given to
+    another one then, hence the own id here)."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    scheduled_match_id: int | None = Field(default=None, index=True)  # None once the announcement is removed
+    month: str = Field(index=True)  # of the match's start; bets are taken only in that month
+    tournament_title: str
+    player1_id: str | None = None
+    player1_name: str
+    player2_id: str | None = None
+    player2_name: str
+    starts_at: datetime
+    start_p1: float  # the first player's chance the odds started from (from Elo, see bets.start_probability)
+    stake1: int = 0  # points bet on each player so far; they move the odds
+    stake2: int = 0
+    status: str = "open"  # open, settled (winner says who), void (every bet returned)
+    winner: int | None = None  # 0 or 1
+    settled_by: uuid.UUID | None = None  # None when returned by itself at the month's end
+    settled_at: datetime | None = None
+
+
+class Bet(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id", index=True)
+    market_id: int = Field(foreign_key="betmarket.id", index=True)
+    month: str
+    side: int  # 0 or 1
+    amount: int
+    odds: float  # as they stood when the bet was made
+    payout: int  # what it pays if it wins (amount * odds, rounded down)
+    status: str = "pending"  # pending, won, lost, refunded
+    created_at: datetime

@@ -15,6 +15,7 @@ from ..database import RowId, SessionDep
 from ..dependencies import get_current_player_editor
 from ..models import ScheduledMatch, StreamMatch, StreamStatus, StreamTeam, User
 from ..rate_limit import rate_limit
+from ..services import bets
 from ..services.challonge import normalize
 from ..services.organizers import own_organizer_filter
 from ..services.player_names import display_names, known_players
@@ -356,5 +357,7 @@ def delete_scheduled(match_id: RowId, session: SessionDep, editor: Annotated[Use
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such scheduled match.")
     if row.created_by != editor.id and not editor.role.is_staff:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only its author or an admin can remove it.")
+    # Bets on it are returned (services/bets.py)
+    bets.release(session, row.id, datetime.now(UTC), editor)
     session.delete(row)
     session.commit()
