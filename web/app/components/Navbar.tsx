@@ -7,7 +7,7 @@ import { CoffeeIcon } from "./CoffeeIcon";
 import { NavSearch } from "./NavSearch";
 import { SignOutIcon } from "./SignOutIcon";
 import { fetchUnresolved } from "../unresolved/api";
-import { visit } from "../bets/api";
+import { visit, watchBalance } from "../bets/api";
 import "../unresolved/unresolved.css";
 import "./navbar.css";
 
@@ -58,6 +58,7 @@ export function Navbar() {
     if (!bettor) return;
     visit().then((wallet) => setPoints(wallet.balance)).catch(() => setPoints(null));
   }, [bettor, pathname]);
+  useEffect(() => watchBalance(setPoints), []);
 
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {

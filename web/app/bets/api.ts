@@ -32,9 +32,17 @@ export function visit(fresh = false): Promise<Wallet> {
   if (fresh || !kept || Date.now() - kept.at > 60_000) {
     const wallet = authRequest<Wallet>("POST", "/bets/visit");
     kept = { at: Date.now(), wallet };
-    wallet.catch(() => { kept = null; });
+    wallet.then((w) => watchers.forEach((tell) => tell(w.balance)), () => { kept = null; });
   }
   return kept.wallet;
+}
+
+// The menu shows the points: it hears of every fresh visit (the bets page makes one after a bet or a result).
+const watchers = new Set<(balance: number) => void>();
+
+export function watchBalance(tell: (balance: number) => void) {
+  watchers.add(tell);
+  return () => { watchers.delete(tell); };
 }
 
 export function fetchMarkets() {
