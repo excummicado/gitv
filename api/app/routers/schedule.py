@@ -151,7 +151,7 @@ class StreamOut(BaseModel):
     live: bool  # the stream is on: from Twitch when its keys are set, else a match on air
     title: str | None  # from Twitch
     viewers: int | None
-    started_at: datetime | None  # from Twitch, else the day's post
+    started_at: datetime | None  # from Twitch, else the first match's time when its post gave one
     casters: str | None
     matches: list[StreamMatchOut]
 
@@ -249,9 +249,7 @@ def stream_matches(
                 live=twitch.live if twitch else on_air is not None,
                 title=twitch.title if twitch else None,
                 viewers=twitch.viewers if twitch and twitch.live else None,
-                started_at=aware(twitch.started_at)
-                if twitch and twitch.live
-                else aware(first.starts_at or first.announced_at),
+                started_at=aware(twitch.started_at) if twitch and twitch.live else aware(first.starts_at),
                 casters=playing.casters,
                 matches=matches,
             )

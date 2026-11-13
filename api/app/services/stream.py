@@ -26,7 +26,8 @@ Its matches are on air from their time until their results post (the first of th
 
 Abyss New Gen's (settings.newgen_telegram_channel) names its matches in prose (Stream.prose):
 - the day's post, in the morning: a line per match, "rooz1ee VS liarlialin, под комментарии qwebob & bestingo"
-  (or "а услышим X & Y", "комментировать … будут X и Y"), no times;
+  (or "а услышим X & Y", "комментировать … будут X и Y"), without times, or with them, in Russian and again in
+  English: "В 18:00 МСК встретятся A и B, под комментарии X и Y", "3:00 PM UTC — A vs B, with X and Y on the mic";
 - "Матчи уже стартуют!" with the Twitch link when the stream starts: its first match is on air from then;
 - its results post: "Результаты матча A vs B … Поздравляем A с победой"; the next match is on air from then.
 
@@ -79,7 +80,11 @@ ROSTER = re.compile(r"(?P<team>.+?)\s+[—–-]+\s+(?P<members>.+)")
 MEMBERS = re.compile(r"\s*(?:&|\+|,|\s и\s)\s*")
 # Abyss New Gen's day post: a match in a sentence, single-word nicknames, its casters the pair at the end of it
 PROSE_PAIR = re.compile(r"(?<![\w.-])(?P<a>[\w.-]{2,})\s+vs\.?\s+(?P<b>[\w.-]{2,})(?P<rest>.*)", re.I)
-PROSE_CASTERS = re.compile(r"([\w.-]+)\s+(?:&|и)\s+([\w.-]+)")
+PROSE_CASTERS = re.compile(r"([\w.-]+)\s+(?:&|и|and)\s+([\w.-]+)")
+# ...and its time, when the line gives one: "3:00 PM UTC — A vs B", "В 18:00 МСК ..."
+PROSE_TIME = re.compile(
+    r"(?i)(?<!\d)(?P<h>\d{1,2})[:.](?P<m>\d{2})\s*(?P<half>[ap])?\.?m?\.?\s*(?P<zone>utc|gmt|мск|msk)\b"
+)
 STARTED = re.compile(r"(?i)матчи\s+(?:уже\s+)?(?:стартуют|начались|начинаются)")
 NEW_GEN = re.compile(r"(?:Abyss\s+)?New\s+Gen(?:\s+All-Star|\s+[IVX]+\b)?")
 CONGRATS = re.compile(r"(?i)поздравляем\s+(.+?)\s+с\s")
@@ -90,7 +95,9 @@ TBD = "TBD"
 # A TBD match is looked up in its bracket from its time until this long after (or until its results post)
 TBD_LOOKUP = timedelta(hours=3)
 MOSCOW = ZoneInfo("Europe/Moscow")
-WINNER = re.compile(r"(?:Победа достаётся|Победа достается|Победу одержал[аи]?)\s+(.+?)[!.]?\s*(?:Поздрав|$)", re.I)
+WINNER = re.compile(
+    r"(?:Победа достаётся|Победа достается|Победа досталась|Победу одержал[аи]?)\s+(.+?)[!.]?\s*(?:Поздрав|$)", re.I
+)
 
 
 @dataclass(frozen=True)
@@ -205,10 +212,10 @@ def find(session: Session, channel: str, key: str, at: datetime) -> StreamMatch 
     return next((r for r in rows if team_pair(r.player1_name, r.player2_name) == key), None)
 
 
-def moscow_time(day: datetime, hour: str, minute: str) -> datetime:
-    """That time (Moscow) on the day of the post, in UTC; long before the post it's the next day's (an evening post's
-    "00:30"), a little before it is a late post about a match that has begun."""
-    local = day.astimezone(MOSCOW).replace(hour=int(hour), minute=int(minute), second=0, microsecond=0)
+def moscow_time(day: datetime, hour: str | int, minute: str | int, zone=MOSCOW) -> datetime:
+    """That time (Moscow, or the zone given) on the day of the post, in UTC; long before the post it's the next
+    day's (an evening post's "00:30"), a little before it is a late post about a match that has begun."""
+    local = day.astimezone(zone).replace(hour=int(hour), minute=int(minute), second=0, microsecond=0)
     if day - local > timedelta(hours=12):
         local += timedelta(days=1)
     return local.astimezone(UTC)
@@ -358,6 +365,7 @@ def store_prose(session: Session, source: Stream, post: Post, text: list[str]) -
             continue
         a, b = nick(m["a"]), nick(m["b"])
         casters = PROSE_CASTERS.findall(m["rest"])
+        at = PROSE_TIME.search(line)
         mid = f"{source.telegram}-{post.id}-{pair_key(a, b)}"
         row = session.get(StreamMatch, mid) or StreamMatch(
             id=mid,
@@ -368,7 +376,10 @@ def store_prose(session: Session, source: Stream, post: Post, text: list[str]) -
             announced_at=post.at + timedelta(seconds=changed),
             post_url=f"https://t.me/{source.telegram}/{post.id}",
         )
-        row.casters = " & ".join(casters[-1]) if casters else row.casters
+        row.casters = " & ".join(c.strip(".") for c in casters[-1]) if casters else row.casters
+        if at and int(at["h"]) < 24 and int(at["m"]) < 60:
+            hour = int(at["h"]) % 12 + (12 if at["half"].lower() == "p" else 0) if at["half"] else int(at["h"])
+            row.starts_at = moscow_time(post.at, hour, at["m"], UTC if at["zone"].lower() in ("utc", "gmt") else MOSCOW)
         session.add(row)
         changed += 1
     return changed

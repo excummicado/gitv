@@ -375,3 +375,29 @@ def test_a_time_long_before_the_post_is_the_next_days():
     assert stream.moscow_time(evening, "00", "30") == datetime(2026, 11, 4, 21, 30, tzinfo=UTC)
     # Posted after the match began: still that day
     assert stream.moscow_time(evening, "20", "00") == datetime(2026, 11, 4, 17, tzinfo=UTC)
+
+
+def test_new_gen_gives_times_in_its_english_lines(session, client):
+    """Abyss New Gen's later day post: the matches with their times, in Russian without "vs" and again in English."""
+    ch = "abyss_new_gen"
+    morning = datetime(2026, 11, 13, 8, 1, 51, tzinfo=UTC)
+    text = (
+        "🗓Сегодня нас ждут следующие противостояния:\n\n"
+        "❤️В 18:00 МСК встретятся Baam и liarlialin, под комментарии dsmended и kakarikx\n\n"
+        "❤️В 20:00 МСК увидим зарубу Divizor и Northwar, а в комментаторской услышим ShogunVenti и Tihedge\n\n"
+        "🗓Here's what's in store for today:\n\n"
+        "❤️3:00 PM UTC — Baam vs liarlialin, with commentary by dsmended and kakarikx.\n\n"
+        "❤️5:00 PM UTC — Divizor vs Northwar, with ShogunVenti and Tihedge on the mic."
+    )
+    result = "🌟Результат матча Baam vs liarlialin.\n\n😐Победа досталась      Baam\nПоздравляем его с выходом"
+    posts = post(71, morning, text, channel=ch) + post(74, morning + timedelta(hours=11), result, channel=ch)
+    stream.store_posts(session, ch, stream.parse_page(posts))
+    first, second = session.exec(select(StreamMatch).order_by(StreamMatch.announced_at)).all()
+    assert (first.player1_name, first.player2_name, first.casters) == ("Baam", "liarlialin", "dsmended & kakarikx")
+    assert first.starts_at.replace(tzinfo=UTC) == datetime(2026, 11, 13, 15, 0, tzinfo=UTC)
+    assert first.winner_name == "Baam"
+    assert (second.player1_name, second.casters) == ("Divizor", "ShogunVenti & Tihedge")
+    assert second.starts_at.replace(tzinfo=UTC) == datetime(2026, 11, 13, 17, 0, tzinfo=UTC)
+    # The stream's start is the first match's time, not when the post came out
+    day = {"from": "2026-11-13T00:00:00Z", "to": "2026-11-14T00:00:00Z"}
+    assert client.get("/api/v1/schedule/stream", params=day).json()[0]["started_at"] == "2026-11-13T15:00:00Z"
