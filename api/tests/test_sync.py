@@ -63,6 +63,8 @@ def site(monkeypatch):
     for name in ("fetch_draft_systems", "build_rosters", "fetch_tournament_info"):
         monkeypatch.setattr(sync_service, name, lambda session, **kw: {})
     monkeypatch.setattr(sync_service, "maybe_fetch_abyss", lambda session: None)  # never alioth.wiki
+    monkeypatch.setattr(sync_service, "import_catalog", lambda session: {})  # nor the site's characters
+    monkeypatch.setattr(sync_service, "sync_hub", lambda session: None)  # nor HotH Hub
     # Spectator keys of a match's drafts, counted per match asked for
     asked: list[str] = []
 
@@ -125,6 +127,18 @@ class TestLivePoll:
         session.commit()
         monkeypatch.setattr(sync_service, "site_tournaments", lambda client, finished: [{"_id": "live1", "title": "x"}])
         assert sync_service.sync(session).imported == []
+
+    def test_hourly_sync_reads_the_sites_characters(self, session, site, monkeypatch):
+        monkeypatch.setattr(sync_service, "site_tournaments", lambda client, finished: [])
+        read = []
+        monkeypatch.setattr(sync_service, "import_catalog", lambda session: read.append(1))
+        assert sync_service.sync(session).errors == [] and read == [1]
+
+        def down(session):
+            raise ValueError("no list")
+
+        monkeypatch.setattr(sync_service, "import_catalog", down)
+        assert sync_service.sync(session).errors == ["catalog: no list"]  # the rest of the sync still done
 
 
 class TestLiveMatches:

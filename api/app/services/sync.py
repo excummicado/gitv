@@ -2,7 +2,8 @@
 
 Each sync reads the site's public list of finished tournaments and imports the ones that aren't in the
 database yet (ignored ones, deleted or tests, are skipped), then fetches the new matches' draft links and
-draft data, the tournaments' details and their Challonge brackets. A tournament the live poll brought in while
+draft data, the tournaments' details and their Challonge brackets, and the site's list of characters and weapons
+(services/catalog.py), so new ones are added by themselves. A tournament the live poll brought in while
 it ran is finished the same way: its remaining matches, details and bracket.
 
 The live poll (every LIVE_INTERVAL, two minutes) asks for the matches of the tournaments running now and
@@ -40,6 +41,7 @@ from sqlmodel import Session, delete, select
 from ..models import IgnoredTournament, LiveMatch, LiveRoster, Match, MatchPlayer, Tournament, TournamentInfo
 from . import match_import
 from .abyss import maybe_fetch_abyss
+from .catalog import import_catalog
 from .challonge import challonge_link, fetch_challonge, site_match_winners, stored_results
 from .draft_actions import TimesResult, fetch_draft_actions, fetch_init, refresh_times
 from .draft_links import fetch_draft_links, fetch_match
@@ -172,6 +174,12 @@ def sync(session: Session, cookie: str | None = None) -> SyncResult:
     except (httpx.HTTPError, ValueError, KeyError) as e:
         session.rollback()
         result.errors.append(f"hoth hub: {e}")
+    # The site's characters and weapons, so a new one has its name and art before anyone picks it.
+    try:
+        import_catalog(session)
+    except (httpx.HTTPError, ValueError, KeyError) as e:
+        session.rollback()
+        result.errors.append(f"catalog: {e}")
     # New Spiral Abyss phases from alioth.wiki, at most once a day.
     try:
         abyss = maybe_fetch_abyss(session)

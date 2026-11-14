@@ -1,6 +1,7 @@
 from sqlmodel import select
 
 from app.models import Agent
+from app.services import catalog
 from app.services.catalog import rename_agents, traveler_name
 
 
@@ -27,3 +28,15 @@ def test_stored_characters_renamed(session):
         ("lumine-hydro", "HMC", "HMC"),
         ("mona", "Mona", "Мона"),
     ]
+
+
+def test_the_sites_new_characters_are_added(session, monkeypatch):
+    site = {
+        "agents": [{"_id": "mona", "name": {"en": "Mona", "ru": "Мона"}, "rarity": 5, "attribute": 16}],
+        "engines": [{"_id": "sword", "title": {"en": "Dull Blade", "ru": "Тупой меч"}, "rarity": 1}],
+    }
+    monkeypatch.setattr(catalog, "fetch_list", lambda client, name: site[name])
+    assert catalog.import_catalog(session) == {"agents": 1, "engines": 1}
+    site["agents"].append({"_id": "mitya", "name": {"en": "Mitya", "ru": "Митя"}, "rarity": 5, "attribute": 14})
+    catalog.import_catalog(session)
+    assert session.get(Agent, "mitya").name_ru == "Митя" and session.get(Agent, "mona").name_en == "Mona"

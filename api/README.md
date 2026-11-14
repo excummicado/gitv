@@ -367,7 +367,7 @@ venv/bin/python -m app.cli import-catalog
 
 Saves the site's character and weapon lists (`/api/abyss/agents`, `/api/abyss/engines`, no cookie) to the
 `agent` and `engine` tables (the site calls characters agents and weapons engines; so do the column names). `export-xlsx` then shows Russian names instead of ids; an id missing from the list stays an id.
-Run it again when new characters come out. Exports and the site say Abyss for the site's `shiyu` mode.
+The hourly sync does the same, so new characters and weapons are added by themselves; run the command to have them at once. Exports and the site say Abyss for the site's `shiyu` mode.
 The site lists a Traveler per element (and per twin), all under one name; they're saved as AMC, CMC, DMC, EMC, GMC,
 HMC and PMC (Anemo, Cryo, Dendro, Electro, Geo, Hydro, Pyro main character), in both languages. A few other
 characters get a name of our own (`NAMES` in `services/catalog.py`, e.g. Sandrone (Starglitter)).
