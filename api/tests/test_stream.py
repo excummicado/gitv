@@ -467,3 +467,150 @@ def test_a_post_the_page_does_not_show_is_read_through_the_api(session, monkeypa
     (match,) = session.exec(select(StreamMatch)).all()
     assert (match.player1_name, match.player2_name, match.casters) == ("koshmar", "rpyt02", "Wertmym1 & young_princeee")
     assert match.starts_at.replace(tzinfo=UTC).astimezone(stream.MOSCOW).hour == 18
+
+
+def picture_post(post_id: int, at: datetime, caption: str, channel: str = "abysscup") -> str:
+    """A post whose text is only a caption, with a picture, as t.me/s/<channel> shows it."""
+    return post(post_id, at, caption, channel=channel).replace(
+        '<div class="tgme_widget_message_text',
+        '<a class="tgme_widget_message_photo_wrap" href="x" '
+        "style=\"width:800px;background-image:url('https://cdn4.telesco.pe/file/x.jpg')\"></a>"
+        '<div class="tgme_widget_message_text',
+    )
+
+
+def test_a_schedule_picture_gives_its_matches_their_times(session, client, monkeypatch):
+    from app.models import StreamMatch as Row
+    from app.services import stream_schedule as pictures
+
+    monkeypatch.setattr(pictures, "_read", {})
+    monkeypatch.setattr(pictures, "_failed_at", 0.0)
+    now = datetime.now(UTC).replace(microsecond=0)
+    posted = now - timedelta(hours=3)
+    local = posted.astimezone(stream.MOSCOW)
+    answer = {
+        "month": local.month,
+        "day": local.day,
+        "utc_offset_hours": 3,
+        "matches": [
+            {"player1": "king_baka", "player2": "bestingo", "time": "18:30"},
+            {"player1": "DzeN", "player2": "Rer", "time": "20:30"},
+            {"player1": "same", "player2": "Same", "time": "21:00"},  # one player twice: left out
+            {"player1": "A", "player2": "B", "time": "25:00"},  # not a time: left out
+            "junk",
+        ],
+    }
+    caption = (
+        "🌟 Расписание матчей 🌟\n📅 Мы подобрали для вас интересные матчи Abyss Fast Soup , которые пройдут сегодня!"
+    )
+    posts = stream.parse_page(page_of(picture_post(7, posted, caption)))
+    assert posts[0].photo == "https://cdn4.telesco.pe/file/x.jpg"
+    asked = []
+
+    def recognize(image, kind):
+        asked.append((image, kind))
+        return answer
+
+    fetch = lambda url: (b"jpeg", "image/jpeg")  # noqa: E731
+    assert pictures.read_schedule_images(session, "abysscup", posts, now, fetch, recognize) == 1
+    stream.store_posts(session, "abysscup", posts)
+    rows = session.exec(select(Row).order_by(Row.starts_at)).all()
+    assert [(r.player1_name, r.player2_name) for r in rows] == [("king_baka", "bestingo"), ("DzeN", "Rer")]
+    first = local.replace(hour=18, minute=30, second=0).astimezone(UTC)
+    assert rows[0].starts_at == first and rows[1].starts_at == first + timedelta(hours=2)
+    assert rows[0].tournament_title == "Abyss Fast Soup" and rows[0].post_url == "https://t.me/abysscup/7"
+    # Read once: the page is read again every minute
+    again = stream.parse_page(page_of(picture_post(7, posted, caption)))
+    pictures.read_schedule_images(session, "abysscup", again, now, fetch, recognize)
+    assert len(asked) == 1 and len(again[0].slots) == 2
+    # The day's post later finds the same matches instead of adding them, and gives them the casters and the stream
+    day = post(
+        8,
+        now - timedelta(minutes=5),
+        "🎥 Abyss Fast Soup\n\n📅 Матчи на сегодня:\n• king_baka vs bestingo\n"
+        "• DzeN vs Rer\n\n🎤 Стрим ведут Dramp &amp; ShiroJA.",
+        TWITCH,
+    )
+    for _ in range(2):
+        stream.store_posts(session, "abysscup", stream.parse_page(page_of(day)))
+    rows = session.exec(select(Row).order_by(Row.starts_at)).all()
+    assert len(rows) == 2 and rows[0].casters == "Dramp & ShiroJA" and rows[0].stream_url == TWITCH[0]
+    assert rows[0].starts_at == first and rows[0].announced_at == posted
+    # Once the match is on air, the day's post read again doesn't add it again
+    own = post(9, now - timedelta(minutes=1), "🌟 Abyss Fast Soup: king_baka vs bestingo", TWITCH[:1])
+    stream.store_posts(session, "abysscup", stream.parse_page(page_of(day, own)))
+    stream.store_posts(session, "abysscup", stream.parse_page(page_of(day, own)))
+    rows = session.exec(select(Row).order_by(Row.starts_at)).all()
+    assert len(rows) == 2 and rows[0].live_at is not None
+    (data,) = client.get(
+        "/api/v1/schedule/stream",
+        params={"from": (now - timedelta(days=1)).isoformat(), "to": (now + timedelta(days=1)).isoformat()},
+    ).json()
+    assert [m["starts_at"] is not None for m in data["matches"]] == [True, True]
+
+
+def page_of(*posts: str) -> str:
+    return "".join(posts)
+
+
+def test_yesterdays_match_between_the_same_players_isnt_todays(session):
+    from app.models import StreamMatch as Row
+
+    now = datetime.now(UTC).replace(microsecond=0)
+    old = Row(
+        id="abysscup-1-a-b",
+        channel="abysscup",
+        tournament_title="Cup",
+        player1_name="A",
+        player2_name="B",
+        announced_at=now - timedelta(hours=18),
+        live_at=now - timedelta(hours=17),
+        finished_at=now - timedelta(hours=16),
+        post_url="https://t.me/abysscup/1",
+    )
+    session.add(old)
+    session.commit()
+    day = post(2, now, "🎥 Cup\n\n📅 Матчи на сегодня:\n• A vs B", TWITCH)
+    stream.store_posts(session, "abysscup", stream.parse_page(day))
+    assert len(session.exec(select(Row)).all()) == 2
+
+
+def test_a_schedule_picture_is_read_only_when_it_can_be_and_its_answer_checks_out(session, monkeypatch):
+    from app.config import settings
+    from app.services import stream_schedule as pictures
+
+    monkeypatch.setattr(pictures, "_read", {})
+    monkeypatch.setattr(pictures, "_failed_at", 0.0)
+    monkeypatch.setattr(pictures, "_warned", False)
+    now = datetime.now(UTC).replace(microsecond=0)
+    posts = lambda: stream.parse_page(picture_post(7, now, "Расписание матчей"))  # noqa: E731
+    # No key: skipped, nothing asked
+    monkeypatch.setattr(settings, "anthropic_api_key", None)
+    assert pictures.read_schedule_images(session, "abysscup", posts(), now, lambda url: (b"", "image/png")) == 0
+    # A failing model: the post waits, and the others aren't stopped
+    calls = []
+
+    def broken(image, kind):
+        calls.append(1)
+        raise RuntimeError("down")
+
+    fetch = lambda url: (b"x", "image/png")  # noqa: E731
+    assert pictures.read_schedule_images(session, "abysscup", posts(), now, fetch, broken) == 0
+    assert pictures.read_schedule_images(session, "abysscup", posts(), now, fetch, broken) == 0
+    assert len(calls) == 1  # not asked again at once
+    # A day far from the post's, an impossible day and an answer that isn't a list of matches give nothing
+    match = [{"player1": "A", "player2": "B", "time": "18:30"}]
+    far = (now + timedelta(days=40)).astimezone(stream.MOSCOW)
+    for data in (
+        {"month": far.month, "day": far.day, "matches": match},
+        {"month": 2, "day": 31, "matches": match},
+        {"matches": "A vs B"},
+        {"utc_offset_hours": 99, "month": None, "day": None, "matches": match},
+    ):
+        found = pictures.parse_schedule(data, now)
+        assert len(found) == (1 if data.get("utc_offset_hours") == 99 else 0)
+    # Only Telegram's own servers are fetched from
+    with pytest.raises(ValueError):
+        pictures.fetch_image("https://example.com/x.jpg")
+    with pytest.raises(ValueError):
+        pictures.fetch_image("http://cdn4.telesco.pe/x.jpg")

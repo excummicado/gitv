@@ -31,6 +31,10 @@ Abyss New Gen's (settings.newgen_telegram_channel) names its matches in prose (S
 - "Матчи уже стартуют!" with the Twitch link when the stream starts: its first match is on air from then;
 - its results post: "Результаты матча A vs B … Поздравляем A с победой"; the next match is on air from then.
 
+A schedule posted as a picture ("Расписание матчей": the day, the zone and a line per match with its time) is read by
+a model with vision (stream_schedule.py) a few hours before the day's post: its matches get their times then, and the
+day's post later finds them instead of adding them again.
+
 A post written in Telegram's rich format (headings, quotes, a picture among the text) has no text on the public
 page ("Please open Telegram to view this post"): it is read through the Telegram API instead (read_unshown), when
 the app keys and a login are there (settings.telegram_api_id, telegram.session; app.cli telegram-login).
@@ -75,6 +79,7 @@ POST = re.compile(r'data-post="(?P<channel>[^"/]+)/(?P<id>\d+)"(?P<body>.*?)(?=d
 TEXT = re.compile(r'<div class="tgme_widget_message_text[^"]*"[^>]*>(.*?)</div>', re.S)
 WHEN = re.compile(r'<time datetime="([^"]+)"')
 HREF = re.compile(r'href="([^"]+)"')
+PHOTO = re.compile(r"tgme_widget_message_photo_wrap[^>]*background-image:url\('([^']+)'\)")
 UNSHOWN = "message_media_not_supported"
 # Between the two sides: "vs", or an emoji in its place ("overlol ♿️ Smertnik13", "A ↔️ B", "A 🆚 B")
 VS = r"(?:vs\.?|🆚|[♿↔⚔✖❌]\ufe0f?)"
@@ -100,6 +105,8 @@ CONGRATS = re.compile(r"(?i)поздравляем\s+(.+?)\s+с\s")
 CASTERS = re.compile(r"(?i)(?:комментатор\w*|стрим\s+вед\w*)\s*:?\s*(.+)")
 MOVED = re.compile(r"(?i)(?:игра|матч)\s+(.+?)\s+перенос\w*\s+на\s+(\d{1,2})[:.](\d{2})")
 RESULT = re.compile(r"(?i)результат\w*\s+(?:\w+\s+)?матча\s+(.+)")
+# A schedule picture's caption names the tournament: "интересные матчи Abyss Fast Soup, которые пройдут сегодня"
+TOURNAMENT = re.compile(r"(?i)матчи\s+(.+?)\s*,?\s+которые")
 TBD = "TBD"
 # A TBD match is looked up in its bracket from its time until this long after (or until its results post)
 TBD_LOOKUP = timedelta(hours=3)
@@ -136,6 +143,9 @@ class Post:
     text: str  # the Russian part (before "En:"), one line per line
     links: list[str] = field(default_factory=list)
     unshown: bool = False  # the public page doesn't show it: its text comes through the Telegram API (read_unshown)
+    photo: str | None = None  # its picture, when it has one
+    # What the picture of a schedule post says, once read (stream_schedule.read_schedule_images): (A, B, start, UTC)
+    slots: list[tuple[str, str, datetime]] | None = None
 
 
 def nick(text: str) -> str:
@@ -198,7 +208,16 @@ def parse_page(page: str) -> list[Post]:
         plain = html.unescape(re.sub(r"<[^>]+>", "", raw))
         plain = re.split(r"\n\s*En:\s*\n", plain)[0]
         links = [html.unescape(h) for h in HREF.findall(text[1])]
-        posts.append(Post(int(m["id"]), datetime.fromisoformat(when[1]).astimezone(UTC), plain, links))
+        photo = PHOTO.search(m["body"])
+        posts.append(
+            Post(
+                int(m["id"]),
+                datetime.fromisoformat(when[1]).astimezone(UTC),
+                plain,
+                links,
+                photo=html.unescape(photo[1]) if photo else None,
+            )
+        )
     return sorted(posts, key=lambda p: p.id)
 
 
@@ -267,6 +286,45 @@ def find(session: Session, channel: str, key: str, at: datetime) -> StreamMatch 
     ).all()
     key = key.replace("ё", "е")
     return next((r for r in rows if team_pair(r.player1_name, r.player2_name) == key), None)
+
+
+def not_started_before(row: StreamMatch, at: datetime) -> bool:
+    """Whether the match hadn't begun by then: an earlier post's row for the same pair is this day's match, not
+    yesterday's with the same players."""
+    return all(t is None or aware(t) >= at for t in (row.live_at, row.finished_at))
+
+
+def announced_row(session: Session, channel: str, key: str, at: datetime) -> StreamMatch | None:
+    """The match an earlier post (the day's schedule picture, or the day's post) announced already."""
+    row = find(session, channel, key, at)
+    return row if row and not_started_before(row, at) else None
+
+
+def store_schedule(session: Session, source: Stream, post: Post) -> int:
+    """A schedule picture's matches (post.slots), each with its time."""
+    caption = TOURNAMENT.search(" ".join(post.text.split()))
+    tournament = nick(caption[1]) if caption else source.name
+    changed = 0
+    for a, b, starts_at in post.slots or []:
+        key = pair_key(a, b)
+        mid = f"{source.telegram}-{post.id}-{key}"
+        row = (
+            session.get(StreamMatch, mid)
+            or announced_row(session, source.telegram, key, post.at)
+            or StreamMatch(
+                id=mid,
+                channel=source.telegram,
+                tournament_title=tournament,
+                player1_name=a,
+                player2_name=b,
+                announced_at=post.at,
+                post_url=f"https://t.me/{source.telegram}/{post.id}",
+            )
+        )
+        row.starts_at = starts_at
+        session.add(row)
+        changed += 1
+    return changed
 
 
 def moscow_time(day: datetime, hour: str | int, minute: str | int, zone=MOSCOW) -> datetime:
@@ -471,6 +529,9 @@ def store_posts(session: Session, channel: str, posts: list[Post]) -> int:
         if not text:
             continue
         store_teams(session, source, post, text)
+        if post.slots:
+            changed += store_schedule(session, source, post)
+            continue
         if any(SLOT.fullmatch(line) for line in text):
             changed += store_slots(session, source, post, text)
             continue
@@ -501,14 +562,18 @@ def store_posts(session: Session, channel: str, posts: list[Post]) -> int:
                     continue
                 a, b = nick(m[1]), nick(m[2])
                 mid = f"{channel}-{post.id}-{pair_key(a, b)}"
-                row = session.get(StreamMatch, mid) or StreamMatch(
-                    id=mid,
-                    channel=channel,
-                    tournament_title=tournament,
-                    player1_name=a,
-                    player2_name=b,
-                    announced_at=post.at,
-                    post_url=post_url.format(post.id),
+                row = (
+                    session.get(StreamMatch, mid)
+                    or announced_row(session, channel, pair_key(a, b), post.at)
+                    or StreamMatch(
+                        id=mid,
+                        channel=channel,
+                        tournament_title=tournament,
+                        player1_name=a,
+                        player2_name=b,
+                        announced_at=post.at,
+                        post_url=post_url.format(post.id),
+                    )
                 )
                 row.stream_url, row.casters = twitch_link(post.links, source.twitch), casters and casters.strip(" !")
                 session.add(row)
@@ -580,12 +645,14 @@ def fetch_channel(session: Session, channel: str | None = None) -> int:
     """Reads a channel's latest posts and stores its stream's matches, and its registration posts as news
     (services/registrations.py); returns how many matches were stored."""
     from .registrations import store_registrations
+    from .stream_schedule import read_schedule_images
 
     channel = (channel or settings.stream_telegram_channel).lstrip("@")
     page = httpx.get(TELEGRAM_PAGE.format(channel=channel), headers={"User-Agent": "Mozilla/5.0 (GITV)"}, timeout=30)
     page.raise_for_status()
     posts = parse_page(page.text)
     read_unshown(channel, posts)
+    read_schedule_images(session, channel, posts)
     stored = store_posts(session, channel, posts)
     store_registrations(session, stream_of(channel), posts)
     return stored
