@@ -11,6 +11,7 @@ So are the bracket matches of a site tournament that the site has no match for (
 drafted for, a game played elsewhere): Elo and match records count them too.
 """
 
+import hashlib
 import json
 import logging
 import os
@@ -140,8 +141,8 @@ _lock = threading.Lock()
 # ready, as a build takes seconds. Scripts and tests have nobody to keep waiting and get the new data at once.
 _build_behind = False
 _building_behind = threading.Lock()
-# Ready-made JSON of the heaviest public lists, for as long as the data stands: {name: (written at, body)}.
-_responses: OrderedDict[Hashable, tuple[float, bytes]] = OrderedDict()
+# Ready-made JSON of the heaviest public lists, for as long as the data stands: {name: (written at, body, its tag)}.
+_responses: OrderedDict[Hashable, tuple[float, bytes, str]] = OrderedDict()
 _responses_key: tuple | None = None
 _responses_lock = threading.Lock()
 MAX_RESPONSES = 128
@@ -314,8 +315,18 @@ def span(
     return since, until
 
 
+# Browsers and the proxy may keep a list this long without asking, and show it a little longer while they ask again;
+# after that they ask with its tag and get "not changed" back instead of the list (main.not_modified).
+CACHE_CONTROL = "public, max-age=30, stale-while-revalidate=60"
+
+
+def _tagged(body: bytes, tag: str) -> Response:
+    return Response(body, media_type="application/json", headers={"ETag": tag, "Cache-Control": CACHE_CONTROL})
+
+
 def cached_json(session: Session, name: Hashable, body: Callable[[], str | bytes]) -> Response:
-    """The response under this name, made by body() only when the data has changed since or it's too old."""
+    """The response under this name, made by body() only when the data has changed since or it's too old. Only for
+    answers that are the same for everyone: they're sent as cacheable, with a tag of their content."""
     global _responses_key
     # The snapshot's key, not the database's: until a new snapshot is ready, the responses made from this one stand.
     key = snapshot(session).key
@@ -327,15 +338,17 @@ def cached_json(session: Session, name: Hashable, body: Callable[[], str | bytes
         kept = _responses.get(name)
         if kept and now - kept[0] < RESPONSE_SECONDS:
             _responses.move_to_end(name)
-            return Response(kept[1], media_type="application/json")
+            return _tagged(kept[1], kept[2])
     made = body()
     made = made.encode() if isinstance(made, str) else made
+    # Weak: the proxy compresses the answer, and a strong tag would no longer be true of what it sends.
+    tag = f'W/"{hashlib.blake2b(made, digest_size=12).hexdigest()}"'
     with _responses_lock:
         if _responses_key == key:
-            _responses[name] = (now, made)
+            _responses[name] = (now, made, tag)
             while len(_responses) > MAX_RESPONSES:
                 _responses.popitem(last=False)
-    return Response(made, media_type="application/json")
+    return _tagged(made, tag)
 
 
 def snapshot(

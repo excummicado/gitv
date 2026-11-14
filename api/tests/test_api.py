@@ -779,8 +779,18 @@ def test_lists_answer_from_cache_until_the_data_changes(client, session):
     first = module._responses[("players", "all")]
     assert client.get("/api/v1/players").content == first[1]
     assert module._responses[("players", "all")] is first  # not made again
+    # A reader who has it already is told so instead of being sent it again, whatever the proxy made of the tag
+    answer = client.get("/api/v1/players")
+    tag = answer.headers["etag"]
+    assert tag.startswith('W/"') and "max-age" in answer.headers["cache-control"]
+    for asked in (tag, tag.removeprefix("W/"), f'"other", {tag}', "*"):
+        again = client.get("/api/v1/players", headers={"If-None-Match": asked})
+        assert again.status_code == 304 and again.content == b"" and again.headers["etag"] == tag
+        assert again.headers["x-content-type-options"] == "nosniff" and "content-type" not in again.headers
+    assert client.get("/api/v1/players", headers={"If-None-Match": '"other"'}).status_code == 200
     play(2)
     assert next(p for p in client.get("/api/v1/players").json() if p["id"] == "A")["matches"] == 2
+    assert client.get("/api/v1/players", headers={"If-None-Match": tag}).status_code == 200  # new data, a new tag
 
 
 def test_new_data_is_built_behind_the_answers(client, session, monkeypatch):

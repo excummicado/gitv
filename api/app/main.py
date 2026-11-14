@@ -5,7 +5,7 @@ import contextlib
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -92,6 +92,29 @@ async def security_headers(request: Request, call_next):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    return response
+
+
+def same_tag(asked: str, tag: str) -> bool:
+    """Whether an If-None-Match header names this tag: any of its list does, strong or weak alike, or "*"."""
+
+    def bare(value: str) -> str:
+        return value.strip().removeprefix("W/")
+
+    return any(candidate.strip() == "*" or bare(candidate) == bare(tag) for candidate in asked.split(","))
+
+
+@app.middleware("http")
+async def not_modified(request: Request, call_next):
+    """A reader who already has this very answer (its tag, from stats.snapshot.cached_json) is told so, without
+    being sent it again."""
+    response = await call_next(request)
+    tag = response.headers.get("etag")
+    asked = request.headers.get("if-none-match")
+    if tag and asked and request.method in ("GET", "HEAD") and response.status_code == 200 and same_tag(asked, tag):
+        body_only = ("content-length", "content-type", "content-encoding")
+        headers = {name: value for name, value in response.headers.items() if name.lower() not in body_only}
+        return Response(status_code=304, headers=headers)
     return response
 
 
