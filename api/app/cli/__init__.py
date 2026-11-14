@@ -27,6 +27,7 @@ venv/bin/python -m app.cli check-challonge
 venv/bin/python -m app.cli set-tournament-event "Abyss Fight Club 4" challonge-afc_4_1="Group stage 1" \
     challonge-afc_4_3="Main Stage"
 venv/bin/python -m app.cli export-telegram @abysscup --photos
+venv/bin/python -m app.cli telegram-login                 # once, so rich posts of the streams can be read
 venv/bin/python -m app.cli telegram-photos @abysscup      # only the results posts' photos (after export-telegram)
 venv/bin/python -m app.cli telegram-ocr @abysscup         # their text, read on this Mac
 venv/bin/python -m app.cli add-manual-games brackets/abyss_cup_major_1_games.json
@@ -43,6 +44,7 @@ from .archives import (
     export_aspirine,
     export_telegram,
     import_aspirine,
+    telegram_login,
     telegram_ocr,
     telegram_photos,
 )
@@ -191,6 +193,7 @@ def main() -> None:
     tg_cmd = commands.add_parser("export-telegram", help="Save a Telegram channel's history as JSON (logs in as you)")
     tg_cmd.add_argument("channel", help="The channel, e.g. @abysscup")
     tg_cmd.add_argument("--photos", action="store_true", help="Download the posts' photos too")
+    commands.add_parser("telegram-login", help="Log in to Telegram, for the posts its public page doesn't show")
     asp_cmd = commands.add_parser(
         "export-aspirine", help="Save old tournaments' games and drafts from draft.aspirine.su"
     )
@@ -306,6 +309,8 @@ def main() -> None:
         add_player(args.name, args.challonge_names)
     elif args.command == "export-telegram":
         export_telegram(args.channel, args.photos)
+    elif args.command == "telegram-login":
+        telegram_login()
     elif args.command == "export-aspirine":
         export_aspirine(args.slugs)
     elif args.command == "set-news-translation":

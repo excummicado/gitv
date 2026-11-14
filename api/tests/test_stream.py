@@ -401,3 +401,69 @@ def test_new_gen_gives_times_in_its_english_lines(session, client):
     # The stream's start is the first match's time, not when the post came out
     day = {"from": "2026-11-13T00:00:00Z", "to": "2026-11-14T00:00:00Z"}
     assert client.get("/api/v1/schedule/stream", params=day).json()[0]["started_at"] == "2026-11-13T15:00:00Z"
+
+
+def test_a_post_the_page_does_not_show_is_read_through_the_api(session, monkeypatch):
+    """A rich post has no text on t.me/s/: its text comes from the Telegram API, read once and the day's again
+    later; its English half doesn't replace what the Russian lines said."""
+    from telethon.tl import types as tl
+
+    from app.services.telegram_export import rich_lines
+
+    plain, bold = tl.TextPlain, lambda text: tl.TextBold(tl.TextPlain(text))  # noqa: E731
+    caster = tl.TextUrl(plain("Wertmym1"), "https://www.twitch.tv/wertmym1", 0)
+    blocks = [
+        tl.PageBlockParagraph(tl.TextConcat([tl.TextCustomEmoji(1, "🌟"), bold("Доброго дня"), plain("!")])),
+        tl.PageBlockParagraph(tl.TextEmpty()),
+        tl.PageBlockParagraph(
+            tl.TextConcat(
+                [
+                    bold("В 18:00"),
+                    plain(" "),
+                    bold("МСК"),
+                    plain(" - koshmar vs rpyt02, под "),
+                    tl.TextStrike(plain("гусеничный")),
+                    plain(" дуэт "),
+                    caster,
+                    plain(" & young_princeee\n"),
+                ]
+            )
+        ),
+        tl.PageBlockBlockquote(plain("3:00 PM UTC — koshmar vs rpyt02, with Wertmym1 & young_princee"), tl.TextEmpty()),
+    ]
+    text, links = rich_lines(blocks)
+    assert text.split("\n")[:2] == [
+        "🌟Доброго дня!",
+        "В 18:00 МСК - koshmar vs rpyt02, под  дуэт Wertmym1 & young_princeee",
+    ]
+    assert links == ["https://www.twitch.tv/wertmym1"]
+
+    morning = (datetime.now(UTC) - timedelta(hours=3)).replace(microsecond=0)
+    ch = "abyss_new_gen"
+    shown = (
+        f'<div class="tgme_widget_message" data-post="{ch}/75">'
+        '<div class="message_media_not_supported_label">Please open Telegram to view this post</div>'
+        f'<a class="tgme_widget_message_date"><time datetime="{morning.isoformat()}">x</time></a></div>'
+    )
+    monkeypatch.setattr(stream, "_unshown", {})
+    monkeypatch.setattr(stream, "_api_failed_at", 0.0)
+    asked = []
+
+    def read(channel, ids):
+        asked.append((channel, ids))
+        return {75: (text, links)}
+
+    def down(channel, ids):
+        raise RuntimeError("no login")
+
+    posts = stream.parse_page(shown)
+    assert [(p.id, p.text, p.unshown) for p in posts] == [(75, "", True)]
+    assert stream.read_unshown(ch, posts, down) == 0 and stream.store_posts(session, ch, posts) == 0  # skipped
+    assert stream.read_unshown(ch, posts, read) == 0 and not asked  # left alone for a while after a failure
+    monkeypatch.setattr(stream, "_api_failed_at", 0.0)
+    assert stream.read_unshown(ch, posts, read) == 1 and asked == [(ch, [75])]
+    assert stream.read_unshown(ch, stream.parse_page(shown), read) == 1 and len(asked) == 1  # not asked again so soon
+    stream.store_posts(session, ch, posts)
+    (match,) = session.exec(select(StreamMatch)).all()
+    assert (match.player1_name, match.player2_name, match.casters) == ("koshmar", "rpyt02", "Wertmym1 & young_princeee")
+    assert match.starts_at.replace(tzinfo=UTC).astimezone(stream.MOSCOW).hour == 18

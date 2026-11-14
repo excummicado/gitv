@@ -6,7 +6,10 @@ the first run asks in the terminal for the phone number and the login code Teleg
 (telegram.session, not in git) keeps the login for later runs. Telethon waits out Telegram's rate limits by itself.
 A photo that won't download (Telegram's servers time out now and then) is noted on its post and skipped, photos
 already saved aren't fetched again, so a second run picks up where the first left off, and the posts read so far
-are saved even if the run stops."""
+are saved even if the run stops.
+
+read_posts reads single posts the same way, for the streams' matches of the day (services/stream.py): a post written
+in Telegram's rich format (headings, quotes, a picture among the text) has no text on the channel's public page."""
 
 import json
 import re
@@ -32,6 +35,66 @@ def post_links(message) -> list[str]:
     for row in message.buttons or []:
         links += [b.url for b in row if getattr(b, "url", None)]
     return list(dict.fromkeys(links))
+
+
+def rich_lines(node) -> tuple[str, list[str]]:
+    """(text, links) of a rich post's block or piece of text (message.rich_message): a line per paragraph, struck-out
+    words left out, an emoji as its plain one."""
+    if node is None or type(node).__name__ == "TextStrike":
+        return "", []
+    if isinstance(node, list | tuple):
+        parts = [rich_lines(x) for x in node]
+        # Blocks are lines of their own; the pieces of one text run on
+        joint = "\n" if any(type(x).__name__.startswith("Page") for x in node) else ""
+        return joint.join(t for t, _ in parts if t or not joint), [u for _, us in parts for u in us]
+    if isinstance(node, str):
+        return node, []
+    links = [node.url] if isinstance(getattr(node, "url", None), str) and node.url else []
+    for name in ("texts", "text", "alt", "blocks", "items"):
+        inner = getattr(node, name, None)
+        if inner:
+            text, more = rich_lines(inner)
+            return text, links + more
+    return "", links
+
+
+def read_posts(channel: str, ids: list[int], api_id: int, api_hash: str) -> dict[int, tuple[str, list[str]]]:
+    """{post id: (text, links)} of a channel's posts, read as the logged-in Telegram user (telegram.session; see the
+    module). Never asks for a login: without one it raises, as it does without Telethon."""
+    import asyncio
+
+    from telethon import TelegramClient
+
+    async def read() -> dict[int, tuple[str, list[str]]]:
+        client = TelegramClient(str(SESSION), api_id, api_hash, flood_sleep_threshold=0)
+        await client.connect()
+        try:
+            if not await client.is_user_authorized():
+                raise RuntimeError("no Telegram login: run app.cli telegram-login")
+            found = {}
+            for message in await client.get_messages(channel.lstrip("@"), ids=ids):
+                if message is None:
+                    continue
+                text, links = message.message or "", post_links(message)
+                rich = getattr(message, "rich_message", None)
+                if rich is not None and not text:
+                    text, links = rich_lines(rich.blocks)
+                found[message.id] = (text, list(dict.fromkeys(links)))
+            return found
+        finally:
+            await client.disconnect()
+
+    return asyncio.run(read())
+
+
+def login(api_id: int, api_hash: str) -> str:
+    """Logs in to Telegram in the terminal (phone number, then the code Telegram sends) and keeps the login in
+    telegram.session; returns whose it is. Already logged in, it only says so."""
+    from telethon.sync import TelegramClient
+
+    with TelegramClient(str(SESSION), api_id, api_hash) as client:
+        me = client.get_me()
+        return me.username or me.first_name or str(me.id)
 
 
 def save_photo(message, photo_dir: Path) -> tuple[str | None, str | None]:

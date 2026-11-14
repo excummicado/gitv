@@ -245,6 +245,13 @@ on the API reads it every minute (`STREAM_INTERVAL`) into `streammatch`; `GET /a
 whether each is on air and whether the stream is. A results post of a match the day's post didn't announce
 (played off stream) is left out.
 
+A post written in Telegram's rich format (headings, quotes, a picture among the text) has no text on the public
+page. It is read through the Telegram API instead, as a Telegram user: set `TELEGRAM_API_ID` and
+`TELEGRAM_API_HASH` (my.telegram.org > API development tools) and log in once with
+`venv/bin/python -m app.cli telegram-login` (it asks for the phone number and the code Telegram sends, and keeps
+the login in `telegram.session`, which the API's user must be able to read and write). Without them such a post
+is skipped, with a line in the log.
+
 House of the Hearth's stream is read the same way, from `HOTH_TELEGRAM_CHANNEL` (`hoth_abyss`) and
 `HOTH_TWITCH_CHANNEL` (`abyss_hoth`). Its posts differ: the morning post lists each match with its time and casters
 ("💰 A VS B — 17:00 МСК", "Комментаторы: X & Y"; "TBD VS TBD" for a match whose players come later), "Игра A VS B

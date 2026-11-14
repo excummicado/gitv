@@ -12,11 +12,22 @@ def export_telegram(channel: str, photos: bool) -> None:
     try:
         from ..services.telegram_export import export_channel
     except ImportError as e:
-        raise SystemExit("Telethon isn't installed: venv/bin/pip install -r requirements-dev.txt") from e
+        raise SystemExit("Telethon isn't installed: venv/bin/pip install -r requirements.txt") from e
     out, count, failed = export_channel(channel, *telegram_keys(), photos)
     print(
         f"{count} posts saved to {out}." + (f" {failed} photos failed: run it again to retry them." if failed else "")
     )
+
+
+def telegram_login() -> None:
+    """Logs in to Telegram in the terminal, so the API can read the streams' posts the public page doesn't show
+    (services/stream.py read_unshown)."""
+    try:
+        from ..services.telegram_export import login
+
+        print(f"Logged in to Telegram as {login(*telegram_keys())}.")
+    except ImportError as e:
+        raise SystemExit("Telethon isn't installed: venv/bin/pip install -r requirements.txt") from e
 
 
 def telegram_keys():

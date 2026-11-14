@@ -29,7 +29,8 @@ class Settings(BaseSettings):
     # Behind a reverse proxy: tell clients apart (rate limits) by X-Real-IP, else the last X-Forwarded-For entry.
     # Only with a proxy that sets them (nginx: proxy_set_header X-Real-IP $remote_addr;).
     trust_forwarded_for: bool = False
-    # Telegram app keys from my.telegram.org, for app.cli export-telegram only (reading a channel's history).
+    # Telegram app keys from my.telegram.org, for app.cli export-telegram (a channel's history) and for the
+    # streams' posts its public page doesn't show (services/stream.py read_unshown; app.cli telegram-login once).
     telegram_api_id: int | None = None
     telegram_api_hash: str | None = None
     # The stream: the Telegram channel whose posts announce the matches on stream (read from its public page, no

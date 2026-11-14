@@ -31,6 +31,10 @@ Abyss New Gen's (settings.newgen_telegram_channel) names its matches in prose (S
 - "Матчи уже стартуют!" with the Twitch link when the stream starts: its first match is on air from then;
 - its results post: "Результаты матча A vs B … Поздравляем A с победой"; the next match is on air from then.
 
+A post written in Telegram's rich format (headings, quotes, a picture among the text) has no text on the public
+page ("Please open Telegram to view this post"): it is read through the Telegram API instead (read_unshown), when
+the app keys and a login are there (settings.telegram_api_id, telegram.session; app.cli telegram-login).
+
 Twitch (settings.twitch_channel) says whether the stream is live, with its title and viewers, when the app's keys
 are set (settings.twitch_client_id / twitch_client_secret, from dev.twitch.tv); read with an app token through the
 Helix API. Both are read every STREAM_INTERVAL seconds by the API (run_stream_forever, with background syncing
@@ -60,6 +64,10 @@ TWITCH_TOKEN_URL = "https://id.twitch.tv/oauth2/token"
 TWITCH_STREAMS_URL = "https://api.twitch.tv/helix/streams"
 # How often the API reads the channel and Twitch: a stream that ends shows as over within this
 STREAM_INTERVAL = 60
+# A post the public page doesn't show is read again through the Telegram API this often while it's the day's (it
+# may be edited), and after a failed read the API is left alone this long
+API_REREAD = 600
+API_RETRY = 300
 # A match's own posts belong to the day's post from at most this long before
 SAME_DAY = timedelta(hours=20)
 
@@ -67,6 +75,7 @@ POST = re.compile(r'data-post="(?P<channel>[^"/]+)/(?P<id>\d+)"(?P<body>.*?)(?=d
 TEXT = re.compile(r'<div class="tgme_widget_message_text[^"]*"[^>]*>(.*?)</div>', re.S)
 WHEN = re.compile(r'<time datetime="([^"]+)"')
 HREF = re.compile(r'href="([^"]+)"')
+UNSHOWN = "message_media_not_supported"
 # Between the two sides: "vs", or an emoji in its place ("overlol ♿️ Smertnik13", "A ↔️ B", "A 🆚 B")
 VS = r"(?:vs\.?|🆚|[♿↔⚔✖❌]\ufe0f?)"
 PAIR = re.compile(rf"(.+?)\s+{VS}\s+(.+)", re.I)
@@ -126,6 +135,7 @@ class Post:
     at: datetime
     text: str  # the Russian part (before "En:"), one line per line
     links: list[str] = field(default_factory=list)
+    unshown: bool = False  # the public page doesn't show it: its text comes through the Telegram API (read_unshown)
 
 
 def nick(text: str) -> str:
@@ -180,6 +190,8 @@ def parse_page(page: str) -> list[Post]:
     posts = []
     for m in POST.finditer(page):
         text, when = TEXT.search(m["body"]), WHEN.search(m["body"])
+        if when and not text and UNSHOWN in m["body"]:
+            posts.append(Post(int(m["id"]), datetime.fromisoformat(when[1]).astimezone(UTC), "", unshown=True))
         if not text or not when:
             continue
         raw = re.sub(r"<br\s*/?>", "\n", text[1])
@@ -188,6 +200,51 @@ def parse_page(page: str) -> list[Post]:
         links = [html.unescape(h) for h in HREF.findall(text[1])]
         posts.append(Post(int(m["id"]), datetime.fromisoformat(when[1]).astimezone(UTC), plain, links))
     return sorted(posts, key=lambda p: p.id)
+
+
+# What the Telegram API said of the posts the page doesn't show: {(channel, post id): (read at, text, links)}
+_unshown: dict[tuple[str, int], tuple[float, str, list[str]]] = {}
+_api_failed_at = 0.0
+
+
+def api_posts(channel: str, ids: list[int]) -> dict[int, tuple[str, list[str]]]:
+    """{post id: (text, links)} through the Telegram API; raises when it can't be asked (no keys, Telethon or login)."""
+    if not settings.telegram_api_id or not settings.telegram_api_hash:
+        raise RuntimeError("TELEGRAM_API_ID and TELEGRAM_API_HASH aren't set")
+    from .telegram_export import read_posts
+
+    return read_posts(channel, ids, settings.telegram_api_id, settings.telegram_api_hash)
+
+
+def read_unshown(channel: str, posts: list[Post], read=api_posts, now: datetime | None = None) -> int:
+    """Gives the posts the public page doesn't show their text and links, through the Telegram API: each read once,
+    the day's again every API_REREAD seconds. When the API can't be asked they stay empty, and it's said in the
+    log. Returns how many have their text."""
+    global _api_failed_at
+    unshown = [p for p in posts if p.unshown]
+    if not unshown:
+        return 0
+    now, clock = now or datetime.now(UTC), time.time()
+    stale = [
+        p
+        for p in unshown
+        if (kept := _unshown.get((channel, p.id))) is None or (now - p.at < SAME_DAY and clock - kept[0] > API_REREAD)
+    ]
+    if stale and clock - _api_failed_at > API_RETRY:
+        try:
+            for pid, (text, links) in read(channel, [p.id for p in stale]).items():
+                _unshown[(channel, pid)] = (clock, text, links)
+        except Exception as e:  # noqa: BLE001 - no keys, no login, Telegram down: the page's other posts still count
+            _api_failed_at = clock
+            log.warning(
+                "posts %s of %s aren't on its public page and weren't read: %s", [p.id for p in stale], channel, e
+            )
+    filled = 0
+    for p in unshown:
+        if kept := _unshown.get((channel, p.id)):
+            p.text, p.links = re.split(r"\n\s*En:\s*\n", kept[1])[0], list(kept[2])
+            filled += bool(p.text)
+    return filled
 
 
 def lines(text: str) -> list[str]:
@@ -359,6 +416,7 @@ def store_prose(session: Session, source: Stream, post: Post, text: list[str]) -
     """Abyss New Gen's day post: a match per sentence with its casters; kept in the post's order (a second apart)."""
     tournament = (m[0] if (m := NEW_GEN.search(post.text)) else None) or source.name
     changed = 0
+    seen: set[str] = set()  # a match named again (the post's English half) only fills in what its first line lacks
     for line in text:
         m = PROSE_PAIR.search(line)
         if not m:
@@ -376,12 +434,15 @@ def store_prose(session: Session, source: Stream, post: Post, text: list[str]) -
             announced_at=post.at + timedelta(seconds=changed),
             post_url=f"https://t.me/{source.telegram}/{post.id}",
         )
-        row.casters = " & ".join(c.strip(".") for c in casters[-1]) if casters else row.casters
-        if at and int(at["h"]) < 24 and int(at["m"]) < 60:
+        again = mid in seen
+        seen.add(mid)
+        if casters and not (again and row.casters):
+            row.casters = " & ".join(c.strip(".") for c in casters[-1])
+        if at and int(at["h"]) < 24 and int(at["m"]) < 60 and not (again and row.starts_at):
             hour = int(at["h"]) % 12 + (12 if at["half"].lower() == "p" else 0) if at["half"] else int(at["h"])
             row.starts_at = moscow_time(post.at, hour, at["m"], UTC if at["zone"].lower() in ("utc", "gmt") else MOSCOW)
         session.add(row)
-        changed += 1
+        changed += not again
     return changed
 
 
@@ -524,6 +585,7 @@ def fetch_channel(session: Session, channel: str | None = None) -> int:
     page = httpx.get(TELEGRAM_PAGE.format(channel=channel), headers={"User-Agent": "Mozilla/5.0 (GITV)"}, timeout=30)
     page.raise_for_status()
     posts = parse_page(page.text)
+    read_unshown(channel, posts)
     stored = store_posts(session, channel, posts)
     store_registrations(session, stream_of(channel), posts)
     return stored
