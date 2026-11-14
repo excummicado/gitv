@@ -169,6 +169,23 @@ class TestLiveMatches:
         live = client.get("/api/v1/matches/live-matches", params={"tournament": "live1"}).json()
         assert [m["id"] for m in live] == ["m3", "m2"]  # it moved on: back
 
+    def test_a_match_between_games_stays_however_long_it_waits(self, session, site, client):
+        """One game played, the next not started: the players are only waiting, so it isn't taken for abandoned."""
+        from datetime import UTC, datetime, timedelta
+
+        between = site_match("m5", status="FINISHED")
+        between["drafts"].append(
+            {"_id": "m5-d2", "status": "NOT_STARTED", "players": [{"fullName": "a"}, {"fullName": "b"}]}
+        )
+        site["live1"] = [between]
+        sync_service.poll_live(session)
+        for m in session.exec(select(LiveMatch)):
+            m.changed_at = datetime.now(UTC) - timedelta(hours=5)
+        session.commit()
+        live = client.get("/api/v1/matches/live-matches", params={"tournament": "live1"}).json()
+        assert [m["id"] for m in live] == ["m5"] and not live[0]["started"]
+        assert [g["status"] for g in live[0]["games"]] == ["FINISHED", "NOT_STARTED"]
+
     def test_a_match_missed_by_one_fetch_doesnt_come_back_as_new(self, session, site, client):
         """A match set up days ago and left half-played, dropped when one fetch missed it, stays hidden when it
         comes back: its time is when it was set up, not now. One set up a minute ago shows."""

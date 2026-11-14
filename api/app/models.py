@@ -129,7 +129,7 @@ class LiveMatch(SQLModel, table=True):
     # JSON list, in game order: {"id": draft id, "status": NOT_STARTED / FINISHED / ..., "key": spectator key}
     drafts: str
     updated_at: datetime
-    # When its drafts' statuses last changed: a match begun that stays the same for long is shown as abandoned
+    # When its drafts' statuses last changed: a game under way that stays the same for long is shown as abandoned
     changed_at: datetime | None = None
 
 

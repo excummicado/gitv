@@ -360,7 +360,8 @@ def unresolved_matches(session: Session, editor: User) -> list[UnresolvedMatch]:
 
 
 NOT_STARTED = "NOT_STARTED"
-# A match begun whose games haven't moved on for this long counts as abandoned and isn't shown
+# A game being drafted or played that hasn't moved on for this long counts as abandoned, and its match isn't shown. A
+# match between games (some finished, the next not started) is only waiting, like one not started: it stays.
 STALLED = timedelta(minutes=30)
 
 
@@ -373,7 +374,7 @@ def live_matches(session: Session, tournament: str | None) -> list[LiveMatchOut]
     out = []
     for m in session.exec(query):
         drafts = json.loads(m.drafts)
-        begun = any(d["status"] not in (None, NOT_STARTED) for d in drafts)
+        begun = any(d["status"] not in (None, NOT_STARTED, "FINISHED") for d in drafts)
         if begun and m.changed_at and m.changed_at.replace(tzinfo=UTC) < datetime.now(UTC) - STALLED:
             continue
         players = []
