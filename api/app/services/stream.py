@@ -300,6 +300,24 @@ def announced_row(session: Session, channel: str, key: str, at: datetime) -> Str
     return row if row and not_started_before(row, at) else None
 
 
+def same_day_row(session: Session, channel: str, key: str, at: datetime) -> StreamMatch | None:
+    """The match between these two that a post made up to SAME_DAY before or after at announced already, if it
+    hadn't begun by then: a schedule picture read late finds the day's post's matches instead of adding them again."""
+    rows = session.exec(
+        select(StreamMatch)
+        .where(
+            StreamMatch.channel == channel,
+            StreamMatch.announced_at >= at - SAME_DAY,
+            StreamMatch.announced_at <= at + SAME_DAY,
+        )
+        .order_by(StreamMatch.announced_at)
+    ).all()
+    key = key.replace("ё", "е")
+    return next(
+        (r for r in rows if team_pair(r.player1_name, r.player2_name) == key and not_started_before(r, at)), None
+    )
+
+
 def store_schedule(session: Session, source: Stream, post: Post) -> int:
     """A schedule picture's matches (post.slots), each with its time."""
     caption = TOURNAMENT.search(" ".join(post.text.split()))
@@ -310,7 +328,7 @@ def store_schedule(session: Session, source: Stream, post: Post) -> int:
         mid = f"{source.telegram}-{post.id}-{key}"
         row = (
             session.get(StreamMatch, mid)
-            or announced_row(session, source.telegram, key, post.at)
+            or same_day_row(session, source.telegram, key, post.at)
             or StreamMatch(
                 id=mid,
                 channel=source.telegram,

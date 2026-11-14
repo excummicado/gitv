@@ -709,3 +709,32 @@ def test_the_free_reader_goes_first_and_the_model_takes_what_it_cant_read(sessio
 
 
 NOW_UTC = datetime.now(UTC).replace(microsecond=0)
+
+
+def test_a_schedule_picture_read_after_the_days_post_finds_its_matches(session):
+    from app.models import StreamMatch as Row
+    from app.services import stream_schedule as pictures
+
+    now = datetime.now(UTC).replace(microsecond=0)
+    day = post(
+        8, now - timedelta(hours=1), "🎥 Abyss Fast Soup\n\n📅 Матчи на сегодня:\n• king_baka vs bestingo", TWITCH
+    )
+    own = post(9, now - timedelta(minutes=50), "🌟 Abyss Fast Soup: king_baka vs bestingo", TWITCH[:1])
+    stream.store_posts(session, "abysscup", stream.parse_page(day + own))
+    # The picture was posted earlier, but only read now (after a restart, or a missed poll)
+    posted = now - timedelta(hours=4)
+    local = posted.astimezone(stream.MOSCOW)
+    answer = {
+        "month": local.month,
+        "day": local.day,
+        "utc_offset_hours": 3,
+        "matches": [{"player1": "king_baka", "player2": "bestingo", "time": "18:30"}],
+    }
+    posts = stream.parse_page(picture_post(7, posted, "Расписание матчей"))
+    fetch = lambda url: (b"x", "image/png")  # noqa: E731
+    pictures._read.pop(("abysscup", 7), None)
+    assert pictures.read_schedule_images(session, "abysscup", posts, now, fetch, lambda image, kind: answer) == 1
+    stream.store_posts(session, "abysscup", posts)
+    (row,) = session.exec(select(Row)).all()
+    assert row.id.startswith("abysscup-8-") and row.live_at is not None
+    assert row.starts_at == local.replace(hour=18, minute=30, second=0).astimezone(UTC)
