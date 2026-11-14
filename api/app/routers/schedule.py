@@ -1,11 +1,14 @@
 """Matches of the day: event organizers and admins announce upcoming matches (tournament, two players, time),
-days ahead if they like; the home page shows each day's. Anyone may read; editors add; an organizer removes
-their own entries, an admin any.
+days ahead if they like; the home page shows each day's, with the streams' own (services/stream.py). Anyone may
+read; editors add; an organizer removes their own entries, an admin any.
+
+Each match has a room (GET /schedule/rooms/{key}): who plays, when, the odds of the bets on it (services/bets.py;
+everyone sees them, bet testers bet) and whose roster to show.
 """
 
 import json
 from datetime import UTC, datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -13,15 +16,16 @@ from sqlmodel import select
 
 from ..database import RowId, SessionDep
 from ..dependencies import get_current_player_editor
-from ..models import ScheduledMatch, StreamMatch, StreamStatus, StreamTeam, User
+from ..models import PlayerRoster, ScheduledMatch, StreamMatch, StreamStatus, StreamTeam, Tournament, User
 from ..rate_limit import rate_limit
 from ..services import bets
 from ..services.challonge import normalize
 from ..services.organizers import own_organizer_filter
-from ..services.player_names import display_names, known_players
+from ..services.player_names import display_names, merges
 from ..services.stats import elo_ratings, snapshot
 from ..services.stream import streams, team_key
 from ..services.sync import live_tournaments
+from . import bets as bet_routes
 
 router = APIRouter(prefix="/schedule", tags=["schedule"])
 
@@ -64,6 +68,24 @@ def elo_of(session: SessionDep):
     return get
 
 
+# How the bets on a match stand (bets.Quote.state), and the odds on its two players (None: no bets are taken on it)
+BetState = Literal["open", "no_elo", "started", "settled", "void"]
+Odds = tuple[float, float] | None
+
+
+def quoted(session: SessionDep, matches: list[bets.Fixture]) -> dict[str, bets.Quote]:
+    """{fixture key: how its bets stand}."""
+    if not matches:
+        return {}
+    markets = bets.markets_for(session, matches)
+    elo = bet_routes.player_elo(session)
+    return {m.key: bets.quote(m, markets.get(m.key), elo) for m in matches}
+
+
+def shown_odds(quote: bets.Quote) -> Odds:
+    return quote.odds if quote.odds[0] is not None else None
+
+
 class ScheduledOut(BaseModel):
     id: int
     tournament_id: str | None
@@ -72,6 +94,8 @@ class ScheduledOut(BaseModel):
     player2: PlayerOut
     starts_at: datetime
     added_by: str  # nickname
+    odds: Odds = None
+    bets: BetState = "no_elo"
 
 
 class TournamentOption(BaseModel):
@@ -92,6 +116,8 @@ def out(session: SessionDep, rows: list[ScheduledMatch]) -> list[ScheduledOut]:
     names = display_names(session)
     elo = elo_of(session)
     authors = {u.id: u.nickname for u in session.exec(select(User).where(User.id.in_({r.created_by for r in rows})))}
+    now = datetime.now(UTC)
+    quotes = quoted(session, [bets.announced(r, now) for r in rows])
 
     def player(pid: str | None, name: str) -> PlayerOut:
         return PlayerOut(id=pid, name=names.get(pid, name) if pid else name, **elo(pid))
@@ -105,6 +131,8 @@ def out(session: SessionDep, rows: list[ScheduledMatch]) -> list[ScheduledOut]:
             player2=player(r.player2_id, r.player2_name),
             starts_at=r.starts_at.replace(tzinfo=UTC) if r.starts_at.tzinfo is None else r.starts_at,
             added_by=authors.get(r.created_by, "deleted member"),
+            odds=shown_odds(quotes[str(r.id)]),
+            bets=quotes[str(r.id)].state,
         )
         for r in rows
     ]
@@ -131,6 +159,7 @@ def list_scheduled(
 
 
 class StreamMatchOut(BaseModel):
+    id: str  # its room's key
     tournament_title: str
     stage: str | None  # in the tournament's bracket: "final", "semifinal", "lower:2", ... (stream.bracket_stage)
     player1: PlayerOut
@@ -143,6 +172,8 @@ class StreamMatchOut(BaseModel):
     live: bool  # on air now
     casters: str | None
     post_url: str
+    odds: Odds = None
+    bets: BetState = "no_elo"
 
 
 class StreamOut(BaseModel):
@@ -166,6 +197,32 @@ def aware(value: datetime | None) -> datetime | None:
     return value.replace(tzinfo=UTC) if value and value.tzinfo is None else value
 
 
+def fresh_status(session: SessionDep, channel: str, now: datetime) -> StreamStatus | None:
+    """Twitch's word on the channel, unless the poll stopped refreshing it."""
+    twitch = session.get(StreamStatus, channel)
+    return twitch if twitch and now - aware(twitch.checked_at) <= STATUS_FRESH else None
+
+
+def on_air_of(own: list[StreamMatch], twitch: StreamStatus | None, now: datetime) -> StreamMatch | None:
+    """Which of a stream's matches of the day is on air: from its own post, or from its time; of those by time, only
+    the first (one match at a time)."""
+    on_air = None
+    for r in own:
+        since = aware(r.live_at) or (aware(r.starts_at) if r.starts_at and aware(r.starts_at) <= now else None)
+        if since and not r.finished_at and (twitch.live if twitch else now - since < ON_AIR):
+            if r.live_at or on_air is None:
+                on_air = r
+    return on_air
+
+
+def stream_winner(r: StreamMatch) -> int | None:
+    """0 or 1, when the results post said who won."""
+    if not r.winner_name:
+        return None
+    key = normalize(r.winner_name)
+    return 0 if key == normalize(r.player1_name) else 1 if key == normalize(r.player2_name) else None
+
+
 @router.get("/stream", response_model=list[StreamOut])
 def stream_matches(
     session: SessionDep,
@@ -187,7 +244,7 @@ def stream_matches(
     if not rows:
         return []
     now = datetime.now(UTC)
-    known = known_players(session, snapshot(session))
+    known = bet_routes.known(session)
     names = display_names(session)
     elo = elo_of(session)
 
@@ -203,29 +260,19 @@ def stream_matches(
             id=pid, name=names.get(pid, name) if pid else name, members=[player(m) for m in members], **elo(pid)
         )
 
+    quotes = quoted(session, [bets.on_stream(r, known, now) for r in rows])
     out = []
     for source in streams():
         own = [r for r in rows if r.channel == source.telegram]
         if not own:
             continue
-        twitch = session.get(StreamStatus, source.twitch)
-        if twitch and now - aware(twitch.checked_at) > STATUS_FRESH:
-            twitch = None
-        # On air: from its own post, or from its time; of those by time, only the first (one match at a time)
-        on_air = None
-        for r in own:
-            since = aware(r.live_at) or (aware(r.starts_at) if r.starts_at and aware(r.starts_at) <= now else None)
-            if since and not r.finished_at and (twitch.live if twitch else now - since < ON_AIR):
-                if r.live_at or on_air is None:
-                    on_air = r
+        twitch = fresh_status(session, source.twitch, now)
+        on_air = on_air_of(own, twitch, now)
         matches = []
         for r in own:
-            winner = None
-            if r.winner_name:
-                key = normalize(r.winner_name)
-                winner = 0 if key == normalize(r.player1_name) else 1 if key == normalize(r.player2_name) else None
             matches.append(
                 StreamMatchOut(
+                    id=r.id,
                     tournament_title=r.tournament_title,
                     stage=r.stage,
                     player1=player(r.player1_name, r.channel),
@@ -234,10 +281,12 @@ def stream_matches(
                     starts_at=aware(r.starts_at),
                     live_at=aware(r.live_at),
                     finished_at=aware(r.finished_at),
-                    winner=winner,
+                    winner=stream_winner(r),
                     live=r is on_air,
                     casters=r.casters,
                     post_url=r.post_url,
+                    odds=shown_odds(quotes[r.id]),
+                    bets=quotes[r.id].state,
                 )
             )
         first = own[0]
@@ -257,6 +306,148 @@ def stream_matches(
     return out
 
 
+class RoomPlayer(PlayerOut):
+    odds: float | None  # None when no bets are taken on the match
+    stake: int  # points bet on them by everyone
+    # The tournament whose roster of theirs the room shows (GET /players/{id}/rosters/{tournament}): this match's
+    # when they have one there, else the latest they played with
+    roster: TournamentOption | None = None
+
+
+class RoomOut(BaseModel):
+    id: str
+    kind: Literal["scheduled", "stream"]
+    tournament_id: str | None
+    tournament_title: str
+    stage: str | None  # a stream match's, in its bracket (stream.bracket_stage)
+    starts_at: datetime | None  # None for a stream's match whose post gave it no time
+    announced_at: datetime | None  # a stream match's day post
+    live_at: datetime | None
+    finished_at: datetime | None
+    live: bool  # on air now
+    winner: int | None  # 0 or 1: by the bets' result, else by the stream's results post
+    casters: str | None
+    stream_name: str | None
+    stream_url: str | None
+    post_url: str | None
+    players: tuple[RoomPlayer, RoomPlayer]
+    bets: BetState
+
+
+def roster_tournaments(
+    session: SessionDep, players: list[str | None], tournament_id: str | None
+) -> dict[str, TournamentOption]:
+    """{player id: the tournament whose roster of theirs to show}: this one when they have a roster in it, else
+    the one they were last seen in with a roster."""
+    merged = merges(session)
+    picked: dict[str, str] = {}
+    for pid in filter(None, players):
+        ids = [pid] + [alias for alias, into in merged.items() if into == pid]
+        rows = session.exec(
+            select(PlayerRoster.tournament_id)
+            .where(PlayerRoster.player_id.in_(ids))
+            .order_by(PlayerRoster.last_seen.desc(), PlayerRoster.id.desc())
+        ).all()
+        if rows:
+            picked[pid] = tournament_id if tournament_id in rows else rows[0]
+    titles = dict(
+        session.exec(select(Tournament.id, Tournament.title).where(Tournament.id.in_(set(picked.values())))).all()
+    )
+    return {pid: TournamentOption(id=tid, title=titles.get(tid, "")) for pid, tid in picked.items()}
+
+
+@router.get("/rooms/{match_key}", response_model=RoomOut)
+def read_room(match_key: bet_routes.MatchKey, session: SessionDep):
+    """A match of the day's room: who plays and when, the odds, where it's shown and whose rosters to show. The
+    players' statistics against each other are GET /players/{a}/compare/{b}."""
+    now = datetime.now(UTC)
+    match = bet_routes.find_match(session, match_key, now)
+    if match is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such scheduled match.")
+    quote = quoted(session, [match])[match.key]
+    names = display_names(session)
+    elo = elo_of(session)
+    winner = quote.winner
+    teams: dict[str, list[str]] = {}
+    if match.stream_id is not None:
+        row = session.get(StreamMatch, match.stream_id)
+        source = next((s for s in streams() if s.telegram == row.channel), None)
+        day = session.exec(
+            select(StreamMatch)
+            .where(
+                StreamMatch.channel == row.channel,
+                StreamMatch.announced_at >= row.announced_at - ON_AIR,
+                StreamMatch.announced_at <= row.announced_at + ON_AIR,
+            )
+            .order_by(StreamMatch.announced_at, StreamMatch.starts_at, StreamMatch.live_at)
+        ).all()
+        twitch = fresh_status(session, source.twitch, now) if source else None
+        on_air = on_air_of(list(day), twitch, now)
+        teams = {
+            team_key(t.name): json.loads(t.members)
+            for t in session.exec(select(StreamTeam).where(StreamTeam.channel == row.channel))
+        }
+        fields = dict(
+            kind="stream",
+            tournament_id=None,
+            stage=row.stage,
+            starts_at=aware(row.starts_at),
+            announced_at=aware(row.announced_at),
+            live_at=aware(row.live_at),
+            finished_at=aware(row.finished_at),
+            live=on_air is not None and on_air.id == row.id,
+            casters=row.casters,
+            stream_name=source.name if source else None,
+            stream_url=row.stream_url or (f"https://www.twitch.tv/{source.twitch}" if source else None),
+            post_url=row.post_url,
+        )
+        winner = winner if winner is not None else stream_winner(row)
+        tournament_id = None
+    else:
+        row = session.get(ScheduledMatch, match.scheduled_id)
+        tournament_id = row.tournament_id
+        fields = dict(
+            kind="scheduled",
+            tournament_id=tournament_id,
+            stage=None,
+            starts_at=match.starts_at,
+            announced_at=None,
+            live_at=None,
+            finished_at=None,
+            live=False,
+            casters=None,
+            stream_name=None,
+            stream_url=None,
+            post_url=None,
+        )
+    rosters = roster_tournaments(session, [match.player1_id, match.player2_id], tournament_id)
+    known = bet_routes.known(session) if teams else {}
+
+    def member(name: str) -> PlayerOut:
+        pid = known.get(normalize(name))
+        return PlayerOut(id=pid, name=names.get(pid, name) if pid else name, **elo(pid))
+
+    def player(i: int, pid: str | None, name: str) -> RoomPlayer:
+        return RoomPlayer(
+            id=pid,
+            name=names.get(pid, name) if pid else name,
+            members=[] if pid else [member(m) for m in teams.get(team_key(name), [])],
+            odds=quote.odds[i],
+            stake=quote.stakes[i],
+            roster=rosters.get(pid) if pid else None,
+            **elo(pid),
+        )
+
+    return RoomOut(
+        id=match.key,
+        tournament_title=match.tournament_title,
+        winner=winner,
+        players=(player(0, match.player1_id, match.player1_name), player(1, match.player2_id, match.player2_name)),
+        bets=quote.state,
+        **fields,
+    )
+
+
 class LiveStreamOut(BaseModel):
     name: str  # whose stream: Abyss Cup, House of the Hearth, Abyss New Gen (their tournaments' organizer)
     channel: str  # the Twitch channel, for its player
@@ -272,8 +463,8 @@ def live_streams(session: SessionDep):
     now = datetime.now(UTC)
     out = []
     for source in streams():
-        twitch = session.get(StreamStatus, source.twitch)
-        if twitch and twitch.live and now - aware(twitch.checked_at) <= STATUS_FRESH:
+        twitch = fresh_status(session, source.twitch, now)
+        if twitch and twitch.live:
             out.append(
                 LiveStreamOut(
                     name=source.name,

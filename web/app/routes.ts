@@ -20,6 +20,7 @@ export default [
   route("analytics", "routes/site-stats.tsx"),
   route("bundles", "routes/bundles.tsx"),
   route("bets", "routes/bets.tsx"),
+  route("room/:roomId", "routes/room.tsx"),
   route("unresolved", "routes/unresolved.tsx"),
   route("auth/discord", "routes/auth.discord.tsx"),
   route("abyss", "routes/abyss.tsx"),

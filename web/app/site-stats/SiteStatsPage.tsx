@@ -13,7 +13,7 @@ const PERIODS = [7, 30, 90];
 // Pages with ids grouped in the summary; readable names for them.
 const SECTION_NAMES: Record<string, [string, string]> = {
   "/": ["Home", "Главная"], "/players": ["Players", "Игроки"], "/player/:id": ["Player pages", "Профили игроков"],
-  "/player/:id/compare": ["Comparisons", "Сравнения"], "/matches": ["Matches", "Матчи"], "/match/:id": ["Match pages", "Страницы матчей"],
+  "/player/:id/compare": ["Comparisons", "Сравнения"], "/matches": ["Matches", "Матчи"], "/match/:id": ["Match pages", "Страницы матчей"], "/room/:id": ["Match rooms", "Комнаты матчей"],
   "/tournaments": ["Tournaments", "Турниры"], "/tournament/:id": ["Tournament pages", "Страницы турниров"],
   "/characters": ["Characters", "Персонажи"], "/schedule": ["Schedule", "Расписание"], "/profile": ["Profile", "Профиль"],
   "/login": ["Sign in", "Вход"],

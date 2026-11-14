@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router";
 import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
 import { mayBet } from "../auth/client";
 import { useAuth } from "../auth/useCurrentUser";
 import { useLang } from "../i18n";
 import {
-  fetchLeaderboard, fetchMarkets, fetchMyBets, placeBet, setResult, visit,
+  fetchLeaderboard, fetchMarket, fetchMarkets, fetchMyBets, placeBet, setResult, visit,
   type BetStatus, type HistoryRow, type Market, type MarketState, type Result, type Standing, type Wallet,
 } from "./api";
+import { roomPath } from "../schedule/api";
 import "../profile/profile.css";
 import "./bets.css";
 
-const STATES: Record<MarketState, [string, string]> = {
+export const STATES: Record<MarketState, [string, string]> = {
   open: ["Bets are open", "Ставки открыты"],
   no_elo: ["No bets: a player has no Elo", "Ставок нет: у игрока нет Elo"],
   started: ["Started, waiting for the result", "Начался, ждёт результата"],
@@ -22,7 +24,7 @@ const STATUSES: Record<BetStatus, [string, string]> = {
   pending: ["waiting", "ждёт"], won: ["won", "выиграла"], lost: ["lost", "проиграла"], refunded: ["returned", "возвращена"],
 };
 
-function useBetText() {
+export function useBetText() {
   const { t, locale, count } = useLang();
   return {
     t,
@@ -33,7 +35,9 @@ function useBetText() {
   };
 }
 
-function MarketCard({ market, wallet, onChange }: { market: Market; wallet: Wallet; onChange: (market: Market) => void }) {
+// A match with its odds, the member's bets on it and the form to bet (and to set its result, for who may). room:
+// shown in the match's own room, which says the rest itself.
+export function MarketCard({ market, wallet, onChange, room = false }: { market: Market; wallet: Wallet; onChange: (market: Market) => void; room?: boolean }) {
   const f = useBetText();
   const { t } = f;
   const [side, setSide] = useState<0 | 1 | null>(null);
@@ -60,7 +64,7 @@ function MarketCard({ market, wallet, onChange }: { market: Market; wallet: Wall
     } catch (err) {
       setError(err instanceof Error ? err.message : t("Something went wrong. Try again.", "Что-то пошло не так. Попробуйте ещё раз."));
       // The odds may have moved: show the new ones
-      fetchMarkets().then((rows) => { const fresh = rows.find((m) => m.id === market.id); if (fresh) onChange(fresh); }).catch(() => {});
+      fetchMarket(market.id).then(onChange).catch(() => {});
     } finally {
       setSaving(false);
     }
@@ -75,7 +79,8 @@ function MarketCard({ market, wallet, onChange }: { market: Market; wallet: Wall
   return (
     <div className="bets-match">
       <div className="bets-match-head">
-        <span>{market.tournament_title} · {f.when(market.starts_at)}</span>
+        {room ? <span>{t("Your bet", "Ваша ставка")} · {t(`${f.points(wallet.balance)} points`, `баллов: ${f.points(wallet.balance)}`)}</span>
+          : <Link to={roomPath(market.id)} className="gitv-row-link">{market.tournament_title} · {f.when(market.starts_at)}</Link>}
         <span className={`bets-state bets-state--${market.state}`}>{t(...STATES[market.state])}</span>
       </div>
       <div className="bets-sides">

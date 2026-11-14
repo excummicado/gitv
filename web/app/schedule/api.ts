@@ -9,9 +9,15 @@ export type ScheduledPlayer = {
   // A team event's team: its players, from the stream's post
   members?: ScheduledPlayer[];
 };
+// How the bets on a match stand (api/app/services/bets.py): open: bets are taken; no_elo: never were; started: waits
+// for its result; settled; void: bets returned. Everyone sees the odds; bet testers bet.
+export type BetState = "open" | "no_elo" | "started" | "settled" | "void";
+// The odds on the two players; null when no bets are taken on the match
+export type Odds = [number, number] | null;
 export type ScheduledMatch = {
   id: number; tournament_id: string | null; tournament_title: string;
   player1: ScheduledPlayer; player2: ScheduledPlayer; starts_at: string; added_by: string;
+  odds?: Odds; bets?: BetState;
 };
 export type ScheduledInput = {
   tournament_id: string | null; tournament_title: string; player1: ScheduledPlayer; player2: ScheduledPlayer; starts_at: string;
@@ -29,6 +35,8 @@ export function listScheduled(from: Date, to: Date, signal?: AbortSignal) {
 // (api/app/services/stream.py).
 export type StreamMatch = {
   // stage: in the tournament's bracket, as api/app/services/stream.py bracket_stage codes it ("final", "lower:2", ...)
+  // id: its room's key (/room/<id>)
+  id: string; odds?: Odds; bets?: BetState;
   tournament_title: string; stage: string | null; player1: ScheduledPlayer; player2: ScheduledPlayer;
   announced_at: string; starts_at: string | null; live_at: string | null; casters: string | null; finished_at: string | null; winner: 0 | 1 | null; live: boolean; post_url: string;
 };
@@ -67,4 +75,45 @@ export function deleteScheduled(id: number) {
 export function localDay(date = new Date()): [Date, Date] {
   const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   return [start, new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1)];
+}
+
+// A match of the day's room (GET /api/v1/schedule/rooms/{key}): an announced match's key is its number, a stream
+// match's its id. roster: the tournament whose roster of the player to show (this match's, else their latest).
+export type RoomPlayer = ScheduledPlayer & { odds: number | null; stake: number; roster: { id: string; title: string } | null };
+export type Room = {
+  id: string; kind: "scheduled" | "stream"; tournament_id: string | null; tournament_title: string; stage: string | null;
+  starts_at: string | null; announced_at: string | null; live_at: string | null; finished_at: string | null; live: boolean;
+  winner: 0 | 1 | null; casters: string | null; stream_name: string | null; stream_url: string | null; post_url: string | null;
+  players: [RoomPlayer, RoomPlayer]; bets: BetState;
+};
+
+export function fetchRoom(key: string, signal?: AbortSignal) {
+  return getJson<Room>(`/api/v1/schedule/rooms/${encodeURIComponent(key)}`, {
+    signal, notFound: ["There's no such match of the day.", "Такого матча дня нет."], failed: ["Couldn't load the match.", "Не удалось загрузить матч."],
+  });
+}
+
+export function roomPath(key: string | number) {
+  return `/room/${encodeURIComponent(String(key))}`;
+}
+
+// A stream match's stage from its bracket code (api/app/services/stream.py bracket_stage).
+const STAGES: Record<string, [string, string]> = {
+  final: ["Final", "Финал"], semifinal: ["Semifinal", "Полуфинал"], quarterfinal: ["Quarterfinal", "Четвертьфинал"],
+  grand_final: ["Grand final", "Гранд-финал"], upper_final: ["Upper final", "Финал верхней сетки"],
+  upper_semifinal: ["Upper semifinal", "Полуфинал верхней сетки"], lower_final: ["Lower final", "Финал нижней сетки"],
+  third_place: ["Third place match", "Матч за 3-е место"],
+};
+
+export function stageLabel(code: string, t: (en: string, ru: string) => string) {
+  if (STAGES[code]) return t(...STAGES[code]);
+  const [kind, value] = code.split(":");
+  switch (kind) {
+    case "of": return t(`Round of ${Number(value) * 2}`, `1/${value} финала`);
+    case "upper": return t(`Upper bracket, round ${value}`, `Верхняя сетка, раунд ${value}`);
+    case "lower": return t(`Lower bracket, round ${value}`, `Нижняя сетка, раунд ${value}`);
+    case "group": return value ? t(`Group ${value}`, `Группа ${value}`) : t("Groups", "Группы");
+    case "round": return t(`Round ${value}`, `Раунд ${value}`);
+    default: return code;
+  }
 }

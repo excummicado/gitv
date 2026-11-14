@@ -10,7 +10,7 @@ import { LiveMatchRow } from "../match/LiveMatches";
 import { EloBadge } from "../components/EloBadge";
 import { excerpt, inLang, listArticles, isNewsWriter, type Article } from "../articles/api";
 import { NewsColumn } from "../news/NewsColumn";
-import { fetchLiveStreams, listScheduled, localDay, streamMatches, type LiveStream, type ScheduledMatch, type StreamDay } from "../schedule/api";
+import { fetchLiveStreams, listScheduled, localDay, roomPath, stageLabel, streamMatches, type LiveStream, type Odds, type ScheduledMatch, type StreamDay } from "../schedule/api";
 import { TwitchPlayer } from "../components/TwitchPlayer";
 import { fetchFeaturedTournaments, type FeaturedTournament } from "../tournament/api";
 import { useCurrentUser } from "../auth/useCurrentUser";
@@ -96,27 +96,6 @@ const EVENT_LINKS: { label: [string, string]; tab: string }[] = [
 
 // The reader's pick among the running tournaments, kept in this browser (it may be unavailable).
 const PICKED_EVENT = "gitv-home-event";
-
-const STAGES: Record<string, [string, string]> = {
-  final: ["Final", "Финал"], semifinal: ["Semifinal", "Полуфинал"], quarterfinal: ["Quarterfinal", "Четвертьфинал"],
-  grand_final: ["Grand final", "Гранд-финал"], upper_final: ["Upper final", "Финал верхней сетки"],
-  upper_semifinal: ["Upper semifinal", "Полуфинал верхней сетки"], lower_final: ["Lower final", "Финал нижней сетки"],
-  third_place: ["Third place match", "Матч за 3-е место"],
-};
-
-// A stream match's stage from its bracket code (api/app/services/stream.py bracket_stage).
-function stageLabel(code: string, t: (en: string, ru: string) => string) {
-  if (STAGES[code]) return t(...STAGES[code]);
-  const [kind, value] = code.split(":");
-  switch (kind) {
-    case "of": return t(`Round of ${Number(value) * 2}`, `1/${value} финала`);
-    case "upper": return t(`Upper bracket, round ${value}`, `Верхняя сетка, раунд ${value}`);
-    case "lower": return t(`Lower bracket, round ${value}`, `Нижняя сетка, раунд ${value}`);
-    case "group": return value ? t(`Group ${value}`, `Группа ${value}`) : t("Groups", "Группы");
-    case "round": return t(`Round ${value}`, `Раунд ${value}`);
-    default: return code;
-  }
-}
 
 function readPicked() {
   try { return localStorage.getItem(PICKED_EVENT); } catch { return null; }
@@ -259,6 +238,7 @@ function samePair(a: [string, string], b: [string, string]) {
 
 // Matches for the viewer's local day: the ones on stream (each stream's, announced in its Telegram channel, with
 // whether the stream and each match is on) first, then the ones event organizers and admins added on /schedule.
+// Each shows the odds of the bets on it, when bets are taken, and opens its room (/room/<key>).
 function TodaysMatches() {
   const [items, setItems] = useState<ScheduledMatch[] | null>(null);
   const [streams, setStreams] = useState<StreamDay[]>([]);
@@ -267,6 +247,15 @@ function TodaysMatches() {
   const { t, locale } = useLang();
   const user = useCurrentUser();
   const editor = isPlayerEditor(user);
+  const price = (odds: Odds | undefined, side: 0 | 1) => odds && (
+    <i className="gitv-odds" title={t("Odds of the bets on this player", "Коэффициент ставок на этого игрока")}>
+      {odds[side].toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+    </i>
+  );
+  // The whole row opens the match's room; the players' own links stay above it
+  const room = (key: string | number, a: string, b: string) => (
+    <Link to={roomPath(key)} className="gitv-match-room" aria-label={t(`Open the match ${a} vs ${b}`, `Открыть матч ${a} vs ${b}`)} />
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -319,12 +308,13 @@ function TodaysMatches() {
             </small>
           </div>
           {stream.matches.map((m) => (
-            <div className="gitv-row gitv-match" key={`${m.post_url}-${m.player1.name}-${m.player2.name}`}>
-              <div className="gitv-matchline"><span>{player(m.player1, m.winner === 0)}</span>
+            <div className="gitv-row gitv-match" key={m.id}>
+              {room(m.id, m.player1.name, m.player2.name)}
+              <div className="gitv-matchline"><span>{player(m.player1, m.winner === 0)}{price(m.odds, 0)}</span>
                 {m.live ? <b className="gitv-badge gitv-stream-live">{t("On air", "Идёт")}</b>
                   : m.finished_at ? <small>{t("finished", "сыгран")}</small>
                   : <small>{t("on stream", "на стриме")}</small>}</div>
-              <div className="gitv-matchline"><span>{player(m.player2, m.winner === 1)}</span>
+              <div className="gitv-matchline"><span>{player(m.player2, m.winner === 1)}{price(m.odds, 1)}</span>
                 {(m.live_at ?? m.starts_at) && <b>{time((m.live_at ?? m.starts_at)!)}</b>}</div>
               <small className="gitv-champion-tournament">
                 {m.tournament_title}{m.stage && ` · ${stageLabel(m.stage, t)}`}{m.casters && m.casters !== stream.casters && ` · ${t("casters", "ведут")} ${m.casters}`}
@@ -337,9 +327,10 @@ function TodaysMatches() {
         : !scheduled.length && !onStream.length ? <div className="gitv-row"><small>{t("No matches scheduled today.", "На сегодня матчей нет.")}</small></div>
         : scheduled.map((m) => (
             <div className="gitv-row gitv-match" key={m.id}>
-              <div className="gitv-matchline"><span>{player(m.player1)}</span>
+              {room(m.id, m.player1.name, m.player2.name)}
+              <div className="gitv-matchline"><span>{player(m.player1)}{price(m.odds, 0)}</span>
                 <b>{new Date(m.starts_at).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}</b></div>
-              <div className="gitv-matchline"><span>{player(m.player2)}</span></div>
+              <div className="gitv-matchline"><span>{player(m.player2)}{price(m.odds, 1)}</span></div>
               <small className="gitv-champion-tournament">{m.tournament_title}</small>
             </div>
           ))}

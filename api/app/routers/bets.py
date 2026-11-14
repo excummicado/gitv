@@ -1,21 +1,22 @@
-"""Bets for points on the announced matches (rules in services/bets.py). While they are being tested, only the super
-admin and the members a super admin marked as bet testers (admin.py) can see or use any of this."""
+"""Bets for points on the matches of the day (rules in services/bets.py). Everyone sees the odds (schedule.py: the
+matches of the day and a match's room); while bets are being tested, only the super admin and the members a super
+admin marked as bet testers (admin.py) have points and can bet, which is what's here."""
 
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from pydantic import BaseModel, Field
 from sqlmodel import select
 
-from ..database import RowId, SessionDep
+from ..database import SessionDep
 from ..dependencies import get_current_active_user
-from ..models import Bet, BetMarket, ScheduledMatch, User
+from ..models import Bet, BetMarket, ScheduledMatch, StreamMatch, User
 from ..rate_limit import rate_limit
 from ..services import bets
-from ..services.bets import BetError, aware
+from ..services.bets import BetError, Fixture, aware
 from ..services.organizers import can_run_tournament
-from ..services.player_names import display_names
+from ..services.player_names import display_names, known_players
 from ..services.stats import elo_ratings, snapshot
 
 router = APIRouter(prefix="/bets", tags=["bets"])
@@ -75,7 +76,7 @@ class Side(BaseModel):
 
 
 class MarketOut(BaseModel):
-    id: int  # the announced match's id
+    id: str  # the match's key (bets.Fixture.key): the announcement's number, or the stream match's id
     tournament_title: str
     starts_at: datetime
     players: tuple[Side, Side]
@@ -117,9 +118,39 @@ class ResultIn(BaseModel):
     result: Literal["player1", "player2", "void"]
 
 
-def may_settle(session: SessionDep, user: User, match: ScheduledMatch) -> bool:
-    """Who sets a match's result: admins, whoever announced it, and the organizers of its tournament."""
-    return user.role.is_staff or match.created_by == user.id or can_run_tournament(session, user, match.tournament_id)
+# A match's key in an address: an announcement's number, or a stream match's id
+MatchKey = Annotated[str, Path(min_length=1, max_length=200)]
+MAX_ROW_ID = 2**31 - 1
+
+
+def may_settle(session: SessionDep, user: User, match: Fixture) -> bool:
+    """Who sets a match's result: admins; of an announced match, also whoever announced it and the organizers of its
+    tournament."""
+    if user.role.is_staff:
+        return True
+    row = session.get(ScheduledMatch, match.scheduled_id) if match.scheduled_id is not None else None
+    return row is not None and (row.created_by == user.id or can_run_tournament(session, user, row.tournament_id))
+
+
+def known(session: SessionDep) -> dict[str, str]:
+    """{normalized nickname: player id}, to tell who plays a stream's match."""
+    return known_players(session, snapshot(session))
+
+
+def find_match(session: SessionDep, key: str, now: datetime) -> Fixture | None:
+    """The match of the day under this key (see MatchKey), if there is one."""
+    if key.isascii() and key.isdigit():
+        row = session.get(ScheduledMatch, int(key)) if int(key) <= MAX_ROW_ID else None
+        return bets.announced(row, now) if row else None
+    row = session.get(StreamMatch, key)
+    return bets.on_stream(row, known(session), now) if row else None
+
+
+def required_match(session: SessionDep, key: str, now: datetime) -> Fixture:
+    match = find_match(session, key, now)
+    if match is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such scheduled match.")
+    return match
 
 
 def month_span(now: datetime) -> tuple[datetime, datetime]:
@@ -131,64 +162,47 @@ def month_span(now: datetime) -> tuple[datetime, datetime]:
 
 
 def market_out(
-    match: ScheduledMatch,
+    match: Fixture,
     market: BetMarket | None,
     mine: list[Bet],
     elo: dict[str, float],
     names: dict[str, str],
-    now: datetime,
     can_settle: bool,
 ) -> MarketOut:
-    e1, e2 = elo.get(match.player1_id or ""), elo.get(match.player2_id or "")
-    start_p1 = market.start_p1 if market else bets.start_probability(e1, e2) if e1 and e2 else None
-    started = aware(match.starts_at) <= now
-    if market and market.status != "open":
-        state = market.status
-    elif started:
-        state = "started"
-    elif market is None and start_p1 is None:
-        state = "no_elo"
-    else:
-        state = "open"
-    stakes = (market.stake1, market.stake2) if market else (0, 0)
-    # A match no bet was taken on has no odds to show, whatever became of it
-    priced = start_p1 is not None and (state == "open" or stakes != (0, 0))
-    prices = bets.odds(start_p1, *stakes) if priced else (None, None)
+    quote = bets.quote(match, market, elo)
 
-    def side(i: int, pid: str | None, name: str, rating: float | None) -> Side:
+    def side(i: int, pid: str | None, name: str) -> Side:
+        rating = elo.get(pid or "")
         return Side(
             id=pid,
             name=names.get(pid, name) if pid else name,
             elo=round(rating) if rating is not None else None,
-            odds=prices[i],
-            stake=stakes[i],
+            odds=quote.odds[i],
+            stake=quote.stakes[i],
         )
 
     return MarketOut(
-        id=match.id,
+        id=match.key,
         tournament_title=match.tournament_title,
-        starts_at=aware(match.starts_at),
-        players=(
-            side(0, match.player1_id, match.player1_name, e1),
-            side(1, match.player2_id, match.player2_name, e2),
-        ),
-        state=state,
-        winner=market.winner if market else None,
+        starts_at=match.starts_at,
+        players=(side(0, match.player1_id, match.player1_name), side(1, match.player2_id, match.player2_name)),
+        state=quote.state,
+        winner=quote.winner,
         my_side=mine[0].side if mine else None,
         my_bets=[MyBet(amount=b.amount, odds=b.odds, payout=b.payout, status=b.status) for b in mine],
-        can_settle=can_settle and state in ("open", "started", "no_elo"),
+        can_settle=can_settle and quote.state in ("open", "started", "no_elo"),
     )
 
 
-def one_market(session: SessionDep, user: User, match: ScheduledMatch, now: datetime) -> MarketOut:
-    market = bets.market_of(session, match.id)
+def one_market(session: SessionDep, user: User, match: Fixture) -> MarketOut:
+    market = bets.market_for(session, match)
     mine = (
         list(session.exec(select(Bet).where(Bet.market_id == market.id, Bet.user_id == user.id).order_by(Bet.id)))
         if market
         else []
     )
     return market_out(
-        match, market, mine, player_elo(session), display_names(session), now, may_settle(session, user, match)
+        match, market, mine, player_elo(session), display_names(session), may_settle(session, user, match)
     )
 
 
@@ -209,80 +223,91 @@ def visit(session: SessionDep, user: Bettor):
 
 @router.get("/markets", response_model=list[MarketOut])
 def markets(session: SessionDep, user: Bettor):
-    """This month's announced matches, earliest first, with the odds and the member's own bets."""
+    """This month's matches, earliest first, with the odds and the member's own bets: the announced ones, and of the
+    streams' those that take bets now or have taken some."""
     now = datetime.now(UTC)
     start, end = month_span(now)
-    matches = session.exec(
-        select(ScheduledMatch)
-        .where(ScheduledMatch.starts_at >= start, ScheduledMatch.starts_at < end)
-        .order_by(ScheduledMatch.starts_at, ScheduledMatch.id)
+    matches = [
+        bets.announced(m, now)
+        for m in session.exec(
+            select(ScheduledMatch).where(ScheduledMatch.starts_at >= start, ScheduledMatch.starts_at < end)
+        )
+    ]
+    streamed = session.exec(
+        select(StreamMatch).where(StreamMatch.announced_at >= start, StreamMatch.announced_at < end)
     ).all()
+    if streamed:
+        names_known = known(session)
+        matches += [bets.on_stream(m, names_known, now) for m in streamed]
     if not matches:
         return []
-    ids = [m.id for m in matches]
-    by_match = {
-        m.scheduled_match_id: m for m in session.exec(select(BetMarket).where(BetMarket.scheduled_match_id.in_(ids)))
-    }
+    by_match = bets.markets_for(session, matches)
+    elo = player_elo(session)
+    matches = [
+        m for m in matches if m.stream_id is None or m.key in by_match or bets.quote(m, None, elo).state == "open"
+    ]
+    matches.sort(key=lambda m: (m.starts_at, m.key))
     mine: dict[int, list[Bet]] = {}
     market_ids = [m.id for m in by_match.values()]
     for bet in session.exec(select(Bet).where(Bet.user_id == user.id, Bet.market_id.in_(market_ids)).order_by(Bet.id)):
         mine.setdefault(bet.market_id, []).append(bet)
-    elo, names = player_elo(session), display_names(session)
+    names = display_names(session)
     return [
         market_out(
             m,
-            by_match.get(m.id),
-            mine.get(by_match[m.id].id, []) if m.id in by_match else [],
+            by_match.get(m.key),
+            mine.get(by_match[m.key].id, []) if m.key in by_match else [],
             elo,
             names,
-            now,
             may_settle(session, user, m),
         )
         for m in matches
     ]
 
 
+@router.get("/markets/{match_key}", response_model=MarketOut)
+def read_market(match_key: MatchKey, session: SessionDep, user: Bettor):
+    """One match with the odds and the member's own bets, for its room."""
+    return one_market(session, user, required_match(session, match_key, datetime.now(UTC)))
+
+
 @router.post(
-    "/markets/{match_id}/bets",
+    "/markets/{match_key}/bets",
     response_model=MarketOut,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(rate_limit("bets", 120, 3600, per="user"))],
 )
-def place_bet(match_id: RowId, data: BetIn, session: SessionDep, user: Bettor):
-    match = session.get(ScheduledMatch, match_id)
-    if match is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such scheduled match.")
+def place_bet(match_key: MatchKey, data: BetIn, session: SessionDep, user: Bettor):
     now = datetime.now(UTC)
+    match = required_match(session, match_key, now)
     try:
         bets.place(session, user, match, data.side, data.amount, player_elo(session), now, data.odds)
     except BetError as error:
         session.rollback()
         raise refuse(error) from error
-    return one_market(session, user, match, now)
+    return one_market(session, user, match)
 
 
 @router.put(
-    "/markets/{match_id}/result",
+    "/markets/{match_key}/result",
     response_model=MarketOut,
     dependencies=[Depends(rate_limit("bets-result", 120, 3600, per="user"))],
 )
-def set_result(match_id: RowId, data: ResultIn, session: SessionDep, user: Bettor):
+def set_result(match_key: MatchKey, data: ResultIn, session: SessionDep, user: Bettor):
     """Who won, or "void" to return every bet. It can't be changed afterwards."""
-    match = session.get(ScheduledMatch, match_id)
-    if match is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such scheduled match.")
+    now = datetime.now(UTC)
+    match = required_match(session, match_key, now)
     if not may_settle(session, user, match):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Only the match's organizers and admins can set its result."
         )
-    now = datetime.now(UTC)
     winner = {"player1": 0, "player2": 1, "void": None}[data.result]
     try:
         bets.settle(session, match, winner, user, now)
     except BetError as error:
         session.rollback()
         raise refuse(error) from error
-    return one_market(session, user, match, now)
+    return one_market(session, user, match)
 
 
 @router.get("/mine", response_model=list[HistoryRow])

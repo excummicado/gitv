@@ -1,5 +1,6 @@
-// Bets for points on the announced matches (api/app/routers/bets.py, rules in api/app/services/bets.py). While they
-// are tested, only the super admin and the members marked as bet testers get them.
+// Bets for points on the matches of the day (api/app/routers/bets.py, rules in api/app/services/bets.py). Everyone
+// sees the odds (schedule/api.ts); while bets are tested, only the super admin and the members marked as bet testers
+// have points and bet.
 
 import { authRequest } from "../auth/client";
 
@@ -14,8 +15,9 @@ export type MyBet = { amount: number; odds: number; payout: number; status: BetS
 export type Side = { id: string | null; name: string; elo: number | null; odds: number | null; stake: number };
 // open: bets are taken; no_elo: never were; started: waits for its result; settled; void: bets returned
 export type MarketState = "open" | "no_elo" | "started" | "settled" | "void";
+// id: the match's key, the same as its room's (schedule/api.ts roomPath)
 export type Market = {
-  id: number; tournament_title: string; starts_at: string; players: [Side, Side]; state: MarketState;
+  id: string; tournament_title: string; starts_at: string; players: [Side, Side]; state: MarketState;
   winner: 0 | 1 | null; my_side: 0 | 1 | null; my_bets: MyBet[]; can_settle: boolean;
 };
 export type HistoryRow = {
@@ -49,6 +51,10 @@ export function fetchMarkets() {
   return authRequest<Market[]>("GET", "/bets/markets");
 }
 
+export function fetchMarket(matchKey: string) {
+  return authRequest<Market>("GET", `/bets/markets/${encodeURIComponent(matchKey)}`);
+}
+
 export function fetchMyBets() {
   return authRequest<HistoryRow[]>("GET", "/bets/mine");
 }
@@ -58,10 +64,10 @@ export function fetchLeaderboard() {
 }
 
 // odds: the odds shown to the member; if they have dropped since, the API refuses and the page shows the new ones.
-export function placeBet(matchId: number, side: 0 | 1, amount: number, odds: number) {
-  return authRequest<Market>("POST", `/bets/markets/${matchId}/bets`, { side, amount, odds });
+export function placeBet(matchKey: string, side: 0 | 1, amount: number, odds: number) {
+  return authRequest<Market>("POST", `/bets/markets/${encodeURIComponent(matchKey)}/bets`, { side, amount, odds });
 }
 
-export function setResult(matchId: number, result: Result) {
-  return authRequest<Market>("PUT", `/bets/markets/${matchId}/result`, { result });
+export function setResult(matchKey: string, result: Result) {
+  return authRequest<Market>("PUT", `/bets/markets/${encodeURIComponent(matchKey)}/result`, { result });
 }

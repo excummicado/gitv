@@ -221,6 +221,20 @@
   font-weight: 400;
 }
 
+/* A match of the day opens its room wherever it's clicked; its own links and badges stay clickable above that. */
+.gitv-match { position: relative; }
+.gitv-match:hover { background: var(--gitv-surface-hover); }
+.gitv-match-room { position: absolute; inset: 0; }
+.gitv-match-room:focus-visible { outline: 1px solid var(--gitv-accent); outline-offset: -1px; }
+.gitv-match a:not(.gitv-match-room), .gitv-match .gitv-elo { position: relative; z-index: 1; }
+.gitv-odds {
+  padding: 1px 5px;
+  border: 1px solid var(--gitv-border);
+  color: var(--gitv-accent);
+  font: 600 11px/1.3 var(--gitv-font);
+  font-style: normal;
+}
+
 .gitv-card-title.bare {
   display: flex;
   align-items: center;

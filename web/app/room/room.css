@@ -1,0 +1,22 @@
+/* A match of the day's room (RoomPage). */
+.room-head-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; font-size: 12px; color: var(--gitv-text-soft); }
+.cmp-head.right .room-head-sub { justify-content: flex-end; }
+.room-winner, .room-winner.player-match-link { color: var(--gitv-win); }
+.room-when small { font: 400 11px/1.2 var(--gitv-font); letter-spacing: 0; color: var(--gitv-muted); }
+.room-time { font: 700 22px/1 var(--gitv-font-display); letter-spacing: 0; color: var(--gitv-accent); }
+.room-live { padding: 2px 7px; background: #ef4444; color: #fff; font: 600 11px/1.4 var(--gitv-font); letter-spacing: .04em; }
+.room-meta { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 0; margin: 0; padding: 9px 14px; border-top: 1px dotted var(--gitv-border-muted); font-size: 12px; color: var(--gitv-muted); }
+.room-meta > * + *::before { content: "·"; margin: 0 8px; color: var(--gitv-faint); }
+.room-note { margin: 0; padding: 8px 12px; border-top: 1px dotted var(--gitv-border-muted); font-size: 11px; color: var(--gitv-faint); }
+.room-rosters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.room-roster { min-width: 0; }
+.room-roster + .room-roster { border-left: 1px solid var(--gitv-border); }
+.room-roster-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 9px 14px; font-size: 13px; }
+.room-roster-head .player-label { font-size: 11px; }
+.room-roster .roster-panel { border-bottom: 0; }
+.room-more { margin: 0; text-align: center; font-size: 12px; }
+@media (max-width: 700px) {
+  .room-rosters { grid-template-columns: minmax(0, 1fr); }
+  .room-roster + .room-roster { border-left: 0; border-top: 1px solid var(--gitv-border); }
+  .room-time { font-size: 18px; }
+}

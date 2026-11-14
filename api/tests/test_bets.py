@@ -7,10 +7,11 @@ from sqlmodel import select
 from app.database import get_session
 from app.dependencies import get_current_active_user
 from app.main import app
-from app.models import Bet, BetBalance, BetMarket, Role, ScheduledMatch, User
+from app.models import Bet, BetBalance, BetMarket, PlayerRoster, Role, ScheduledMatch, StreamMatch, Tournament, User
 from app.rate_limit import limiter
 from app.routers import bets as router
 from app.services import bets
+from app.services.stream import streams
 
 ELO = {"A": 1600.0, "B": 1500.0}
 NOW = datetime(2026, 11, 13, 12, 0, tzinfo=UTC)
@@ -172,7 +173,7 @@ def test_no_bets_without_elo_after_the_start_or_from_a_young_discord_account(cli
     unknown = announce(session, boss, soon(), p2=None)
     started = announce(session, boss, datetime.now(UTC) - timedelta(minutes=1))
     states = {m["id"]: m["state"] for m in client.get("/api/v1/bets/markets").json()}
-    assert states == {unknown.id: "no_elo", started.id: "started"}
+    assert states == {str(unknown.id): "no_elo", str(started.id): "started"}
     for match in (unknown, started):
         assert client.post(f"/api/v1/bets/markets/{match.id}/bets", json={"side": 0, "amount": 50}).status_code == 409
     assert client.post("/api/v1/bets/markets/999/bets", json={"side": 0, "amount": 50}).status_code == 404
@@ -244,3 +245,104 @@ def test_a_match_nobody_settled_returns_its_bets_when_the_month_ends(session):
     assert session.get(BetBalance, (user.id, "2026-11")).balance == 1000
     assert session.exec(select(BetMarket)).one().status == "void"
     assert session.exec(select(Bet)).one().amount == 400
+
+
+def on_stream(session, key="hoth-7-a-b", **fields) -> StreamMatch:
+    defaults = dict(
+        channel=streams()[1].telegram,
+        tournament_title="Weekend",
+        player1_name="A",
+        player2_name="B",
+        announced_at=datetime.now(UTC) - timedelta(minutes=5),
+        post_url="https://t.me/hoth/7",
+    )
+    row = StreamMatch(id=key, **{**defaults, **fields})
+    session.add(row)
+    session.commit()
+    return row
+
+
+def day() -> dict:
+    now = datetime.now(UTC)
+    return {"from": (now - timedelta(hours=12)).isoformat(), "to": (now + timedelta(hours=12)).isoformat()}
+
+
+def test_everyone_sees_the_odds_and_the_room_but_only_testers_bet(client, session, monkeypatch):
+    monkeypatch.setattr(router, "known", lambda session: {"a": "A", "b": "B"})
+    boss = member(session)
+    match = announce(session, boss, soon())
+    streamed = on_stream(session, starts_at=soon())
+    session.add(Tournament(id="t1", title="Older Cup"))
+    session.add(
+        PlayerRoster(
+            player_id="A",
+            tournament_id="t1",
+            hash="h",
+            version=1,
+            first_draft_id="d",
+            last_draft_id="d",
+            first_seen=NOW,
+            last_seen=NOW,
+            games=1,
+            characters=0,
+            weapons=0,
+        )
+    )
+    session.commit()
+    # Signed out: the matches of the day carry the odds, the announced ones and the streams' alike
+    (listed,) = client.get("/api/v1/schedule", params=day()).json()
+    assert listed["bets"] == "open" and listed["odds"][0] < listed["odds"][1]
+    (channel,) = client.get("/api/v1/schedule/stream", params=day()).json()
+    (shown,) = channel["matches"]
+    assert shown["id"] == streamed.id and shown["bets"] == "open" and shown["odds"] == listed["odds"]
+    # ...and each has a room: who plays, when, the odds and whose roster to show
+    room = client.get(f"/api/v1/schedule/rooms/{match.id}").json()
+    assert room["kind"] == "scheduled" and room["bets"] == "open" and room["tournament_title"] == "Cup"
+    assert [p["odds"] for p in room["players"]] == listed["odds"] and [p["stake"] for p in room["players"]] == [0, 0]
+    assert room["players"][0]["roster"] == {"id": "t1", "title": "Older Cup"} and room["players"][1]["roster"] is None
+    room = client.get(f"/api/v1/schedule/rooms/{streamed.id}").json()
+    assert room["kind"] == "stream" and room["post_url"] == "https://t.me/hoth/7" and room["stream_name"]
+    assert [p["id"] for p in room["players"]] == ["A", "B"] and room["bets"] == "open"
+    for missing in ("999", "hoth-1-x-y", "9" * 30):
+        assert client.get(f"/api/v1/schedule/rooms/{missing}").status_code == 404
+    # A member who isn't a tester can't bet, nor read the bets' own pages
+    act_as(member(session, "guest", role=Role.user, discord_id="2"))
+    assert client.post(f"/api/v1/bets/markets/{match.id}/bets", json={"side": 0, "amount": 50}).status_code == 403
+    assert client.get(f"/api/v1/bets/markets/{match.id}").status_code == 403
+    # A tester's bet moves the odds everyone sees
+    act_as(member(session, "tester", role=Role.user, discord_id="3", bet_tester=True))
+    assert client.post(f"/api/v1/bets/markets/{match.id}/bets", json={"side": 0, "amount": 300}).status_code == 201
+    app.dependency_overrides.pop(get_current_active_user)
+    room = client.get(f"/api/v1/schedule/rooms/{match.id}").json()
+    assert room["players"][0]["odds"] < listed["odds"][0] and room["players"][0]["stake"] == 300
+
+
+def test_bets_on_a_streams_match_close_when_it_goes_on_air(client, session, monkeypatch):
+    monkeypatch.setattr(router, "known", lambda session: {"a": "A", "b": "B"})
+    boss = member(session)
+    act_as(boss)
+    # No time of its own in the post: bets are taken until it goes on air
+    row = on_stream(session)
+    path = f"/api/v1/bets/markets/{row.id}"
+    assert client.get(path).json()["state"] == "open"
+    placed = client.post(f"{path}/bets", json={"side": 1, "amount": 100})
+    assert placed.status_code == 201 and placed.json()["players"][1]["stake"] == 100
+    assert [m["id"] for m in client.get("/api/v1/bets/markets").json()] == [row.id]
+    # The winner can't be set before it starts
+    assert client.put(f"{path}/result", json={"result": "player2"}).status_code == 409
+    row.live_at = datetime.now(UTC)
+    session.add(row)
+    session.commit()
+    assert client.get(path).json()["state"] == "started"
+    assert client.post(f"{path}/bets", json={"side": 1, "amount": 100}).status_code == 409
+    # Only an admin sets a stream match's result
+    act_as(member(session, "tester", role=Role.event_organizer, discord_id="3", bet_tester=True))
+    assert client.put(f"{path}/result", json={"result": "player2"}).status_code == 403
+    act_as(boss)
+    settled = client.put(f"{path}/result", json={"result": "player2"}).json()
+    assert settled["state"] == "settled" and settled["winner"] == 1 and settled["my_bets"][0]["status"] == "won"
+    # A team or a player the site doesn't know has no Elo, so no bets; nor a match whose post is half a day old
+    teams = on_stream(session, "hoth-8-x-y", player1_name="X", player2_name="Y")
+    assert client.get(f"/api/v1/bets/markets/{teams.id}").json()["state"] == "no_elo"
+    old = on_stream(session, "hoth-9-a-b", announced_at=datetime.now(UTC) - bets.STREAM_WINDOW)
+    assert client.get(f"/api/v1/bets/markets/{old.id}").json()["state"] == "started"

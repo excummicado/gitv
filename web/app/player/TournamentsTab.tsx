@@ -28,7 +28,7 @@ function FreeToggle({ hidden, count, onToggle }: { hidden: boolean; count: numbe
 
 // A tournament's roster under its row: characters strongest first, then weapons; a version switch when it
 // changed mid-tournament.
-function RosterPanel({ playerId, tournamentId }: { playerId: string; tournamentId: string }) {
+export function RosterPanel({ playerId, tournamentId }: { playerId: string; tournamentId: string }) {
   const l = useLang();
   const { t } = l;
   const [versions, setVersions] = useState<RosterVersion[] | null>(null);

@@ -1,4 +1,5 @@
-"""Bets for points on the announced matches (ScheduledMatch), run like a bookmaker's.
+"""Bets for points on the matches of the day, run like a bookmaker's: on the announced ones (ScheduledMatch) and on
+the streams' (StreamMatch); either is a Fixture here.
 
 Points: everyone starts a calendar month (Moscow time) with START, last month's top three with a head start
 (HANDICAP); the first visit of a day gives DAILY, every STREAK_DAYS-th day in a row STREAK_BONUS more. The month's
@@ -8,20 +9,25 @@ Odds: the first player's chance starts from the Elo of the two (both must have o
 (but the weaker player's odds never beat the fair ones by Elo, see start_probability),
 as if the site had put VIRTUAL points on the match by that chance; every bet adds to its side and moves the chance.
 The odds are 1 / (chance * (1 + MARGIN)), and a bet keeps the odds it was made at. Bets are taken until the match's
-start, on one player per match, MIN_BET to MAX_PER_MATCH in all, and can't be taken back.
+start, on one player per match, MIN_BET to MAX_PER_MATCH in all, and can't be taken back. A stream's match starts at
+its time when its post gives one; without one, when it goes on air or its result comes, and STREAM_WINDOW after its
+post at the latest (stream_closed).
 
 Results are set by hand: one of the players won, or every bet is returned. A match nobody settled by the end of its
 month returns its bets by itself (close_past_months), so a month's table is final once it is over.
 
-For now only the super admin and members marked as bet testers (User.bet_tester) get any of it.
+Everyone sees the odds (the matches of the day and a match's room, routers/schedule.py). Bets themselves are for now
+made only by the super admin and the members marked as bet testers (User.bet_tester).
 """
 
 import math
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta, timezone
 
 from sqlmodel import Session, select
 
-from ..models import Bet, BetBalance, BetMarket, Role, ScheduledMatch, User
+from ..models import Bet, BetBalance, BetMarket, Role, ScheduledMatch, StreamMatch, User
+from .challonge import normalize
 
 MSK = timezone(timedelta(hours=3))
 START, DAILY, STREAK_DAYS, STREAK_BONUS = 1000, 50, 7, 150
@@ -32,6 +38,8 @@ MIN_CHANCE, MIN_ODDS = 0.1, 1.01
 # A Discord account younger than this can't bet: a second account made for the points costs half a year of waiting.
 MIN_DISCORD_AGE = timedelta(days=183)
 DISCORD_EPOCH_MS = 1420070400000
+# A stream's match whose post gives it no time takes bets at most this long after the post
+STREAM_WINDOW = timedelta(hours=12)
 
 
 class BetError(Exception):
@@ -57,6 +65,63 @@ def day_of(moment: datetime) -> date:
 def previous_month(month: str) -> str:
     year, number = int(month[:4]), int(month[5:])
     return f"{year - 1}-12" if number == 1 else f"{year}-{number - 1:02d}"
+
+
+@dataclass(frozen=True)
+class Fixture:
+    """A match bets are taken on: an announced one or a stream's."""
+
+    key: str  # in addresses (the match's room): the announcement's number, or the stream match's id
+    scheduled_id: int | None
+    stream_id: str | None
+    tournament_title: str
+    player1_id: str | None
+    player1_name: str
+    player2_id: str | None
+    player2_name: str
+    starts_at: datetime
+    closed: bool  # it has started: no more bets
+
+
+def announced(match: ScheduledMatch, now: datetime) -> Fixture:
+    return Fixture(
+        key=str(match.id),
+        scheduled_id=match.id,
+        stream_id=None,
+        tournament_title=match.tournament_title,
+        player1_id=match.player1_id,
+        player1_name=match.player1_name,
+        player2_id=match.player2_id,
+        player2_name=match.player2_name,
+        starts_at=aware(match.starts_at),
+        closed=aware(match.starts_at) <= now,
+    )
+
+
+def stream_closed(row: StreamMatch, now: datetime) -> bool:
+    """Whether a stream's match has started, as far as its channel's posts tell (see the module)."""
+    if row.live_at or row.finished_at or row.winner_name:
+        return True
+    if row.starts_at:
+        return aware(row.starts_at) <= now
+    return now - aware(row.announced_at) >= STREAM_WINDOW
+
+
+def on_stream(row: StreamMatch, known: dict[str, str], now: datetime) -> Fixture:
+    """known: {normalized nickname: player id} (player_names.known_players); a team or a player the site doesn't
+    know has no id, so no Elo and no bets."""
+    return Fixture(
+        key=row.id,
+        scheduled_id=None,
+        stream_id=row.id,
+        tournament_title=row.tournament_title,
+        player1_id=known.get(normalize(row.player1_name)),
+        player1_name=row.player1_name,
+        player2_id=known.get(normalize(row.player2_name)),
+        player2_name=row.player2_name,
+        starts_at=aware(row.starts_at or row.live_at or row.announced_at),
+        closed=stream_closed(row, now),
+    )
 
 
 def may_bet(user: User) -> bool:
@@ -174,9 +239,63 @@ def market_of(session: Session, scheduled_id: int) -> BetMarket | None:
     return session.exec(select(BetMarket).where(BetMarket.scheduled_match_id == scheduled_id)).first()
 
 
-def _new_market(match: ScheduledMatch, start_p1: float) -> BetMarket:
+def market_for(session: Session, match: Fixture) -> BetMarket | None:
+    if match.scheduled_id is not None:
+        return market_of(session, match.scheduled_id)
+    return session.exec(select(BetMarket).where(BetMarket.stream_match_id == match.stream_id)).first()
+
+
+def markets_for(session: Session, matches: list[Fixture]) -> dict[str, BetMarket]:
+    """{fixture key: its market} for those that have one."""
+    out: dict[str, BetMarket] = {}
+    scheduled = [m.scheduled_id for m in matches if m.scheduled_id is not None]
+    streamed = [m.stream_id for m in matches if m.stream_id is not None]
+    if scheduled:
+        for market in session.exec(select(BetMarket).where(BetMarket.scheduled_match_id.in_(scheduled))):
+            out[str(market.scheduled_match_id)] = market
+    if streamed:
+        for market in session.exec(select(BetMarket).where(BetMarket.stream_match_id.in_(streamed))):
+            out[market.stream_match_id] = market
+    return out
+
+
+@dataclass(frozen=True)
+class Quote:
+    """What everyone sees of a match's bets."""
+
+    # open: bets are taken; no_elo: never were; started: waits for its result; settled; void: bets returned
+    state: str
+    odds: tuple[float, float] | tuple[None, None]  # None when no bets are taken on the match
+    stakes: tuple[int, int]  # points bet on each player by everyone
+    winner: int | None
+
+
+def quote(match: Fixture, market: BetMarket | None, elo: dict[str, float]) -> Quote:
+    e1, e2 = elo.get(match.player1_id or ""), elo.get(match.player2_id or "")
+    start_p1 = market.start_p1 if market else start_probability(e1, e2) if e1 and e2 else None
+    if market and market.status != "open":
+        state = market.status
+    elif match.closed:
+        state = "started"
+    elif market is None and start_p1 is None:
+        state = "no_elo"
+    else:
+        state = "open"
+    stakes = (market.stake1, market.stake2) if market else (0, 0)
+    # A match no bet was taken on has no odds to show, whatever became of it
+    priced = start_p1 is not None and (state == "open" or stakes != (0, 0))
+    return Quote(
+        state=state,
+        odds=odds(start_p1, *stakes) if priced else (None, None),
+        stakes=stakes,
+        winner=market.winner if market else None,
+    )
+
+
+def _new_market(match: Fixture, start_p1: float) -> BetMarket:
     return BetMarket(
-        scheduled_match_id=match.id,
+        scheduled_match_id=match.scheduled_id,
+        stream_match_id=match.stream_id,
         month=month_of(match.starts_at),
         tournament_title=match.tournament_title,
         player1_id=match.player1_id,
@@ -191,7 +310,7 @@ def _new_market(match: ScheduledMatch, start_p1: float) -> BetMarket:
 def place(
     session: Session,
     user: User,
-    match: ScheduledMatch,
+    match: ScheduledMatch | Fixture,
     side: int,
     amount: int,
     elo: dict[str, float],
@@ -202,10 +321,12 @@ def place(
     member was shown; when the odds have dropped below it since, the bet isn't taken. Commits."""
     if not old_enough(user, now):
         raise BetError(403, "Your Discord account must be at least six months old to bet.")
-    market = market_of(session, match.id)
+    if isinstance(match, ScheduledMatch):
+        match = announced(match, now)
+    market = market_for(session, match)
     if market and market.status != "open":
         raise BetError(409, "Bets on this match are closed.")
-    if aware(match.starts_at) <= now:
+    if match.closed:
         raise BetError(409, "Bets on this match are closed.")
     if month_of(match.starts_at) != month_of(now):
         raise BetError(409, "Bets open in the month the match is played.")
@@ -251,14 +372,16 @@ def place(
     return bet
 
 
-def settle(session: Session, match: ScheduledMatch, winner: int | None, by: User, now: datetime) -> BetMarket:
+def settle(session: Session, match: ScheduledMatch | Fixture, winner: int | None, by: User, now: datetime) -> BetMarket:
     """Sets the match's result: the winner (0 or 1) is paid at each bet's odds, None returns every bet. Final.
     Commits."""
+    if isinstance(match, ScheduledMatch):
+        match = announced(match, now)
     close_past_months(session, now)
-    market = market_of(session, match.id)
+    market = market_for(session, match)
     if market and market.status != "open":
         raise BetError(409, "This match is already settled.")
-    if winner is not None and aware(match.starts_at) > now:
+    if winner is not None and not match.closed:
         raise BetError(409, "The match hasn't started yet.")
     if not market:
         market = _new_market(match, 0.5)

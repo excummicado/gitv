@@ -698,12 +698,13 @@ class BetBalance(SQLModel, table=True):
 
 
 class BetMarket(SQLModel, table=True):
-    """Bets on who wins one announced match (ScheduledMatch), made at the first bet or when it is settled. It keeps
-    the match's names itself, so the history survives the announcement being removed (its id may be given to
-    another one then, hence the own id here)."""
+    """Bets on who wins one match of the day: an announced one (ScheduledMatch) or a stream's (StreamMatch). Made at
+    the first bet or when it is settled. It keeps the match's names itself, so the history survives the announcement
+    being removed (its id may be given to another one then, hence the own id here)."""
 
     id: int | None = Field(default=None, primary_key=True)
     scheduled_match_id: int | None = Field(default=None, index=True)  # None once the announcement is removed
+    stream_match_id: str | None = Field(default=None, index=True)  # a stream's match instead of an announced one
     month: str = Field(index=True)  # of the match's start; bets are taken only in that month
     tournament_title: str
     player1_id: str | None = None

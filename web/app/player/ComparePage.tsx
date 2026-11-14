@@ -199,6 +199,51 @@ function HeadToHead({ data, a, b, names }: { data: Comparison["head_to_head"]; a
   );
 }
 
+// Both players' statistics side by side, then their meetings: the comparison page's body, and a match room's.
+export function ComparisonBody({ data, a, b, names }: { data: Comparison; a: string; b: string; names: [string, string] }) {
+  const l = useLang();
+  const { t } = l;
+  const [pa, pb] = data.players;
+  return (
+    <>
+    {pa && pb && (
+      <>
+        <Box title={t("Form · last 10 games", "Форма · последние 10 игр")}>
+          <div className="cmp-row cmp-form-row"><Form side={pa} /><span /><Form side={pb} /></div>
+        </Box>
+        {METRICS.map((group) => (
+          <Box title={t(...group.section)} key={group.section[0]}>
+            {group.rows.map((m) => {
+              const a = m.get(pa), b = m.get(pb);
+              return <Row key={m.label[0]} label={t(...m.label)} a={a} b={b} better={m.better}
+                showA={m.show ? m.show(a, pa) : a ?? "—"} showB={m.show ? m.show(b, pb) : b ?? "—"} />;
+            })}
+          </Box>
+        ))}
+        <Box title={t("Characters", "Персонажи")}>
+          {([
+            [t("Most picked", "Чаще всего пикает"), pa.most_picked, pb.most_picked],
+            [t("Most banned by opponents", "Чаще всего банят соперники"), pa.most_banned_against, pb.most_banned_against],
+          ] as const).map(([label, x, y]) => (
+            <div className="cmp-row" key={label}>
+              <span className="cmp-value">{x ? `${l.name(x.character)} · ${x.games}` : "—"}</span>
+              <div className="cmp-mid"><span className="cmp-label">{label}</span></div>
+              <span className="cmp-value right">{y ? `${l.name(y.character)} · ${y.games}` : "—"}</span>
+            </div>
+          ))}
+          <div className="cmp-row">
+            <span className="cmp-value">{pa.highest_winrate_character ? `${l.name(pa.highest_winrate_character.character)} · ${pct(pa.highest_winrate_character.winrate)}` : "—"}</span>
+            <div className="cmp-mid"><span className="cmp-label">{t("Best winrate character", "Лучший винрейт на персонаже")}</span></div>
+            <span className="cmp-value right">{pb.highest_winrate_character ? `${l.name(pb.highest_winrate_character.character)} · ${pct(pb.highest_winrate_character.winrate)}` : "—"}</span>
+          </div>
+        </Box>
+      </>
+    )}
+      <HeadToHead data={data.head_to_head} a={a} b={b} names={names} />
+    </>
+  );
+}
+
 export function ComparePage({ playerId, otherId }: { playerId: string; otherId?: string }) {
   const [params, setParams] = useSearchParams();
   const major = params.get("major") === "1";
@@ -259,40 +304,7 @@ export function ComparePage({ playerId, otherId }: { playerId: string; otherId?:
                 {(!pa || !pb) && <p className="player-box player-message">
                   {t(`No games in major tournaments: ${[!pa && names[0], !pb && names[1]].filter(Boolean).join(", ")}.`,
                      `Нет игр в мейджорах: ${[!pa && names[0], !pb && names[1]].filter(Boolean).join(", ")}.`)}</p>}
-                {pa && pb && (
-                  <>
-                    <Box title={t("Form · last 10 games", "Форма · последние 10 игр")}>
-                      <div className="cmp-row cmp-form-row"><Form side={pa} /><span /><Form side={pb} /></div>
-                    </Box>
-                    {METRICS.map((group) => (
-                      <Box title={t(...group.section)} key={group.section[0]}>
-                        {group.rows.map((m) => {
-                          const a = m.get(pa), b = m.get(pb);
-                          return <Row key={m.label[0]} label={t(...m.label)} a={a} b={b} better={m.better}
-                            showA={m.show ? m.show(a, pa) : a ?? "—"} showB={m.show ? m.show(b, pb) : b ?? "—"} />;
-                        })}
-                      </Box>
-                    ))}
-                    <Box title={t("Characters", "Персонажи")}>
-                      {([
-                        [t("Most picked", "Чаще всего пикает"), pa.most_picked, pb.most_picked],
-                        [t("Most banned by opponents", "Чаще всего банят соперники"), pa.most_banned_against, pb.most_banned_against],
-                      ] as const).map(([label, x, y]) => (
-                        <div className="cmp-row" key={label}>
-                          <span className="cmp-value">{x ? `${l.name(x.character)} · ${x.games}` : "—"}</span>
-                          <div className="cmp-mid"><span className="cmp-label">{label}</span></div>
-                          <span className="cmp-value right">{y ? `${l.name(y.character)} · ${y.games}` : "—"}</span>
-                        </div>
-                      ))}
-                      <div className="cmp-row">
-                        <span className="cmp-value">{pa.highest_winrate_character ? `${l.name(pa.highest_winrate_character.character)} · ${pct(pa.highest_winrate_character.winrate)}` : "—"}</span>
-                        <div className="cmp-mid"><span className="cmp-label">{t("Best winrate character", "Лучший винрейт на персонаже")}</span></div>
-                        <span className="cmp-value right">{pb.highest_winrate_character ? `${l.name(pb.highest_winrate_character.character)} · ${pct(pb.highest_winrate_character.winrate)}` : "—"}</span>
-                      </div>
-                    </Box>
-                  </>
-                )}
-                <HeadToHead data={data.head_to_head} a={playerId} b={otherId} names={names} />
+                <ComparisonBody data={data} a={playerId} b={otherId} names={names} />
               </>}
           </div>
         </div>

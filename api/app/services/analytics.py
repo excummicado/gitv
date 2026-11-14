@@ -40,6 +40,7 @@ SECTIONS = [
     (re.compile(r"^/player/[^/]+/compare(/.*)?$"), "/player/:id/compare"),
     (re.compile(r"^/player/[^/]+$"), "/player/:id"),
     (re.compile(r"^/match/[^/]+$"), "/match/:id"),
+    (re.compile(r"^/room/[^/]+$"), "/room/:id"),
     (re.compile(r"^/tournament/[^/]+$"), "/tournament/:id"),
 ]
 
@@ -78,7 +79,7 @@ PAGES = frozenset(
 )
 _ID = r"[A-Za-z0-9_.-]{1,64}"
 PAGES_WITH_ID = re.compile(
-    rf"^/(?:player/{_ID}(?:/compare(?:/{_ID})?)?|match/{_ID}|tournament/{_ID}|abyss/{_ID}|articles/{_ID})$"
+    rf"^/(?:player/{_ID}(?:/compare(?:/{_ID})?)?|match/{_ID}|room/{_ID}|tournament/{_ID}|abyss/{_ID}|articles/{_ID})$"
 )
 
 
