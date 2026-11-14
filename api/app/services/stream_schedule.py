@@ -1,16 +1,24 @@
-"""A stream's schedule posted as a picture, read by a model with vision.
+"""A stream's schedule posted as a picture, read by OCR or, failing that, by a model with vision.
 
 Abyss Cup's channel posts "Расписание матчей" a few hours before the day's post, with the matches only in the picture:
-the day ("NOVEMBER 14"), the zone ("GMT+3") and a line per match ("king_baka  18:30  bestingo"). The picture goes to
-the Anthropic API (settings.anthropic_api_key, settings.schedule_model) once, and its answer is checked here before
-anything is stored: names and times of a fixed shape, the day close to the post's. What the picture says is data,
-never instructions: only those fields are taken from the answer. Without the key such posts are skipped.
+the day ("NOVEMBER 14"), the zone ("GMT+3") and a line per match ("king_baka  18:30  bestingo").
+Read first by Tesseract, free, when it's installed (apt install tesseract-ocr): the picture is made grey and twice the
+size, and its text is parsed (parse_ocr). Nicknames it reads a little wrong are put right by the ones the site knows
+(snap_names). A picture it makes nothing of goes to the Anthropic API when settings.anthropic_api_key is set
+(settings.schedule_model). Either answer is checked before anything is stored (parse_schedule): names and times of a
+fixed shape, the day close to the post's. What the picture says is data, never instructions: only those fields are
+taken. With neither reader such posts are skipped, and it's said in the log.
 """
 
 import base64
+import difflib
+import io
 import json
 import logging
+import os
 import re
+import shutil
+import subprocess
 import time
 from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta, timezone
@@ -21,6 +29,7 @@ from sqlmodel import Session, select
 
 from ..config import settings
 from ..models import StreamMatch
+from .player_names import display_names
 from .stream import API_RETRY, MOSCOW, Post, nick
 
 log = logging.getLogger(__name__)
@@ -36,6 +45,27 @@ MAX_MATCHES = 16
 # A schedule is for a day from yesterday (a post right after midnight) to this many days ahead
 DAYS_BEFORE, DAYS_AHEAD = 1, 14
 TIME = re.compile(r"(\d{1,2}):(\d{2})")
+# OCR's reading of a time or a line: "18:30" (or "18.30"), alone or between two nicknames on one line
+OCR_TIME = re.compile(r"(\d{1,2})[:.;](\d{2})")
+OCR_LINE = re.compile(r"(.+?)\s+(\d{1,2}[:.;]\d{2})\s+(.+)")
+ZONE = re.compile(r"(?i)(?:gmt|utc)\s*([+-]\s*\d{1,2})")
+MONTHS = [
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+]
+# Words on a schedule picture that aren't nicknames
+HEADINGS = ("schedule", "gmt", "utc", "расписание")
+OCR_TIMEOUT = 60
 PROMPT = (
     "This picture is a schedule of esports matches posted by a tournament's channel. Read it and answer with one JSON "
     'object and nothing else: {"month": <1-12 or null>, "day": <1-31 or null>, "utc_offset_hours": <the zone shown, '
@@ -101,6 +131,92 @@ def ask_model(image: bytes, media_type: str) -> dict:
     return data
 
 
+def month_of(text: str) -> int | None:
+    """The month a heading's letters make, though OCR garbled some ("NOWESMrB ER" is November); None when no month is
+    clearly the closest."""
+    letters = "".join(ch for ch in text.casefold() if ch.isalpha())
+    scores = sorted(
+        ((difflib.SequenceMatcher(None, letters, name).ratio(), i) for i, name in enumerate(MONTHS, start=1)),
+        reverse=True,
+    )
+    return scores[0][1] if scores and scores[0][0] >= 0.6 and scores[0][0] - scores[1][0] >= 0.1 else None
+
+
+def parse_ocr(text: str) -> dict:
+    """What OCR read of a schedule picture, in the shape ask_model answers with: the day above "SCHEDULE", the zone
+    ("GMT+3"), and the matches: a time with a nickname on each side, on one line or on the three lines around it."""
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    zone = ZONE.search(text)
+    data: dict = {"month": None, "day": None, "utc_offset_hours": int(zone[1].replace(" ", "")) if zone else None}
+    for i, line in enumerate(lines[:8]):
+        if re.fullmatch(r"\d{1,2}", line):
+            data["day"] = int(line)
+            data["month"] = month_of(" ".join(lines[:i]))
+            break
+
+    def name(line: str) -> bool:
+        return bool(line) and not OCR_TIME.fullmatch(line) and not line.casefold().startswith(HEADINGS)
+
+    matches = []
+    for i, line in enumerate(lines):
+        both = OCR_LINE.fullmatch(line)
+        if both:
+            a, moment, b = both[1], both[2], both[3]
+        elif OCR_TIME.fullmatch(line) and 0 < i < len(lines) - 1 and name(lines[i - 1]) and name(lines[i + 1]):
+            a, moment, b = lines[i - 1], line, lines[i + 1]
+        else:
+            continue
+        matches.append({"player1": a, "player2": b, "time": moment.replace(".", ":").replace(";", ":")})
+    data["matches"] = matches
+    return data
+
+
+def snap_names(data: dict, known: list[str]) -> dict:
+    """The matches' nicknames put right by the closest known ones (the site's players and the streams' earlier
+    matches), when one is near enough: OCR reads "DzeN" as "Dzen" or "king_baka" as "king baka" now and then."""
+    by_case = {k.casefold(): k for k in known}
+
+    def right(name: str) -> str:
+        if name.casefold() in by_case:
+            return by_case[name.casefold()]
+        close = difflib.get_close_matches(name.casefold(), list(by_case), n=1, cutoff=0.8)
+        return by_case[close[0]] if close else name
+
+    return {
+        **data,
+        "matches": [
+            {**m, "player1": right(m["player1"]), "player2": right(m["player2"])}
+            for m in data["matches"]
+            if isinstance(m, dict) and isinstance(m.get("player1"), str) and isinstance(m.get("player2"), str)
+        ],
+    }
+
+
+def ocr_text(image: bytes) -> str:
+    """The picture's text by Tesseract (one process, a few dozen MB, under a second): grey and twice the size, which
+    it reads the small nicknames on a schedule's dark rows from; sparse text, as the lines aren't a paragraph."""
+    from PIL import Image
+
+    picture = Image.open(io.BytesIO(image)).convert("L")
+    if picture.width <= 2000:
+        picture = picture.resize((picture.width * 2, picture.height * 2), Image.LANCZOS)
+    png = io.BytesIO()
+    picture.save(png, format="PNG")
+    done = subprocess.run(
+        ["tesseract", "stdin", "stdout", "--psm", "11", "-l", "eng"],
+        input=png.getvalue(),
+        capture_output=True,
+        timeout=OCR_TIMEOUT,
+        check=True,
+        env={**os.environ, "OMP_THREAD_LIMIT": "1"},
+    )
+    return done.stdout.decode("utf-8", "replace")
+
+
+def read_with_tesseract(image: bytes, media_type: str) -> dict:
+    return parse_ocr(ocr_text(image))
+
+
 def small_int(value: object, low: int, high: int) -> int | None:
     return value if isinstance(value, int) and not isinstance(value, bool) and low <= value <= high else None
 
@@ -112,15 +228,18 @@ def parse_schedule(data: dict, at: datetime) -> list[tuple[str, str, datetime]]:
     zone = timezone(timedelta(hours=offset)) if offset is not None else MOSCOW
     posted = at.astimezone(zone).date()
     month, day = small_int(data.get("month"), 1, 12), small_int(data.get("day"), 1, 31)
-    if month is None or day is None:
+    if day is None:
         when = posted
     else:
+        # The month, or the posted one and its neighbours when the picture's was unreadable
+        months = [month] if month is not None else [(posted.month + k - 1) % 12 + 1 for k in (-1, 0, 1)]
         days = []
         for year in (posted.year - 1, posted.year, posted.year + 1):
-            try:
-                days.append(date(year, month, day))
-            except ValueError:
-                continue
+            for m in months:
+                try:
+                    days.append(date(year, m, day))
+                except ValueError:
+                    continue
         if not days:
             return []
         when = min(days, key=lambda d: abs((d - posted).days))
@@ -140,6 +259,24 @@ def parse_schedule(data: dict, at: datetime) -> list[tuple[str, str, datetime]]:
     return out
 
 
+def known_names(session: Session) -> list[str]:
+    """The nicknames the site knows: its players' and those of the streams' matches so far."""
+    names = set(display_names(session).values())
+    for a, b in session.exec(select(StreamMatch.player1_name, StreamMatch.player2_name)):
+        names.update((a, b))
+    return sorted(n for n in names if n and n != "TBD")
+
+
+def readers() -> list[tuple[Callable[[bytes, str], dict], bool]]:
+    """The ways a picture can be read now, free first: (reader, whether its nicknames are put right by known ones)."""
+    out: list[tuple[Callable[[bytes, str], dict], bool]] = []
+    if shutil.which("tesseract"):
+        out.append((read_with_tesseract, True))
+    if settings.anthropic_api_key:
+        out.append((ask_model, False))
+    return out
+
+
 def read_schedule_images(
     session: Session,
     channel: str,
@@ -149,8 +286,9 @@ def read_schedule_images(
     recognize: Callable[[bytes, str], dict] | None = None,
 ) -> int:
     """Gives the schedule posts with a picture their matches (Post.slots): each read once (after a restart, only one
-    whose matches aren't stored yet), and after a failure the model is left alone for API_RETRY seconds. Returns how
-    many posts have matches."""
+    whose matches aren't stored yet) by the first reader that finds matches in it (see the module), and after every
+    reader failing they're left alone for API_RETRY seconds. recognize: one reader instead of those. Returns how many
+    posts have matches."""
     global _failed_at, _warned
     now = now or datetime.now(UTC)
     schedules = [p for p in posts if p.photo and SCHEDULE.search(p.text) and now - p.at < MAX_AGE]
@@ -162,19 +300,39 @@ def read_schedule_images(
         for p in pending
         if not session.exec(select(StreamMatch.id).where(StreamMatch.id.startswith(f"{channel}-{p.id}-"))).first()
     ]
-    if recognize is None and not settings.anthropic_api_key:
+    available = [(recognize, False)] if recognize else readers()
+    if not available:
         if pending and not _warned:
-            log.warning("schedule pictures of %s aren't read: ANTHROPIC_API_KEY isn't set", channel)
+            log.warning("schedule pictures of %s aren't read: no tesseract installed and no ANTHROPIC_API_KEY", channel)
             _warned = True
         pending = []
     clock = time.time()
+    names: list[str] | None = None
     for post in pending if clock - _failed_at > API_RETRY else []:
+        slots: list[tuple[str, str, datetime]] = []
+        failed = []
         try:
             image, media_type = fetch(post.photo or "")
-            slots = parse_schedule((recognize or ask_model)(image, media_type), post.at)
-        except Exception as e:  # noqa: BLE001 - a picture, the model or the network failing mustn't stop the other posts
+        except Exception as e:  # noqa: BLE001 - a picture that can't be fetched mustn't stop the other posts
+            failed.append(e)
+            available_here = []
+        else:
+            available_here = available
+        for read, snap in available_here:
+            try:
+                data = read(image, media_type)
+                if snap:
+                    names = known_names(session) if names is None else names
+                    data = snap_names(data, names)
+                slots = parse_schedule(data, post.at)
+            except Exception as e:  # noqa: BLE001 - a reader failing (no Pillow, a timeout, the network) isn't the end
+                failed.append(e)
+                continue
+            if slots:
+                break
+        if failed and not slots and len(failed) >= max(1, len(available_here)):
             _failed_at = clock
-            log.warning("the schedule picture of post %s of %s wasn't read: %s", post.id, channel, e)
+            log.warning("the schedule picture of post %s of %s wasn't read: %s", post.id, channel, failed[-1])
             break
         _read[(channel, post.id)] = post.slots = slots
         log.info("schedule picture of post %s of %s: %d matches", post.id, channel, len(slots))

@@ -48,8 +48,9 @@ class Settings(BaseSettings):
     newgen_twitch_channel: str = "abyss_new_gen"
     twitch_client_id: str | None = None
     twitch_client_secret: str | None = None
-    # A stream's schedule posted as a picture (a channel's "Расписание матчей") is read by a model with vision through
-    # the Anthropic API (services/stream_schedule.py); without the key such posts are skipped.
+    # A stream's schedule posted as a picture (a channel's "Расписание матчей") is read by Tesseract when it's installed
+    # (free), else, or when it makes nothing of it, by a model with vision through the Anthropic API when this key is
+    # set (services/stream_schedule.py); with neither, such posts are skipped.
     anthropic_api_key: str | None = None
     schedule_model: str = "claude-haiku-5-5"
 

@@ -12,3 +12,5 @@ nh3==0.3.7
 alembic==1.20.1
 # Reads the streams' posts Telegram's public page doesn't show (services/stream.py read_unshown)
 telethon==1.45.0
+# Makes a schedule picture bigger for Tesseract to read (services/stream_schedule.py ocr_text)
+pillow==13.0.0

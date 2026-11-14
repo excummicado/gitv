@@ -584,8 +584,9 @@ def test_a_schedule_picture_is_read_only_when_it_can_be_and_its_answer_checks_ou
     monkeypatch.setattr(pictures, "_warned", False)
     now = datetime.now(UTC).replace(microsecond=0)
     posts = lambda: stream.parse_page(picture_post(7, now, "Расписание матчей"))  # noqa: E731
-    # No key: skipped, nothing asked
+    # Neither Tesseract nor a key: skipped, nothing asked
     monkeypatch.setattr(settings, "anthropic_api_key", None)
+    monkeypatch.setattr(pictures.shutil, "which", lambda name: None)
     assert pictures.read_schedule_images(session, "abysscup", posts(), now, lambda url: (b"", "image/png")) == 0
     # A failing model: the post waits, and the others aren't stopped
     calls = []
@@ -614,3 +615,97 @@ def test_a_schedule_picture_is_read_only_when_it_can_be_and_its_answer_checks_ou
         pictures.fetch_image("https://example.com/x.jpg")
     with pytest.raises(ValueError):
         pictures.fetch_image("http://cdn4.telesco.pe/x.jpg")
+
+
+OCR_TEXT = "N OW ESMrB ER\n\n14\n\nSCHEDULE\n\nGMT+3\n\nking_baka\n\n18:30\n\nbestingo\n\nDzeN\n\n20.30\n\nRer\n"
+
+
+def test_ocr_text_of_a_schedule_picture_is_read_and_its_nicknames_put_right():
+    from app.services import stream_schedule as pictures
+
+    data = pictures.parse_ocr(OCR_TEXT)
+    assert (data["month"], data["day"], data["utc_offset_hours"]) == (11, 14, 3)  # the garbled month still reads
+    assert [(m["player1"], m["player2"], m["time"]) for m in data["matches"]] == [
+        ("king_baka", "bestingo", "18:30"),
+        ("DzeN", "Rer", "20:30"),
+    ]
+    # A layout with a match on one line, and a heading that isn't a month
+    flat = pictures.parse_ocr("SCHEDULE\n14\nking_baka 18:30 bestingo\nGMT+3")
+    assert flat["month"] is None and flat["matches"] == [
+        {"player1": "king_baka", "player2": "bestingo", "time": "18:30"}
+    ]
+    # No month: the posted one (or its neighbour) with that day
+    at = datetime(2026, 11, 14, 14, 3, tzinfo=UTC)
+    assert [s[2] for s in pictures.parse_schedule(flat, at)] == [datetime(2026, 11, 14, 15, 30, tzinfo=UTC)]
+    # Nicknames read a little wrong become the known ones; unknown ones stay as read
+    snapped = pictures.snap_names(
+        {"matches": [{"player1": "Dzen", "player2": "unknownguy", "time": "20:30"}, "junk"]}, ["DzeN", "Rer"]
+    )
+    assert [(m["player1"], m["player2"]) for m in snapped["matches"]] == [("DzeN", "unknownguy")]
+    # Not a schedule: nothing
+    assert pictures.parse_ocr("Hello\nworld")["matches"] == []
+
+
+def test_the_free_reader_goes_first_and_the_model_takes_what_it_cant_read(session, monkeypatch):
+    from app.models import StreamMatch as Row
+    from app.services import stream_schedule as pictures
+
+    monkeypatch.setattr(pictures, "_read", {})
+    monkeypatch.setattr(pictures, "_failed_at", 0.0)
+    session.add(
+        Row(
+            id="abysscup-1-dzen-rer",
+            channel="abysscup",
+            tournament_title="Cup",
+            player1_name="DzeN",
+            player2_name="Rer",
+            announced_at=NOW_UTC - timedelta(days=5),
+            post_url="x",
+        )
+    )
+    session.commit()
+    now = NOW_UTC
+    local = now.astimezone(stream.MOSCOW)
+    text = OCR_TEXT.replace("14", str(local.day)).replace("N OW ESMrB ER", local.strftime("%B").upper())
+    calls = []
+
+    def tesseract(image, kind):
+        calls.append("tesseract")
+        return pictures.parse_ocr(text.replace("DzeN", "Dzen"))
+
+    def blind(image, kind):
+        calls.append("blind")
+        return pictures.parse_ocr("nothing here")
+
+    def model(image, kind):
+        calls.append("model")
+        return {"day": local.day, "month": local.month, "matches": [{"player1": "A", "player2": "B", "time": "19:00"}]}
+
+    fetch = lambda url: (b"x", "image/png")  # noqa: E731
+    posts = lambda i: stream.parse_page(picture_post(i, now, "Расписание матчей"))  # noqa: E731
+    # The free reader reads it: the model isn't asked, and the nickname is the known one
+    monkeypatch.setattr(pictures, "readers", lambda: [(tesseract, True), (model, False)])
+    got = posts(7)
+    assert pictures.read_schedule_images(session, "abysscup", got, now, fetch) == 1
+    assert calls == ["tesseract"] and [(s[0], s[1]) for s in got[0].slots] == [
+        ("king_baka", "bestingo"),
+        ("DzeN", "Rer"),
+    ]
+    # It finds nothing: the model does
+    calls.clear()
+    monkeypatch.setattr(pictures, "readers", lambda: [(blind, True), (model, False)])
+    got = posts(8)
+    assert pictures.read_schedule_images(session, "abysscup", got, now, fetch) == 1
+    assert calls == ["blind", "model"] and [(s[0], s[1]) for s in got[0].slots] == [("A", "B")]
+    # It breaks (no Pillow, a timeout): the model does too
+    calls.clear()
+
+    def broken(image, kind):
+        raise RuntimeError("no tesseract")
+
+    monkeypatch.setattr(pictures, "readers", lambda: [(broken, True), (model, False)])
+    got = posts(9)
+    assert pictures.read_schedule_images(session, "abysscup", got, now, fetch) == 1 and calls == ["model"]
+
+
+NOW_UTC = datetime.now(UTC).replace(microsecond=0)
