@@ -48,7 +48,7 @@ function Bets({ room, onBet }: { room: Room; onBet: () => void }) {
   const [asked, setAsked] = useState(false);
 
   useEffect(() => {
-    if (!allowed) return;
+    if (!allowed || room.bets === "none") return;
     let stale = false;
     // The visit first: it starts the month's points, which a bet needs
     visit().then((w) => { if (!stale) setWallet(w); return fetchMarket(room.id); }).then((m) => { if (!stale) setMarket(m); }).catch(() => {});
@@ -66,9 +66,10 @@ function Bets({ room, onBet }: { room: Room; onBet: () => void }) {
     <section className="player-box">
       <h2 className="player-box-title match-game-title">
         <span>{t("Bets", "Ставки")}</span>
-        <span className={`bets-state bets-state--${room.bets}`}>{t(...STATES[room.bets])}</span>
+        {room.bets === "none" ? <span className="bets-state">{t("No bets on this match", "Ставок на этот матч нет")}</span>
+          : <span className={`bets-state bets-state--${room.bets}`}>{t(...STATES[room.bets])}</span>}
       </h2>
-      {allowed && wallet && market ? <MarketCard market={market} wallet={wallet} onChange={changed} room />
+      {allowed && wallet && market && room.bets !== "none" ? <MarketCard market={market} wallet={wallet} onChange={changed} room />
         : (
           <div className="bets-match">
             <div className="bets-sides">
@@ -98,7 +99,11 @@ function Bets({ room, onBet }: { room: Room; onBet: () => void }) {
             )}
           </div>
         )}
-      <p className="room-note">{t("Bets are for points, not money. The odds start from the players' Elo and move with the bets.", "Ставки на баллы, не на деньги. Коэффициент стартует от Elo игроков и меняется от ставок.")}</p>
+      <p className="room-note">
+        {room.bets === "none"
+          ? t("Bets aren't taken on matches of tournaments: the odds are shown from the players' Elo only.", "На матчи турниров ставки не принимаются: коэффициент показан только по Elo игроков.")
+          : t("Bets are for points, not money. The odds start from the players' Elo and move with the bets.", "Ставки на баллы, не на деньги. Коэффициент стартует от Elo игроков и меняется от ставок.")}
+      </p>
     </section>
   );
 }
@@ -203,9 +208,13 @@ export function RoomPage({ roomId }: { roomId: string }) {
                   <p className="room-meta">
                     {room.tournament_id ? <Link className="player-match-link" to={`/tournament/${room.tournament_id}`}>{room.tournament_title}</Link> : <span>{room.tournament_title}</span>}
                     {room.stage && <span>{stageLabel(room.stage, t)}</span>}
+                    {room.kind === "live" && <span>{room.live ? t("being played now", "идёт сейчас") : t("no time set: it starts when the players are ready", "время не назначено: начнётся, когда игроки будут готовы")}</span>}
                     {room.kind === "stream" && !room.starts_at && !room.live_at && <span>{t("on stream, the time is the day's announcement", "на стриме, время — анонса дня")}</span>}
                     {room.casters && <span>{t("casters", "ведут")} {room.casters}</span>}
                     {room.stream_url && <a className="player-match-link" href={room.stream_url} target="_blank" rel="noreferrer">{room.stream_name ?? "Twitch"} · Twitch ↗</a>}
+                    {room.games.map((g) => g.url
+                      ? <a key={g.game_no} className="player-match-link" href={g.url} target="_blank" rel="noreferrer">{t("Game", "Игра")} {g.game_no} ↗</a>
+                      : <span key={g.game_no}>{t("Game", "Игра")} {g.game_no}</span>)}
                     {room.post_url && <a className="player-match-link" href={room.post_url} target="_blank" rel="noreferrer">{t("Announcement", "Анонс")} ↗</a>}
                   </p>
                 </section>

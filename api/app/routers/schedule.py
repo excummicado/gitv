@@ -3,7 +3,9 @@ days ahead if they like; the home page shows each day's, with the streams' own (
 read; editors add; an organizer removes their own entries, an admin any.
 
 Each match has a room (GET /schedule/rooms/{key}): who plays, when, the odds of the bets on it (services/bets.py;
-everyone sees them, bet testers bet) and whose roster to show.
+everyone sees them, bet testers bet) and whose roster to show. So has every unfinished match of a running tournament
+(LiveMatch; key "live-<its id>"), without bets: its odds are only the Elo's, and no bet can be placed on it, as the
+bets' own addresses don't know such a key.
 """
 
 import json
@@ -16,10 +18,12 @@ from sqlmodel import select
 
 from ..database import RowId, SessionDep
 from ..dependencies import get_current_player_editor
-from ..models import PlayerRoster, ScheduledMatch, StreamMatch, StreamStatus, StreamTeam, Tournament, User
+from ..models import LiveMatch, PlayerRoster, ScheduledMatch, StreamMatch, StreamStatus, StreamTeam, Tournament, User
 from ..rate_limit import rate_limit
+from ..schemas.matches import LiveGame
 from ..services import bets
 from ..services.challonge import normalize
+from ..services.draft_links import draft_url
 from ..services.organizers import own_organizer_filter
 from ..services.player_names import display_names, merges
 from ..services.stats import elo_ratings, snapshot
@@ -69,7 +73,8 @@ def elo_of(session: SessionDep):
 
 
 # How the bets on a match stand (bets.Quote.state), and the odds on its two players (None: no bets are taken on it)
-BetState = Literal["open", "no_elo", "started", "settled", "void"]
+# ("none": no bets are taken on this kind of match, see LIVE_PREFIX)
+BetState = Literal["open", "no_elo", "started", "settled", "void", "none"]
 Odds = tuple[float, float] | None
 
 
@@ -316,7 +321,7 @@ class RoomPlayer(PlayerOut):
 
 class RoomOut(BaseModel):
     id: str
-    kind: Literal["scheduled", "stream"]
+    kind: Literal["scheduled", "stream", "live"]
     tournament_id: str | None
     tournament_title: str
     stage: str | None  # a stream match's, in its bracket (stream.bracket_stage)
@@ -332,6 +337,7 @@ class RoomOut(BaseModel):
     post_url: str | None
     players: tuple[RoomPlayer, RoomPlayer]
     bets: BetState
+    games: list[LiveGame] = []  # a live match's games, with the links to watch their drafts
 
 
 def roster_tournaments(
@@ -356,11 +362,80 @@ def roster_tournaments(
     return {pid: TournamentOption(id=tid, title=titles.get(tid, "")) for pid, tid in picked.items()}
 
 
+# A room's key for an unfinished match of a running tournament, which takes no bets
+LIVE_PREFIX = "live-"
+
+
+def live_room(session: SessionDep, row: LiveMatch) -> RoomOut:
+    """The room of an unfinished match of a running tournament: no time (the tournament site gives none), the odds
+    Elo alone gives, and the games with the links to their drafts."""
+    merged, names, elo = merges(session), display_names(session), elo_of(session)
+    ids = [merged.get(uid, uid) if uid else None for uid in (row.player1_id, row.player2_id)]
+    fixture = bets.Fixture(
+        key=LIVE_PREFIX + row.id,
+        scheduled_id=None,
+        stream_id=None,
+        tournament_title=row.tournament_title,
+        player1_id=ids[0],
+        player1_name=row.player1_name,
+        player2_id=ids[1],
+        player2_name=row.player2_name,
+        starts_at=aware(row.created_at),
+        closed=False,
+    )
+    quote = bets.quote(fixture, None, bet_routes.player_elo(session))
+    rosters = roster_tournaments(session, ids, row.tournament_id)
+    drafts = json.loads(row.drafts)
+
+    def player(i: int, pid: str | None, name: str) -> RoomPlayer:
+        return RoomPlayer(
+            id=pid,
+            name=names.get(pid, name) if pid else name,
+            odds=quote.odds[i],
+            stake=0,
+            roster=rosters.get(pid) if pid else None,
+            **elo(pid),
+        )
+
+    return RoomOut(
+        id=fixture.key,
+        kind="live",
+        tournament_id=row.tournament_id,
+        tournament_title=row.tournament_title,
+        stage=None,
+        starts_at=None,
+        announced_at=None,
+        live_at=None,
+        finished_at=None,
+        live=any(d["status"] not in (None, "NOT_STARTED", "FINISHED") for d in drafts),
+        winner=None,
+        casters=None,
+        stream_name=None,
+        stream_url=None,
+        post_url=None,
+        players=(player(0, ids[0], row.player1_name), player(1, ids[1], row.player2_name)),
+        bets="none",
+        games=[
+            LiveGame(
+                game_no=i,
+                status=d["status"] or "NOT_STARTED",
+                url=d["key"] and draft_url(d["id"], d["key"]),
+            )
+            for i, d in enumerate(drafts, start=1)
+        ],
+    )
+
+
 @router.get("/rooms/{match_key}", response_model=RoomOut)
 def read_room(match_key: bet_routes.MatchKey, session: SessionDep):
     """A match of the day's room: who plays and when, the odds, where it's shown and whose rosters to show. The
     players' statistics against each other are GET /players/{a}/compare/{b}."""
     now = datetime.now(UTC)
+    if match_key.startswith(LIVE_PREFIX):
+        live = session.get(LiveMatch, match_key.removeprefix(LIVE_PREFIX))
+        if live is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such scheduled match.")
+        return live_room(session, live)
     match = bet_routes.find_match(session, match_key, now)
     if match is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such scheduled match.")

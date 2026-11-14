@@ -4,6 +4,7 @@ import { Fragment } from "react";
 import { Link } from "react-router";
 import { useLang } from "../i18n";
 import type { LiveGame, LiveMatch } from "./api";
+import { liveRoomPath } from "../schedule/api";
 import "./live-matches.css";
 import { Nick } from "../components/PlayerNick";
 
@@ -28,6 +29,7 @@ export function LiveMatchRow({ match, onlyLive = false, showTournament = false, 
         ))}
       </span>
       <span className="live-match-games">
+        <Link className="live-game is-room" to={liveRoomPath(match.id)} title={t("The match's room: players, rosters and statistics", "Комната матча: игроки, ростеры и статистика")}>{t("Match room", "Комната матча")}</Link>
         {games.map((g) => {
           const state = gameState(g);
           const label = <>{state === "live" && <i className="live-dot" />}{t("Game", "Игра")} {g.game_no}</>;

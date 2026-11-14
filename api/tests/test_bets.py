@@ -7,7 +7,18 @@ from sqlmodel import select
 from app.database import get_session
 from app.dependencies import get_current_active_user
 from app.main import app
-from app.models import Bet, BetBalance, BetMarket, PlayerRoster, Role, ScheduledMatch, StreamMatch, Tournament, User
+from app.models import (
+    Bet,
+    BetBalance,
+    BetMarket,
+    LiveMatch,
+    PlayerRoster,
+    Role,
+    ScheduledMatch,
+    StreamMatch,
+    Tournament,
+    User,
+)
 from app.rate_limit import limiter
 from app.routers import bets as router
 from app.services import bets
@@ -346,3 +357,38 @@ def test_bets_on_a_streams_match_close_when_it_goes_on_air(client, session, monk
     assert client.get(f"/api/v1/bets/markets/{teams.id}").json()["state"] == "no_elo"
     old = on_stream(session, "hoth-9-a-b", announced_at=datetime.now(UTC) - bets.STREAM_WINDOW)
     assert client.get(f"/api/v1/bets/markets/{old.id}").json()["state"] == "started"
+
+
+def test_an_unfinished_tournament_match_has_a_room_but_takes_no_bets(client, session):
+    import json
+
+    session.add(
+        LiveMatch(
+            id="abc123",
+            tournament_id="t1",
+            tournament_title="Cup",
+            created_at=NOW,
+            player1_id="A",
+            player1_name="A",
+            player2_id="B",
+            player2_name="B",
+            drafts=json.dumps([{"id": "d1", "status": "NOT_STARTED", "key": None}]),
+            updated_at=NOW,
+        )
+    )
+    session.commit()
+    room = client.get("/api/v1/schedule/rooms/live-abc123").json()
+    assert room["kind"] == "live" and room["bets"] == "none" and room["starts_at"] is None and not room["live"]
+    assert [g["status"] for g in room["games"]] == ["NOT_STARTED"]
+    assert [p["id"] for p in room["players"]] == ["A", "B"] and all(p["stake"] == 0 for p in room["players"])
+    assert client.get("/api/v1/schedule/rooms/live-nothing").status_code == 404
+    # Not even a tester can bet on it, or set its result
+    boss = member(session)
+    act_as(boss)
+    for path, call, body in (
+        ("/api/v1/bets/markets/live-abc123/bets", client.post, {"side": 0, "amount": 50}),
+        ("/api/v1/bets/markets/live-abc123/result", client.put, {"result": "void"}),
+    ):
+        assert call(path, json=body).status_code == 404
+    assert client.get("/api/v1/bets/markets").json() == []
+    assert session.exec(select(BetMarket)).all() == []
