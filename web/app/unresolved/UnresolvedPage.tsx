@@ -14,6 +14,8 @@ const REASONS: Record<UnresolvedReason, [string, string]> = {
   both_technical: ["Both players took a technical defeat", "Тех. поражение у обоих"],
   no_time: ["A time wasn't entered", "Не внесено время"],
   unclear: ["Technical defeat, loser unclear", "Тех. поражение, проигравший неясен"],
+  between_games: ["A game is played, the next isn't started", "Игра сыграна, следующая не начата"],
+  stalled: ["A game under way has stopped", "Идущая игра остановилась"],
 };
 
 // Matches of the organizer's tournaments (all of them for event organizers and admins) that have no result: the
@@ -35,7 +37,7 @@ export function UnresolvedPage() {
       <h2 className="player-box-title match-game-title"><span>{title}</span><span className="match-game-meta">{list.length}</span></h2>
       <p className="player-label unresolved-hint">{hint}</p>
       {list.length === 0 ? <p className="match-empty">{t("Nothing here.", "Пусто.")}</p> : list.map((m) => (
-        <Link className="unresolved-row" to={`/match/${m.id}`} key={m.id}>
+        <Link className="unresolved-row" to={m.id.startsWith("live-") ? `/room/${m.id}` : `/match/${m.id}`} key={m.id}>
           <span className="gitv-date">{date(m.created_at)}</span>
           <span className="player-ellipsis">{m.tournament}</span>
           <span className="player-ellipsis">{m.sides.join(" vs ")}</span>
@@ -60,8 +62,8 @@ export function UnresolvedPage() {
                 {section(t("Need a winner set by hand", "Нужно задать победителя вручную"),
                   t("Open the match and set its winner.", "Откройте матч и задайте победителя."), rows.filter((m) => !m.waiting))}
                 {section(t("Still waiting", "Ещё ждут"),
-                  t("These may get their result by themselves once the bracket is filled in or the tournament ends.",
-                    "Эти могут разрешиться сами, когда заполнят сетку или турнир закончится."), rows.filter((m) => m.waiting))}
+                  t("These may get their result by themselves once the bracket is filled in, the tournament ends or the rest of their games are played; a match not imported yet opens its room.",
+                    "Эти могут разрешиться сами, когда заполнят сетку, турнир закончится или доиграют остальные игры; ещё не импортированный матч открывает свою комнату."), rows.filter((m) => m.waiting))}
               </>}
           </div>
         </div>

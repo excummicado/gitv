@@ -4,7 +4,9 @@ import { authRequest } from "../auth/client";
 
 // bracket: a running tournament waits for its Challonge bracket; tournament_end: one without a bracket holds a
 // technical defeat until it ends; both_technical, no_time, unclear: only a winner set by hand settles it.
-export type UnresolvedReason = "bracket" | "tournament_end" | "both_technical" | "no_time" | "unclear";
+// An unfinished match (id "live-<id>", opens its room): between_games: a game played, the next not started; stalled: a
+// game under way stopped moving. They wait for the rest of their games.
+export type UnresolvedReason = "bracket" | "tournament_end" | "both_technical" | "no_time" | "unclear" | "between_games" | "stalled";
 export type UnresolvedMatch = {
   id: string; tournament_id: string; tournament: string; created_at: string; sides: string[];
   reason: UnresolvedReason; waiting: boolean;
