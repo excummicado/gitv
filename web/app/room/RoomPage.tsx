@@ -48,7 +48,7 @@ function Bets({ room, onBet }: { room: Room; onBet: () => void }) {
   const [asked, setAsked] = useState(false);
 
   useEffect(() => {
-    if (!allowed || room.bets === "none") return;
+    if (!allowed) return;
     let stale = false;
     // The visit first: it starts the month's points, which a bet needs
     visit().then((w) => { if (!stale) setWallet(w); return fetchMarket(room.id); }).then((m) => { if (!stale) setMarket(m); }).catch(() => {});
@@ -66,10 +66,9 @@ function Bets({ room, onBet }: { room: Room; onBet: () => void }) {
     <section className="player-box">
       <h2 className="player-box-title match-game-title">
         <span>{t("Bets", "Ставки")}</span>
-        {room.bets === "none" ? <span className="bets-state">{t("No bets on this match", "Ставок на этот матч нет")}</span>
-          : <span className={`bets-state bets-state--${room.bets}`}>{t(...STATES[room.bets])}</span>}
+        <span className={`bets-state bets-state--${room.bets}`}>{t(...STATES[room.bets as keyof typeof STATES])}</span>
       </h2>
-      {allowed && wallet && market && room.bets !== "none" ? <MarketCard market={market} wallet={wallet} onChange={changed} room />
+      {allowed && wallet && market ? <MarketCard market={market} wallet={wallet} onChange={changed} room />
         : (
           <div className="bets-match">
             <div className="bets-sides">
@@ -99,11 +98,7 @@ function Bets({ room, onBet }: { room: Room; onBet: () => void }) {
             )}
           </div>
         )}
-      <p className="room-note">
-        {room.bets === "none"
-          ? t("Bets aren't taken on matches of tournaments: the odds are shown from the players' Elo only.", "На матчи турниров ставки не принимаются: коэффициент показан только по Elo игроков.")
-          : t("Bets are for points, not money. The odds start from the players' Elo and move with the bets.", "Ставки на баллы, не на деньги. Коэффициент стартует от Elo игроков и меняется от ставок.")}
-      </p>
+      <p className="room-note">{t("Bets are for points, not money. The odds start from the players' Elo and move with the bets.", "Ставки на баллы, не на деньги. Коэффициент стартует от Elo игроков и меняется от ставок.")}</p>
     </section>
   );
 }
@@ -218,7 +213,7 @@ export function RoomPage({ roomId }: { roomId: string }) {
                     {room.post_url && <a className="player-match-link" href={room.post_url} target="_blank" rel="noreferrer">{t("Announcement", "Анонс")} ↗</a>}
                   </p>
                 </section>
-                <Bets room={room} onBet={() => load()} />
+                {room.bets !== "none" && <Bets room={room} onBet={() => load()} />}
                 <Rosters room={room} />
                 <Stats room={room} />
               </>

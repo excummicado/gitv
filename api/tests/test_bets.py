@@ -380,7 +380,9 @@ def test_an_unfinished_tournament_match_has_a_room_but_takes_no_bets(client, ses
     room = client.get("/api/v1/schedule/rooms/live-abc123").json()
     assert room["kind"] == "live" and room["bets"] == "none" and room["starts_at"] is None and not room["live"]
     assert [g["status"] for g in room["games"]] == ["NOT_STARTED"]
-    assert [p["id"] for p in room["players"]] == ["A", "B"] and all(p["stake"] == 0 for p in room["players"])
+    assert [p["id"] for p in room["players"]] == ["A", "B"] and all(
+        p["stake"] == 0 and p["odds"] is None for p in room["players"]
+    )
     assert client.get("/api/v1/schedule/rooms/live-nothing").status_code == 404
     # Not even a tester can bet on it, or set its result
     boss = member(session)

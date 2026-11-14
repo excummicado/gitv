@@ -4,8 +4,8 @@ read; editors add; an organizer removes their own entries, an admin any.
 
 Each match has a room (GET /schedule/rooms/{key}): who plays, when, the odds of the bets on it (services/bets.py;
 everyone sees them, bet testers bet) and whose roster to show. So has every unfinished match of a running tournament
-(LiveMatch; key "live-<its id>"), without bets: its odds are only the Elo's, and no bet can be placed on it, as the
-bets' own addresses don't know such a key.
+(LiveMatch; key "live-<its id>"), with no odds and no bets: none can be placed on it, as the bets' own addresses don't
+know such a key.
 """
 
 import json
@@ -367,23 +367,10 @@ LIVE_PREFIX = "live-"
 
 
 def live_room(session: SessionDep, row: LiveMatch) -> RoomOut:
-    """The room of an unfinished match of a running tournament: no time (the tournament site gives none), the odds
-    Elo alone gives, and the games with the links to their drafts."""
+    """The room of an unfinished match of a running tournament: no time (the tournament site gives none), no odds,
+    and the games with the links to their drafts."""
     merged, names, elo = merges(session), display_names(session), elo_of(session)
     ids = [merged.get(uid, uid) if uid else None for uid in (row.player1_id, row.player2_id)]
-    fixture = bets.Fixture(
-        key=LIVE_PREFIX + row.id,
-        scheduled_id=None,
-        stream_id=None,
-        tournament_title=row.tournament_title,
-        player1_id=ids[0],
-        player1_name=row.player1_name,
-        player2_id=ids[1],
-        player2_name=row.player2_name,
-        starts_at=aware(row.created_at),
-        closed=False,
-    )
-    quote = bets.quote(fixture, None, bet_routes.player_elo(session))
     rosters = roster_tournaments(session, ids, row.tournament_id)
     drafts = json.loads(row.drafts)
 
@@ -391,14 +378,14 @@ def live_room(session: SessionDep, row: LiveMatch) -> RoomOut:
         return RoomPlayer(
             id=pid,
             name=names.get(pid, name) if pid else name,
-            odds=quote.odds[i],
+            odds=None,
             stake=0,
             roster=rosters.get(pid) if pid else None,
             **elo(pid),
         )
 
     return RoomOut(
-        id=fixture.key,
+        id=LIVE_PREFIX + row.id,
         kind="live",
         tournament_id=row.tournament_id,
         tournament_title=row.tournament_title,

@@ -12,6 +12,8 @@ function gameState(g: LiveGame) {
   return g.status === "FINISHED" ? "done" : g.status === "NOT_STARTED" ? "waiting" : "live";
 }
 
+// The whole row opens the match's room (players, rosters, statistics), like the matches of the day; the players' and
+// the games' own links stay clickable above it.
 // showTournament: the tournament's name under the match, bottom left, where rows of several tournaments are listed.
 // discord: the tournament's server, where games off stream can often be watched in its open voice channels.
 export function LiveMatchRow({ match, onlyLive = false, showTournament = false, discord = null }: { match: LiveMatch; onlyLive?: boolean; showTournament?: boolean; discord?: string | null }) {
@@ -20,6 +22,7 @@ export function LiveMatchRow({ match, onlyLive = false, showTournament = false, 
   const games = onlyLive ? match.games.filter((g) => gameState(g) === "live") : match.games;
   return (
     <div className={`live-match${match.started ? " is-started" : ""}`}>
+      <Link className="live-match-room" to={liveRoomPath(match.id)} aria-label={t(`Open the match ${match.players.map((p) => p.name).join(" vs ")}`, `Открыть матч ${match.players.map((p) => p.name).join(" vs ")}`)} />
       <span className="live-match-players">
         {match.players.map((p, i) => (
           <Fragment key={i}>
@@ -29,7 +32,6 @@ export function LiveMatchRow({ match, onlyLive = false, showTournament = false, 
         ))}
       </span>
       <span className="live-match-games">
-        <Link className="live-game is-room" to={liveRoomPath(match.id)} title={t("The match's room: players, rosters and statistics", "Комната матча: игроки, ростеры и статистика")}>{t("Match room", "Комната матча")}</Link>
         {games.map((g) => {
           const state = gameState(g);
           const label = <>{state === "live" && <i className="live-dot" />}{t("Game", "Игра")} {g.game_no}</>;

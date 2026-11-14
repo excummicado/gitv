@@ -1,6 +1,11 @@
 /* Unfinished matches of running tournaments, with links to their drafts on the tournament site. */
 .live-match { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; padding: 8px 12px; border-top: 1px solid var(--gitv-border-muted); }
 .live-match:first-child { border-top: 0; }
+.live-match { position: relative; }
+.live-match:hover { background: var(--gitv-surface-hover); }
+.live-match-room { position: absolute; inset: 0; }
+.live-match-room:focus-visible { outline: 1px solid var(--gitv-accent); outline-offset: -1px; }
+.live-match a:not(.live-match-room) { position: relative; z-index: 1; }
 .live-match.is-started { background: var(--gitv-surface-hover); }
 .live-match-players { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; min-width: 0; font-weight: 600; }
 .live-match-vs { color: var(--gitv-muted); font-size: 11px; font-weight: 400; }
@@ -10,8 +15,6 @@
 a.live-game:hover, a.live-game:focus-visible { border-color: var(--gitv-accent); color: var(--gitv-text); }
 .live-game.is-live { border-color: var(--gitv-win); color: var(--gitv-text); }
 .live-game.is-done { color: var(--gitv-muted); }
-.live-game.is-room { border-color: var(--gitv-accent); color: var(--gitv-text); }
-a.live-game.is-room:hover, a.live-game.is-room:focus-visible { background: var(--gitv-accent-deep); }
 .live-game.is-discord { border-color: #5865f2; color: var(--gitv-text); }
 a.live-game.is-discord:hover, a.live-game.is-discord:focus-visible { background: #5865f2; border-color: #5865f2; color: #ffffff; }
 .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gitv-win); animation: live-dot 1.6s ease-in-out infinite; }
