@@ -492,7 +492,7 @@ def store_prose(session: Session, source: Stream, post: Post, text: list[str]) -
     """Abyss New Gen's day post: a match per sentence with its casters; kept in the post's order (a second apart)."""
     tournament = (m[0] if (m := NEW_GEN.search(post.text)) else None) or source.name
     changed = 0
-    seen: set[str] = set()  # a match named again (the post's English half) only fills in what its first line lacks
+    seen: dict[str, StreamMatch] = {}  # a match named again (the English half) only fills in what its first line lacks
     for line in text:
         m = PROSE_PAIR.search(line)
         if not m:
@@ -500,23 +500,43 @@ def store_prose(session: Session, source: Stream, post: Post, text: list[str]) -
         a, b = nick(m["a"]), nick(m["b"])
         casters = PROSE_CASTERS.findall(m["rest"])
         at = PROSE_TIME.search(line)
+        start = None
+        if at and int(at["h"]) < 24 and int(at["m"]) < 60:
+            hour = int(at["h"]) % 12 + (12 if at["half"].lower() == "p" else 0) if at["half"] else int(at["h"])
+            start = moscow_time(post.at, hour, at["m"], UTC if at["zone"].lower() in ("utc", "gmt") else MOSCOW)
         mid = f"{source.telegram}-{post.id}-{pair_key(a, b)}"
-        row = session.get(StreamMatch, mid) or StreamMatch(
-            id=mid,
-            channel=source.telegram,
-            tournament_title=tournament,
-            player1_name=a,
-            player2_name=b,
-            announced_at=post.at + timedelta(seconds=changed),
-            post_url=f"https://t.me/{source.telegram}/{post.id}",
+        # The same player at the same time is the same match with the other one spelled differently ("Sweetie Fox"
+        # in Russian, "Sweety" in English): the first spelling stays
+        row = seen.get(mid) or next(
+            (
+                r
+                for r in seen.values()
+                if start
+                and r.starts_at
+                and aware(r.starts_at) == start
+                and {team_key(a), team_key(b)} & {team_key(r.player1_name), team_key(r.player2_name)}
+            ),
+            None,
         )
-        again = mid in seen
-        seen.add(mid)
+        again = row is not None
+        row = (
+            row
+            or session.get(StreamMatch, mid)
+            or StreamMatch(
+                id=mid,
+                channel=source.telegram,
+                tournament_title=tournament,
+                player1_name=a,
+                player2_name=b,
+                announced_at=post.at + timedelta(seconds=changed),
+                post_url=f"https://t.me/{source.telegram}/{post.id}",
+            )
+        )
+        seen.setdefault(mid, row)
         if casters and not (again and row.casters):
             row.casters = " & ".join(c.strip(".") for c in casters[-1])
-        if at and int(at["h"]) < 24 and int(at["m"]) < 60 and not (again and row.starts_at):
-            hour = int(at["h"]) % 12 + (12 if at["half"].lower() == "p" else 0) if at["half"] else int(at["h"])
-            row.starts_at = moscow_time(post.at, hour, at["m"], UTC if at["zone"].lower() in ("utc", "gmt") else MOSCOW)
+        if start and not (again and row.starts_at):
+            row.starts_at = start
         session.add(row)
         changed += not again
     return changed

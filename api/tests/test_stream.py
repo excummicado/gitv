@@ -403,6 +403,23 @@ def test_new_gen_gives_times_in_its_english_lines(session, client):
     assert client.get("/api/v1/schedule/stream", params=day).json()[0]["started_at"] == "2026-11-13T15:00:00Z"
 
 
+def test_new_gen_spells_a_player_differently_in_the_english_half(session):
+    """ "Sweetie Fox" in the Russian line and "Sweety" in the English one, at the same time against the same player,
+    are one match, also when the post is read again."""
+    ch = "abyss_new_gen"
+    text = (
+        "❤️В 20:00 МСК будем следить за битвой DzeN vs Sweetie Fox. А в комментаторской будет пара Scinti_lla & Lex.\n\n"
+        "❤️5:00 PM UTC — DzeN vs. Sweety, with Scinti_lla & Lex."
+    )
+    page = post(80, datetime(2026, 11, 15, 9, 1, 17, tzinfo=UTC), text, channel=ch)
+    for _ in range(2):
+        stream.store_posts(session, ch, stream.parse_page(page))
+        session.commit()
+    (row,) = session.exec(select(StreamMatch)).all()
+    assert (row.player1_name, row.player2_name, row.casters) == ("DzeN", "Sweetie", "Scinti_lla & Lex")
+    assert row.starts_at.replace(tzinfo=UTC) == datetime(2026, 11, 15, 17, 0, tzinfo=UTC)
+
+
 def test_a_post_the_page_does_not_show_is_read_through_the_api(session, monkeypatch):
     """A rich post has no text on t.me/s/: its text comes from the Telegram API, read once and the day's again
     later; its English half doesn't replace what the Russian lines said."""
