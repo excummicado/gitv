@@ -9,8 +9,7 @@ import httpx
 from sqlmodel import Session, select
 
 from ..models import Agent, Engine
-
-API = "https://abyss.darte.gg/api/abyss"
+from .darte import API
 
 # Characters shown under a name of our own: site id -> (English, Russian).
 NAMES = {

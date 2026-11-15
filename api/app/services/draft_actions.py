@@ -21,12 +21,12 @@ import websocket
 from sqlmodel import Session, col, delete, select
 
 from ..models import DraftAction, DraftLink, DraftState, MatchDraft, MatchPlayer
-from .draft_links import draft_url, fetch_match
+from .darte import SITE, SOCKET, draft_url
+from .draft_links import fetch_match
 from .manual_results import manual_drafts
 from .match_import import is_finished
 from .raw_trim import draft_raw_json
 
-SOCKET = "wss://abyss.darte.gg/socket.io/draft/"
 WORKERS = 8
 PREFIX = "42/draft,"
 
@@ -42,9 +42,7 @@ class ActionsResult:
 
 def fetch_init(draft_id: str, key: str) -> dict:
     url = f"{SOCKET}?session_id={draft_id}&session_key={key}&EIO=4&transport=websocket"
-    ws = websocket.create_connection(
-        url, timeout=20, origin="https://abyss.darte.gg", sslopt={"ca_certs": certifi.where()}
-    )
+    ws = websocket.create_connection(url, timeout=20, origin=SITE, sslopt={"ca_certs": certifi.where()})
     try:
         while True:
             msg = ws.recv()

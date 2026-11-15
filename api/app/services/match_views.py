@@ -49,7 +49,7 @@ from ..schemas.matches import (
     TournamentItem,
     UnresolvedMatch,
 )
-from .draft_links import draft_url
+from .darte import draft_url
 from .events import stage_members
 from .match_checks import (
     NO_RESULT,
@@ -447,7 +447,10 @@ def match_detail(session: Session, m: Match, snap: Snapshot | None = None) -> Ma
     picks = list(session.exec(select(MatchPick).where(MatchPick.player_id.in_([p.id for p in players]))))
     actions = list(session.exec(select(DraftAction).where(DraftAction.match_id == m.id).order_by(DraftAction.seq)))
     states = {s.draft_id: s for s in session.exec(select(DraftState).where(DraftState.match_id == m.id))}
-    links = {link.draft_id: link.url for link in session.exec(select(DraftLink).where(DraftLink.match_id == m.id))}
+    links = {
+        link.draft_id: draft_url(link.draft_id, link.spectator_key)
+        for link in session.exec(select(DraftLink).where(DraftLink.match_id == m.id))
+    }
 
     agent_ids = {pk.agent_id for pk in picks} | {a.agent_id for a in actions if a.agent_id}
     engine_ids = {pk.engine_id for pk in picks if pk.engine_id}

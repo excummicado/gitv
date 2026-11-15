@@ -25,6 +25,22 @@ def set_role(nickname: str, role: Role) -> None:
     print(f"{nickname} is now {role.value}. They need to sign in again for it to take effect.")
 
 
+def check_site(site: str | None) -> None:
+    """Asks the tournament site (or another address of it) what the sync asks and prints what's missing; exits with
+    an error when something the import needs is gone. Stores nothing."""
+    from ..config import settings
+    from ..services.site_check import check_site as run
+
+    result = run(site or settings.site_url)
+    print("\n".join(result.lines))
+    if result.failed:
+        raise SystemExit(f"{result.failed} needed fields or answers are missing: the import would break.")
+    print(
+        "Everything the import needs is there."
+        + (f" {result.warned} optional fields are missing." * bool(result.warned))
+    )
+
+
 def poll_stream() -> None:
     """Reads the streams' Telegram channels and Twitch status once (services/stream.py)."""
     from ..services.stream import poll_stream as run

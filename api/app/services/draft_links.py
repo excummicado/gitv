@@ -12,8 +12,8 @@ import httpx
 from sqlmodel import Session, delete, select
 
 from ..models import DraftLink, Match, MatchDraft
+from .darte import API, draft_url
 
-SITE = "https://abyss.darte.gg"
 WORKERS = 8
 
 
@@ -24,13 +24,9 @@ class LinksResult:
     errors: list[str] = field(default_factory=list)
 
 
-def draft_url(draft_id: str, key: str) -> str:
-    return f"{SITE}/draft?draft_id={draft_id}&session_key={key}&show_costs=true&show_controls"
-
-
 def fetch_match(client: httpx.Client, match_id: str) -> dict[str, str]:
     """{draft id: spectator key} for one match."""
-    data = client.get(f"{SITE}/api/abyss/draft_sets/{match_id}").raise_for_status().json()
+    data = client.get(f"{API}/draft_sets/{match_id}").raise_for_status().json()
     return {
         d["_id"]: d["links"]["spectator"] for d in data.get("drafts", []) if (d.get("links") or {}).get("spectator")
     }

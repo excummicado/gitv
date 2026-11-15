@@ -33,6 +33,7 @@ from ..models import (
     Tournament,
     TournamentInfo,
 )
+from .darte import draft_url
 from .match_checks import (
     NO_RESULT,
     TEAM_EVENT,
@@ -84,7 +85,7 @@ def export_xlsx(session: Session, path: str) -> dict[str, int]:
     drafts = {d.id: d for d in session.exec(select(MatchDraft))}
     players = list(session.exec(select(MatchPlayer)))
     picks = list(session.exec(select(MatchPick)))
-    links = {link.draft_id: link.url for link in session.exec(select(DraftLink))}
+    links = {link.draft_id: draft_url(link.draft_id, link.spectator_key) for link in session.exec(select(DraftLink))}
     # Names from import-catalog; an id stays as is if it isn't in the catalog.
     agent_names = {a.id: a.name_ru or a.name_en or a.id for a in session.exec(select(Agent))}
     engine_names = {e.id: e.title_ru or e.title_en or e.id for e in session.exec(select(Engine))}

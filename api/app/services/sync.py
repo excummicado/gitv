@@ -43,6 +43,7 @@ from . import match_import
 from .abyss import maybe_fetch_abyss
 from .catalog import import_catalog
 from .challonge import challonge_link, fetch_challonge, site_match_winners, stored_results
+from .darte import API
 from .draft_actions import TimesResult, fetch_draft_actions, fetch_init, refresh_times
 from .draft_links import fetch_draft_links, fetch_match
 from .draft_systems import fetch_draft_systems
@@ -56,7 +57,6 @@ from .tournament_info import fetch_tournament_info, links
 
 log = logging.getLogger("gitv.sync")
 
-API = "https://abyss.darte.gg/api/abyss"
 # The site is someone else's: nothing automatic asks it for anything more often than once an hour,
 # whatever SYNC_INTERVAL or --watch say.
 MIN_INTERVAL = 3600

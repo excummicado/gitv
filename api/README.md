@@ -299,7 +299,7 @@ venv/bin/python -m app.cli fetch-draft-actions          # after fetch-draft-link
 venv/bin/python -m app.cli refresh-times                # games whose times changed on the site since they were stored
 ```
 
-Opens each draft's socket (socket.io v4 at `wss://abyss.darte.gg/socket.io/draft/`, namespace `/draft`,
+Opens each draft's socket (socket.io v4 at `wss://abyss.darte.gg/socket.io/draft/`, on the host of `SITE_URL`, namespace `/draft`,
 `session_id` = draft id, `session_key` = spectator key) and stores the `init` event it sends:
 
 | Table | One row per | Main columns |
@@ -598,6 +598,7 @@ at most 31 days), `POST /api/v1/schedule`, `DELETE /api/v1/schedule/{id}`, `GET 
 
 ```bash
 venv/bin/python -m app.cli check-matches            # --examples 20 for more per kind
+venv/bin/python -m app.cli check-site [address]     # does the tournament site still answer as the sync reads it
 ```
 
 Lists suspicious data: clear time 0, times far below or above the tournament's median, clearPoints
@@ -616,3 +617,29 @@ venv/bin/python -m app.cli delete-tournaments <id> <id>     # or by id
 
 Deletes the tournaments with all their matches, games, players and picks after showing them and
 asking for `yes`. Importing their URLs again brings them back, so remove those lines from the URLs file.
+
+## When the tournament site moves or changes
+
+Everything asked of darte.gg's Abyss site starts from one address, `SITE_URL` in `.env` (default
+`https://abyss.darte.gg`; `app/services/darte.py`): its API, its drafts' socket and the links to drafts. Links
+to drafts are built from the stored spectator key when they're shown, so the ones stored before follow the new
+address too.
+
+Before pointing `SITE_URL` at a new address or after the site changes its data:
+
+```
+venv/bin/python -m app.cli check-site https://staging-abyss.darte.gg
+```
+
+It asks the site what the sync asks (tournaments, characters, weapons, a few tournaments' matches, one match
+with its draft's socket, cost tables, organizer and players) and looks for every field the import reads
+(`app/services/site_check.py`). `FAIL` is a field the import needs; `warn` one it does without. It stores
+nothing. A full dry run against another address, into a scratch database:
+
+```
+DATABASE_URL=sqlite:////tmp/try.db SITE_URL=https://staging-abyss.darte.gg venv/bin/alembic upgrade head
+DATABASE_URL=sqlite:////tmp/try.db SITE_URL=https://staging-abyss.darte.gg venv/bin/python -m app.cli sync
+```
+
+Ids are the site's own: after a move the stored tournaments, matches and players stay tied to the site only if
+it keeps its ids.

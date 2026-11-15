@@ -12,8 +12,8 @@ import httpx
 from sqlmodel import Session, select, text
 
 from ..models import DraftSystem
+from .darte import API
 
-API = "https://abyss.darte.gg/api/abyss"
 PAUSE = 0.5  # seconds between requests
 
 

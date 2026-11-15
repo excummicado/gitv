@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     discord_client_secret: str
     discord_redirect_uri: str = "http://localhost:5173/api/v1/auth/discord/callback"
     frontend_url: str = "http://localhost:5173"
+    # The tournament site (darte.gg's Abyss): its API, its drafts' socket and the links to its drafts all start here
+    # (services/darte.py). Another address, when the site moves, is this one setting.
+    site_url: str = "https://abyss.darte.gg"
     # Seconds between background syncs with the tournament site (new finished tournaments); 0 turns it off.
     # Never less than an hour: lower values are raised to 3600. When on, the matches of running tournaments are
     # also polled every two minutes (services/sync.py, LIVE_INTERVAL).

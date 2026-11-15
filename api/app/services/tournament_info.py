@@ -15,9 +15,7 @@ from sqlmodel import Session, select
 
 from ..models import Tournament, TournamentInfo
 from .challonge import challonge_link, module_url
-
-API = "https://abyss.darte.gg/api/abyss"
-
+from .darte import API
 
 # A link's kind by its host, for the page to name and order it; anything else is "site"
 KINDS = [

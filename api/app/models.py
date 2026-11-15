@@ -186,6 +186,8 @@ class DraftLink(SQLModel, table=True):
     match_id: str = Field(foreign_key="match.id", index=True)
     # links.spectator from GET /api/abyss/draft_sets/<match id>
     spectator_key: str
+    # The link as it was when stored. Shown links are built from the key (services/darte.py draft_url), so they
+    # follow the site when its address changes.
     url: str
 
 

@@ -192,8 +192,8 @@ function LiveMatches({ tournamentId }: { tournamentId: string }) {
   return (
     <Box title={t("Being played and upcoming", "Идут и предстоят")}>
       {items.map((m) => <LiveMatchRow match={m} key={m.id} />)}
-      <p className="player-note tourney-note">{t("Games open their draft on abyss.darte.gg. Updated every few minutes.",
-        "Игры открывают драфт на abyss.darte.gg. Обновляется раз в несколько минут.")}</p>
+      <p className="player-note tourney-note">{t("Games open their draft on darte.gg. Updated every few minutes.",
+        "Игры открывают драфт на darte.gg. Обновляется раз в несколько минут.")}</p>
     </Box>
   );
 }

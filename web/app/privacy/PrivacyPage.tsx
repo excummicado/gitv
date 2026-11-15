@@ -27,8 +27,8 @@ export function PrivacyPage() {
         "Локальное хранилище браузера держит ваш ник и роль, чтобы показать их до загрузки страницы."),
     ]],
     [t("Tournament data", "Данные турниров"), [
-      t("Players' nicknames, matches and results come from public tournament pages (abyss.darte.gg, Challonge, tournament channels). GITV keeps no real names or birthdays of players.",
-        "Ники игроков, матчи и результаты взяты из открытых страниц турниров (abyss.darte.gg, Challonge, каналы турниров). Настоящих имён и дней рождения игроков GITV не хранит."),
+      t("Players' nicknames, matches and results come from public tournament pages (darte.gg, Challonge, tournament channels). GITV keeps no real names or birthdays of players.",
+        "Ники игроков, матчи и результаты взяты из открытых страниц турниров (darte.gg, Challonge, каналы турниров). Настоящих имён и дней рождения игроков GITV не хранит."),
       t("Nothing is sold or shared with advertisers. There are no ads and no third-party trackers; fonts load from Google Fonts.",
         "Ничего не продаётся и не передаётся рекламодателям. Рекламы и сторонних трекеров нет; шрифты загружаются с Google Fonts."),
     ]],

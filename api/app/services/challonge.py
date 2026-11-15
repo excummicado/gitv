@@ -32,10 +32,10 @@ from ..models import (
     TournamentInfo,
     TournamentPlayer,
 )
+from .darte import API
 
 log = logging.getLogger("gitv.challonge")
 
-SITE_API = "https://abyss.darte.gg/api/abyss"
 STORE_MARKER = "window._initialStoreState['TournamentStore'] = "
 HEADERS = {"User-Agent": "Mozilla/5.0 (GITV stats)"}
 # A finished bracket: finalized, or all played and only waiting for the organizer to finalize it.
@@ -411,7 +411,7 @@ def fetch_challonge(session: Session, refetch: bool = False, running: set[str] |
                 store = parse_store(r.text)
                 participants = []
                 if info.tournament_id not in only and not (running is not None and info.tournament_id in have_players):
-                    response = client.get(f"{SITE_API}/drafts/players", params={"tournament": info.tournament_id})
+                    response = client.get(f"{API}/drafts/players", params={"tournament": info.tournament_id})
                     participants = response.raise_for_status().json()
             except (httpx.HTTPError, ValueError) as e:
                 result.errors.append(f"{info.challonge_url}: {e}")

@@ -17,6 +17,7 @@ venv/bin/python -m app.cli set-challonge-name Smertik smertikk
 venv/bin/python -m app.cli merge-players Raftal1k raftalia
 venv/bin/python -m app.cli export-xlsx matches.xlsx
 venv/bin/python -m app.cli check-matches
+venv/bin/python -m app.cli check-site https://staging-abyss.darte.gg   # does the site still answer as the sync reads it
 venv/bin/python -m app.cli list-tournaments
 venv/bin/python -m app.cli set-player-name "Anemo main" Northwar
 venv/bin/python -m app.cli set-tournament-winner "Abyss Weekend 16" rpyt02 --source challonge.com/hoth_fast_16
@@ -71,6 +72,7 @@ from .players import (
     set_player_name,
 )
 from .site import (
+    check_site,
     import_article,
     poll_stream,
     set_news_translation,
@@ -207,6 +209,8 @@ def main() -> None:
     art_cmd.add_argument("--by", required=True, help="Nickname of the member it's imported under")
     art_cmd.add_argument("--title", help="Its title; else the document's first heading or line")
     art_cmd.add_argument("--author", help="Its author as shown; else the member")
+    site_cmd = commands.add_parser("check-site", help="Ask the tournament site what the sync asks; report fields gone")
+    site_cmd.add_argument("site", nargs="?", help="Its address; else SITE_URL (the one the sync uses)")
     commands.add_parser("poll-stream", help="Read the streams' Telegram channels and Twitch status once")
     commands.add_parser("import-aspirine", help="Store the old tournaments export-aspirine saved as matches")
     games_cmd = commands.add_parser("add-manual-games", help="Store games of hand-entered tournaments from a JSON file")
@@ -317,6 +321,8 @@ def main() -> None:
         set_news_translation(args.news_id, args.file, args.title)
     elif args.command == "import-article":
         import_article(args.file, args.by, args.title, args.author)
+    elif args.command == "check-site":
+        check_site(args.site)
     elif args.command == "poll-stream":
         poll_stream()
     elif args.command == "import-aspirine":
