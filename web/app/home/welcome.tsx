@@ -210,6 +210,7 @@ function Articles() {
 
   return (
     <Card>
+      <div className="gitv-card-title tinted">{t("Articles", "Статьи")}</div>
       {!items ? <div className="gitv-row"><small>…</small></div>
         : !items.length ? <div className="gitv-row"><small>{t("No articles yet.", "Статей пока нет.")}</small></div>
         : items.map((item) => (
@@ -454,7 +455,6 @@ function RecentChampions() {
 }
 
 function HomeLayout() {
-  const { t } = useLang();
   return (
     <div className="gitv-frame">
       <Navbar />
@@ -469,13 +469,12 @@ function HomeLayout() {
           <main>
             <EventSection />
             <PopularCharactersCard />
-            <div className="gitv-section-label">{t("Articles", "Статьи")}</div>
-            <Articles />
+            <NewsColumn />
           </main>
           <aside>
             <TodaysMatches />
             <RecentMatches />
-            <NewsColumn />
+            <Articles />
           </aside>
         </div>
       </div>
