@@ -337,43 +337,6 @@ def test_matches_without_a_result_go_to_who_runs_their_tournament(session, clien
     assert client.get("/api/v1/matches/unresolved").json() == []
 
 
-def test_unfinished_matches_that_dropped_out_of_the_live_list_are_listed_as_waiting(session, client):
-    from datetime import timedelta
-
-    from app.models import LiveMatch
-
-    def live(mid, statuses, changed, tournament="t"):
-        drafts = [{"id": f"{mid}-{i}", "status": s, "key": None} for i, s in enumerate(statuses)]
-        session.add(
-            LiveMatch(
-                id=mid,
-                tournament_id=tournament,
-                tournament_title="Cup",
-                created_at=datetime(2026, 1, 1, tzinfo=UTC),
-                player1_name="A",
-                player2_name="B",
-                drafts=json.dumps(drafts),
-                updated_at=changed,
-                changed_at=changed,
-            )
-        )
-
-    now = datetime.now(UTC)
-    live("between", ["FINISHED", "NOT_STARTED"], now - timedelta(hours=5))
-    live("stuck", ["FINISHED", "TEAMS"], now - timedelta(hours=2))
-    live("playing", ["FINISHED", "TEAMS"], now - timedelta(minutes=5))  # on the live list: not here
-    live("upcoming", ["NOT_STARTED", "NOT_STARTED"], now - timedelta(days=3))  # nothing played: not here
-    session.commit()
-    sign_in(Role.event_organizer)
-    rows = {r["id"]: r for r in client.get("/api/v1/matches/unresolved").json()}
-    assert {k: (v["reason"], v["waiting"], v["sides"]) for k, v in rows.items()} == {
-        "live-between": ("between_games", True, ["A", "B"]),
-        "live-stuck": ("stalled", True, ["A", "B"]),
-    }
-    sign_in_running(session, "hoth-account")  # a member who runs no organizer of this tournament sees none
-    assert client.get("/api/v1/matches/unresolved").json() == []
-
-
 # Technical defeats given by hand
 
 

@@ -315,43 +315,6 @@ def grouped_page(session: Session, q: str, tournament: str | None, limit: int, o
     return GroupedPage(groups=groups, total=len(rows), matches=sum(r[1] for r in rows))
 
 
-def unfinished_without_result(session: Session, editor: User, names: dict[str, str]) -> list[UnresolvedMatch]:
-    """The unfinished matches of running tournaments (LiveMatch) that dropped out of the live list: one with a game
-    played and the next not started ("between_games"), or a game under way that stopped moving ("stalled"). They
-    aren't imported (no Match), so there's no result to set yet: they're listed to be seen, as still waiting. Their
-    id is the room's key, "live-<id>"."""
-    merged = merges(session)
-    allowed: dict[str, bool] = {}
-    rows = []
-    for m in session.exec(select(LiveMatch)):
-        statuses = [d["status"] for d in json.loads(m.drafts)]
-        under_way = any(s not in (None, NOT_STARTED, "FINISHED") for s in statuses)
-        stuck = under_way and m.changed_at and m.changed_at.replace(tzinfo=UTC) < datetime.now(UTC) - STALLED
-        between = not under_way and "FINISHED" in statuses
-        if not (stuck or between):
-            continue
-        if m.tournament_id not in allowed:
-            allowed[m.tournament_id] = can_run_tournament(session, editor, m.tournament_id)
-        if not allowed[m.tournament_id]:
-            continue
-        sides = []
-        for uid, name in ((m.player1_id, m.player1_name), (m.player2_id, m.player2_name)):
-            pid = merged.get(uid, uid) if uid else None
-            sides.append(names.get(pid, name) if pid else name)
-        rows.append(
-            UnresolvedMatch(
-                id=f"live-{m.id}",
-                tournament_id=m.tournament_id,
-                tournament=m.tournament_title,
-                created_at=m.created_at,
-                sides=sides,
-                reason="stalled" if stuck else "between_games",
-                waiting=True,
-            )
-        )
-    return rows
-
-
 def unresolved_matches(session: Session, editor: User) -> list[UnresolvedMatch]:
     """Matches without a result in the tournaments the editor runs, newest first, each with why it has none."""
     snap = snapshot(session)
@@ -393,7 +356,6 @@ def unresolved_matches(session: Session, editor: User) -> list[UnresolvedMatch]:
                 waiting=reason in ("bracket", "tournament_end"),
             )
         )
-    rows += unfinished_without_result(session, editor, names)
     return sorted(rows, key=lambda r: r.created_at, reverse=True)
 
 

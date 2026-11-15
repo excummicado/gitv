@@ -213,11 +213,9 @@ class UnresolvedMatch(BaseModel):
     sides: list[str]
     # Why it has no result: "bracket" (a running tournament waits for its Challonge bracket), "tournament_end" (a
     # running tournament without one holds a technical defeat until it ends), "both_technical" (both took one),
-    # "no_time" (a time not entered) or "unclear" (a technical defeat whose loser can't be told); or, for an unfinished
-    # match (its id is "live-<id>", the room's key, as it has no match page yet), "between_games" (a game played, the
-    # next not started) or "stalled" (a game under way that stopped moving)
+    # "no_time" (a time not entered) or "unclear" (a technical defeat whose loser can't be told)
     reason: str
-    waiting: bool  # it may still get its result by itself (the first two reasons and the unfinished ones)
+    waiting: bool  # it may still get its result by itself (the first two reasons)
 
 
 class LiveTournament(BaseModel):
