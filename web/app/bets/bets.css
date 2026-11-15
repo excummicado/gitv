@@ -34,7 +34,8 @@ button.bets-side:disabled { cursor: default; opacity: 0.6; }
 .bets-form-win { font-size: 12px; color: var(--gitv-muted); }
 .bets-settle { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; font-size: 12px; color: var(--gitv-muted); }
 .bets-settle .profile-action { padding: 7px 10px; }
-.bets-error { margin: 8px 0 0; font-size: 12px; color: var(--gitv-loss); }
+.bets-error { margin: 8px 0 0; padding: 8px 10px; border: 1px solid var(--gitv-loss); font-size: 13px; font-weight: 600; color: var(--gitv-loss); }
+.bets-taken { margin: 8px 0 0; padding: 8px 10px; border: 1px solid var(--gitv-win); font-size: 13px; font-weight: 600; color: var(--gitv-win); }
 
 .bets-table-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 10px; padding: 7px 12px; border-top: 1px dotted var(--gitv-border-muted); font-size: 13px; }
 .bets-table-row.is-me { background: var(--gitv-surface-hover); }

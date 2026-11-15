@@ -33,6 +33,26 @@ export function useBetText() {
   };
 }
 
+// Why the server refused, in the reader's language (the API answers in English).
+const REFUSALS: Record<string, string> = {
+  "Your Discord account must be at least six months old to bet.": "Чтобы ставить, аккаунту Discord должно быть не меньше полугода.",
+  "Bets on this match are closed.": "Ставки на этот матч уже закрыты.",
+  "Bets open in the month the match is played.": "Ставки открываются в месяц, когда играется матч.",
+  "No bets on this match: a player has no Elo.": "На этот матч ставок нет: у игрока нет Elo.",
+  "You have already bet on the other player.": "Вы уже поставили на другого игрока.",
+  "At most 500 points on one match.": "На один матч можно поставить не больше 500 баллов.",
+  "Not enough points.": "Не хватает баллов.",
+  "The odds have changed. Check them and bet again.": "Коэффициент изменился. Проверьте его и поставьте ещё раз.",
+  "This match is already settled.": "Этот матч уже рассчитан.",
+  "The match hasn't started yet.": "Матч ещё не начался.",
+};
+
+function refusal(err: unknown, t: (en: string, ru: string) => string) {
+  // a failure to reach the server comes worded in the reader's language already (auth/client.ts)
+  if (err instanceof Error) return t(err.message, REFUSALS[err.message] ?? err.message);
+  return t("Something went wrong. Try again.", "Что-то пошло не так. Попробуйте ещё раз.");
+}
+
 // A match with its odds, the member's bets on it and the form to bet (and to set its result, for who may). room:
 // shown in the match's own room, which says the rest itself.
 export function MarketCard({ market, wallet, onChange, room = false }: { market: Market; wallet: Wallet; onChange: (market: Market) => void; room?: boolean }) {
@@ -43,6 +63,7 @@ export function MarketCard({ market, wallet, onChange, room = false }: { market:
   const [confirming, setConfirming] = useState<Result | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [taken, setTaken] = useState("");
 
   const staked = market.my_bets.reduce((sum, bet) => sum + bet.amount, 0);
   const left = Math.min(wallet.rules.max_per_match - staked, wallet.balance);
@@ -55,14 +76,44 @@ export function MarketCard({ market, wallet, onChange, room = false }: { market:
   async function send(request: () => Promise<Market>) {
     setSaving(true);
     setError("");
+    setTaken("");
     try {
       onChange(await request());
       setSide(null);
       setConfirming(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("Something went wrong. Try again.", "Что-то пошло не так. Попробуйте ещё раз."));
-      // The odds may have moved: show the new ones
+      setError(refusal(err, t));
       fetchMarket(market.id).then(onChange).catch(() => {});
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // A bet counts only once the server has taken it: the member is told so in words, and told as plainly when it
+  // wasn't, with the odds that stand now when they were the reason.
+  async function bet(on: 0 | 1, points: number, shown: number) {
+    setSaving(true);
+    setError("");
+    setTaken("");
+    const name = market.players[on].name;
+    try {
+      const next = await placeBet(market.id, on, points, shown);
+      onChange(next);
+      setSide(null);
+      const mine = next.my_bets[next.my_bets.length - 1];
+      setTaken(t(`Bet taken: ${f.points(points)} on ${name} at ${f.odds(mine?.odds ?? shown)}.`, `Ставка принята: ${f.points(points)} на ${name} по ${f.odds(mine?.odds ?? shown)}.`));
+    } catch (err) {
+      let fresh: Market | null = null;
+      try {
+        fresh = await fetchMarket(market.id);
+        onChange(fresh);
+      } catch { /* the reason below is still shown */ }
+      const now = fresh?.players[on].odds;
+      const moved = now != null && now < shown - 1e-9 && fresh?.state === "open";
+      setError(t("The bet was NOT taken, no points were spent. ", "Ставка НЕ принята, баллы не списаны. ") + (moved
+        ? t(`The odds on ${name} dropped from ${f.odds(shown)} to ${f.odds(now)} while you were betting. To bet at the new odds, press the button again.`,
+          `Пока вы ставили, коэффициент на ${name} упал с ${f.odds(shown)} до ${f.odds(now)}. Чтобы поставить по новому, нажмите кнопку ещё раз.`)
+        : refusal(err, t)));
     } finally {
       setSaving(false);
     }
@@ -100,7 +151,7 @@ export function MarketCard({ market, wallet, onChange, room = false }: { market:
           );
           const classes = `bets-side${chosen === index ? " is-chosen" : ""}${market.winner === index ? " is-winner" : ""}`;
           return market.state === "open"
-            ? <button type="button" key={i} className={classes} disabled={!pickable} aria-pressed={chosen === index} onClick={() => { setSide(index); setError(""); }}>{body}</button>
+            ? <button type="button" key={i} className={classes} disabled={!pickable} aria-pressed={chosen === index} onClick={() => { setSide(index); setError(""); setTaken(""); }}>{body}</button>
             : <div key={i} className={classes}>{body}</div>;
         })}
       </div>
@@ -118,7 +169,7 @@ export function MarketCard({ market, wallet, onChange, room = false }: { market:
         </p>
       )}
       {chosen != null && price != null && (
-        <form className="bets-form" onSubmit={(event) => { event.preventDefault(); if (valid) send(() => placeBet(market.id, chosen, value, price)); }} noValidate>
+        <form className="bets-form" onSubmit={(event) => { event.preventDefault(); if (valid) bet(chosen, value, price); }} noValidate>
           <input className="bets-amount" type="number" inputMode="numeric" min={wallet.rules.min_bet} max={left} step={10}
             aria-label={t("Points to bet", "Сколько баллов поставить")} value={amount} onChange={(event) => { setAmount(event.target.value); setError(""); }} />
           <button type="submit" className="profile-action" disabled={saving || !valid}>
@@ -148,6 +199,7 @@ export function MarketCard({ market, wallet, onChange, room = false }: { market:
           )}
         </div>
       )}
+      {taken && <p className="bets-taken" role="status">{taken}</p>}
       {error && <p className="bets-error" role="alert">{error}</p>}
     </div>
   );
