@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router";
 import { Navbar } from "../components/Navbar";
 import { Brand } from "../components/Brand";
 import { mayBet } from "../auth/client";
@@ -9,7 +8,6 @@ import {
   fetchLeaderboard, fetchMarket, fetchMarkets, fetchMyBets, placeBet, setResult, visit,
   type BetStatus, type HistoryRow, type Market, type MarketState, type Result, type Standing, type Wallet,
 } from "./api";
-import { roomPath } from "../schedule/api";
 import "../profile/profile.css";
 import "./bets.css";
 
@@ -80,7 +78,7 @@ export function MarketCard({ market, wallet, onChange, room = false }: { market:
     <div className="bets-match">
       <div className="bets-match-head">
         {room ? <span>{t("Your bet", "Ваша ставка")} · {t(`${f.points(wallet.balance)} points`, `баллов: ${f.points(wallet.balance)}`)}</span>
-          : <Link to={roomPath(market.id)} className="gitv-row-link">{market.tournament_title} · {f.when(market.starts_at)}</Link>}
+          : <span>{market.tournament_title} · {f.when(market.starts_at)}</span>}
         <span className={`bets-state bets-state--${market.state}`}>{t(...STATES[market.state])}</span>
       </div>
       <div className="bets-sides">

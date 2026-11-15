@@ -2,7 +2,7 @@
 .live-match { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; padding: 8px 12px; border-top: 1px solid var(--gitv-border-muted); }
 .live-match:first-child { border-top: 0; }
 .live-match { position: relative; }
-.live-match:hover { background: var(--gitv-surface-hover); }
+.live-match:has(.live-match-room):hover { background: var(--gitv-surface-hover); }
 .live-match-room { position: absolute; inset: 0; }
 .live-match-room:focus-visible { outline: 1px solid var(--gitv-accent); outline-offset: -1px; }
 .live-match a:not(.live-match-room) { position: relative; z-index: 1; }

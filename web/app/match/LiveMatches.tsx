@@ -12,17 +12,17 @@ function gameState(g: LiveGame) {
   return g.status === "FINISHED" ? "done" : g.status === "NOT_STARTED" ? "waiting" : "live";
 }
 
-// The whole row opens the match's room (players, rosters, statistics), like the matches of the day; the players' and
-// the games' own links stay clickable above it.
+// room: the whole row opens the match's room (players, rosters, statistics), like the matches of the day; the players'
+// and the games' own links stay clickable above it. Only the main page asks for it.
 // showTournament: the tournament's name under the match, bottom left, where rows of several tournaments are listed.
 // discord: the tournament's server, where games off stream can often be watched in its open voice channels.
-export function LiveMatchRow({ match, onlyLive = false, showTournament = false, discord = null }: { match: LiveMatch; onlyLive?: boolean; showTournament?: boolean; discord?: string | null }) {
+export function LiveMatchRow({ match, onlyLive = false, showTournament = false, discord = null, room = false }: { match: LiveMatch; onlyLive?: boolean; showTournament?: boolean; discord?: string | null; room?: boolean }) {
   const { t } = useLang();
   const titles = { done: t("Finished: open the draft", "Завершена: открыть драфт"), waiting: t("Not started yet: open the draft", "Ещё не началась: открыть драфт"), live: t("Being played now: watch the draft", "Идёт сейчас: смотреть драфт") };
   const games = onlyLive ? match.games.filter((g) => gameState(g) === "live") : match.games;
   return (
     <div className={`live-match${match.started ? " is-started" : ""}`}>
-      <Link className="live-match-room" to={liveRoomPath(match.id)} aria-label={t(`Open the match ${match.players.map((p) => p.name).join(" vs ")}`, `Открыть матч ${match.players.map((p) => p.name).join(" vs ")}`)} />
+      {room && <Link className="live-match-room" to={liveRoomPath(match.id)} aria-label={t(`Open the match ${match.players.map((p) => p.name).join(" vs ")}`, `Открыть матч ${match.players.map((p) => p.name).join(" vs ")}`)} />}
       <span className="live-match-players">
         {match.players.map((p, i) => (
           <Fragment key={i}>
