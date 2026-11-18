@@ -1,7 +1,7 @@
 # Exact versions, so a new build installs what the tests ran against. Upgrade on purpose: change a version, run
 # the tests, commit.
 fastapi[standard]==0.143.0
-sqlmodel==0.0.48
+sqlmodel==0.0.50
 pyjwt==2.15.1
 pydantic-settings==2.15.0
 httpx==0.28.1
