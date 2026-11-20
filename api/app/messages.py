@@ -52,6 +52,10 @@ RU = {
     "No organizer with this id.": "Организатора с таким id нет.",
     "This member doesn't run this organizer.": "Этот участник не ведёт турниры этого организатора.",
     "This member is already a bet tester.": "Участник уже тестер ставок.",
+    "No such API key.": "Такого API-ключа нет.",
+    "Write a note for the key.": "Подпишите ключ заметкой.",
+    "This API key is already revoked.": "Этот API-ключ уже отозван.",
+    "Invalid or revoked API key.": "Неверный или отозванный API-ключ.",
     "This member isn't a bet tester.": "Участник не тестер ставок.",
     # Bets
     "Bets aren't open to you yet.": "Ставки вам пока недоступны.",
@@ -78,6 +82,7 @@ RU = {
     # Matches of the day
     "The time needs a time zone.": "Время должно быть с часовым поясом.",
     "Pick two different players.": "Выберите двух разных игроков.",
+    "No rated matches.": "Нет матчей с рейтингом Эло.",
     "No such scheduled match.": "Такого матча дня нет.",
     "Only its author or an admin can remove it.": "Удалить может только автор или админ.",
     "Only its author or an admin can edit it.": "Изменить может только автор или админ.",

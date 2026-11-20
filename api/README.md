@@ -96,6 +96,38 @@ Staff endpoints (also available as boxes on the profile page):
 - `PUT /api/v1/admin/users/{nickname}/role` with `{"role": "user" | "writer" | "event_organizer" | "admin"}`: admins can set `user`, `writer` or `event_organizer` on anyone who isn't staff; super admins can also set or remove `admin`. Nobody can change their own role or a super admin's.
 - `POST /api/v1/admin/bans` with `{"nickname": "…"}` and `DELETE /api/v1/admin/bans/{nickname}`: admin and super admin
 
+### Stream API
+
+Overlays on streams read the most telling numbers about the players from `/api/v1/stream-api/…`, with a key. Only a
+super admin issues keys, on the profile page ("API-ключи для стримов", or `POST /api/v1/admin/api-keys` with
+`{"note": "…"}`): every key carries a note saying whose it is and what for (editable: `PATCH /api/v1/admin/api-keys/{id}`),
+the key itself is shown once when it's made (only its SHA-256 is stored), and `DELETE /api/v1/admin/api-keys/{id}`
+revokes it at once. `GET /api/v1/admin/api-keys` lists them with when each was last used.
+
+The key goes in the `X-API-Key` header or as `?key=` (an OBS browser source can't set headers). Answers are JSON, never
+cached, readable from any site (CORS `*`), 600 requests a minute per key. A player is their id on the site or a
+nickname they're known under; times are in seconds, winrates in percent.
+
+The full documentation, with every parameter and a real example answer, is the site's `/stream-api` page
+(`web/app/stream-api/`; its examples are in `examples.ts`). The endpoints, all `GET` under `/api/v1/stream-api`:
+
+| Endpoint | What |
+| --- | --- |
+| `/players/{player}/elo` | Elo now: rating, peak, place, tier, last change |
+| `/players/{player}/elo/history?limit=` | Elo change over 7/30/90 days and match by match |
+| `/leaderboard?limit=` | the top of the Elo ranking (active players) |
+| `/players/{player}/stats` | overall statistics |
+| `/players/{player}/stats/recent?days=90` | the same over the last three months (or `days`) |
+| `/players/{player}/characters?limit=&min_games=&days=` | statistics by character |
+| `/players/{player}/matches?limit=` | latest matches with their Elo change |
+| `/players/{player}/tournaments?limit=` | tournament results |
+| `/players/{player}/rivals?limit=` | the opponents met most |
+| `/players/{player}/profile` | a player in short, for a name plate |
+| `/head-to-head/{p1}/{p2}` | head-to-head statistics |
+| `/head-to-head/{p1}/{p2}/matches?limit=` | head-to-head history |
+| `/head-to-head/{p1}/{p2}/prediction` | each side's chance by Elo |
+| `/players?q=` | search by nickname |
+
 Super admins can only be set from the command line, inside `api/`:
 
 ```bash

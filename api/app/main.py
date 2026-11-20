@@ -28,6 +28,7 @@ from .routers import (
     players,
     preview,
     schedule,
+    stream_api,
     tournaments,
     users,
 )
@@ -104,6 +105,30 @@ def same_tag(asked: str, tag: str) -> bool:
     return any(candidate.strip() == "*" or bare(candidate) == bare(tag) for candidate in asked.split(","))
 
 
+STREAM_API = f"{settings.api_prefix}/stream-api"
+
+
+@app.middleware("http")
+async def stream_api_cors(request: Request, call_next):
+    """The stream API is read by overlays on other sites with a key, never a cookie, so any page may read it."""
+    if not request.url.path.startswith(STREAM_API):
+        return await call_next(request)
+    cors = {"Access-Control-Allow-Origin": "*"}
+    if request.method == "OPTIONS":
+        return Response(
+            status_code=204,
+            headers={
+                **cors,
+                "Access-Control-Allow-Methods": "GET",
+                "Access-Control-Allow-Headers": "X-API-Key",
+                "Access-Control-Max-Age": "86400",
+            },
+        )
+    response = await call_next(request)
+    response.headers.update(cors)
+    return response
+
+
 @app.middleware("http")
 async def not_modified(request: Request, call_next):
     """A reader who already has this very answer (its tag, from stats.snapshot.cached_json) is told so, without
@@ -142,6 +167,7 @@ app.include_router(analytics.router, prefix=settings.api_prefix)
 app.include_router(bundles.router, prefix=settings.api_prefix)
 app.include_router(bets.router, prefix=settings.api_prefix)
 app.include_router(abyss.router, prefix=settings.api_prefix)
+app.include_router(stream_api.router, prefix=settings.api_prefix)
 
 # Spiral Abyss icons downloaded from alioth.wiki (services/abyss.py): game assets only, never uploads.
 ABYSS_ASSETS.mkdir(parents=True, exist_ok=True)

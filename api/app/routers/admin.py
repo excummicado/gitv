@@ -1,16 +1,18 @@
 """Staff tools: roles (admins: up to event organizer, super admins: up to admin), the organizers whose tournaments a
-member runs (admins and super admins), bans (admins and super admins) and bet testers (super admins)."""
+member runs (admins and super admins), bans (admins and super admins), bet testers and the stream API's keys (super
+admins)."""
 
 from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlmodel import func, select
 
 from ..database import SessionDep
 from ..dependencies import get_current_staff, get_current_super_admin
-from ..models import Role, User, UserOrganizer, UserPublic
+from ..models import ApiKey, Role, User, UserOrganizer, UserPublic
+from ..services import api_keys
 from ..services.organizers import organizer_choices, organizer_root
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -224,3 +226,80 @@ def grant_bet_tester(nickname: str, session: SessionDep, actor: Annotated[User, 
 @router.delete("/users/{nickname}/bet-tester", response_model=UserPublic)
 def revoke_bet_tester(nickname: str, session: SessionDep, actor: Annotated[User, Depends(get_current_super_admin)]):
     return set_bet_tester(session, nickname, False)
+
+
+# Keys to the stream API (routers/stream_api.py): only a super admin issues them, each with a note saying whose it is.
+# The key itself is in the answer to the request that made it and nowhere else; revoking stops it at once.
+
+
+class ApiKeyNote(BaseModel):
+    note: str = Field(min_length=1, max_length=200)
+
+
+class ApiKeyOut(BaseModel):
+    id: int
+    note: str
+    prefix: str
+    created_at: datetime
+    created_by: str | None  # the super admin's nickname
+    last_used_at: datetime | None
+    revoked_at: datetime | None
+
+
+class NewApiKey(ApiKeyOut):
+    key: str  # shown this once
+
+
+def key_out(session: SessionDep, row: ApiKey) -> dict:
+    author = session.get(User, row.created_by) if row.created_by else None
+    return {**row.model_dump(exclude={"key_hash", "created_by"}), "created_by": author and author.nickname}
+
+
+def find_key(session: SessionDep, key_id: int) -> ApiKey:
+    row = session.get(ApiKey, key_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such API key.")
+    return row
+
+
+@router.get("/api-keys", response_model=list[ApiKeyOut])
+def list_api_keys(session: SessionDep, actor: Annotated[User, Depends(get_current_super_admin)]):
+    """Every key, working ones first, newest first."""
+    rows = session.exec(select(ApiKey).order_by(ApiKey.id.desc())).all()
+    return [key_out(session, r) for r in sorted(rows, key=lambda r: r.revoked_at is not None)]
+
+
+@router.post("/api-keys", response_model=NewApiKey, status_code=status.HTTP_201_CREATED)
+def issue_api_key(data: ApiKeyNote, session: SessionDep, actor: Annotated[User, Depends(get_current_super_admin)]):
+    note = data.note.strip()
+    if not note:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Write a note for the key.")
+    row, raw = api_keys.issue(session, note, actor.id)
+    return {**key_out(session, row), "key": raw}
+
+
+@router.patch("/api-keys/{key_id}", response_model=ApiKeyOut)
+def edit_api_key_note(
+    key_id: int, data: ApiKeyNote, session: SessionDep, actor: Annotated[User, Depends(get_current_super_admin)]
+):
+    row = find_key(session, key_id)
+    note = data.note.strip()
+    if not note:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Write a note for the key.")
+    row.note = note
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    return key_out(session, row)
+
+
+@router.delete("/api-keys/{key_id}", response_model=ApiKeyOut)
+def revoke_api_key(key_id: int, session: SessionDep, actor: Annotated[User, Depends(get_current_super_admin)]):
+    row = find_key(session, key_id)
+    if row.revoked_at is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This API key is already revoked.")
+    row.revoked_at = datetime.now(UTC)
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    return key_out(session, row)

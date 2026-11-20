@@ -26,6 +26,7 @@ export default [
   route("abyss", "routes/abyss.tsx"),
   route("abyss/:phaseId", "routes/abyss.phase.tsx"),
   route("privacy", "routes/privacy.tsx"),
+  route("stream-api", "routes/stream-api.tsx"),
   route("robots.txt", "routes/robots[.]txt.ts"),
   route("sitemap.xml", "routes/sitemap[.]xml.ts"),
   // Last: every other address is the 404 page.

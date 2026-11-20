@@ -43,3 +43,17 @@
 .profile-organizers li { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
 .profile-organizers-member { align-self: center; }
 .profile-select--grow { flex: 1; min-width: 0; }
+/* Stream API keys (ApiKeysForm) */
+.profile-keys { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.profile-key { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--gitv-border); background: var(--gitv-surface); }
+.profile-key.is-revoked { opacity: 0.6; }
+.profile-key-main { min-width: 0; flex: 1; }
+.profile-key-note { font-size: 14px; color: var(--gitv-text); overflow-wrap: anywhere; }
+.profile-key-meta { margin-top: 4px; font-size: 12px; color: var(--gitv-faint); overflow-wrap: anywhere; }
+.profile-key-meta code, .profile-panel code { font-size: 12px; color: var(--gitv-text-soft); }
+.profile-key-revoked { color: var(--gitv-loss); }
+.profile-key-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.profile-key-actions .profile-action { padding: 6px 12px; }
+.profile-key-fresh { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--gitv-accent); font-size: 13px; color: var(--gitv-text-soft); display: flex; flex-direction: column; gap: 8px; }
+.profile-key-value { flex: 1; min-width: 0; padding: 7px 10px; border: 1px solid var(--gitv-border); background: var(--gitv-bg, transparent); color: var(--gitv-text); font-size: 13px; overflow-wrap: anywhere; user-select: all; }
+@media (max-width: 560px) { .profile-key { flex-direction: column; } }

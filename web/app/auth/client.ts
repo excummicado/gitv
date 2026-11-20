@@ -211,6 +211,33 @@ export function revokeBetTester(nickname: string) {
   return adminRequest("DELETE", `/users/${encodeURIComponent(nickname)}/bet-tester`);
 }
 
+// Keys to the stream API (super admin only): each with a note; the key itself comes once, in the answer that made it.
+export type ApiKey = {
+  id: number;
+  note: string;
+  prefix: string;
+  created_at: string;
+  created_by: string | null;
+  last_used_at: string | null;
+  revoked_at: string | null;
+};
+
+export function listApiKeys() {
+  return authRequest<ApiKey[]>("GET", "/admin/api-keys");
+}
+
+export function issueApiKey(note: string) {
+  return authRequest<ApiKey & { key: string }>("POST", "/admin/api-keys", { note });
+}
+
+export function renameApiKey(id: number, note: string) {
+  return authRequest<ApiKey>("PATCH", `/admin/api-keys/${id}`, { note });
+}
+
+export function revokeApiKey(id: number) {
+  return authRequest<ApiKey>("DELETE", `/admin/api-keys/${id}`);
+}
+
 export function banUser(nickname: string) {
   return adminRequest("POST", "/bans", { nickname });
 }

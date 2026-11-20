@@ -734,3 +734,17 @@ class Bet(SQLModel, table=True):
     payout: int  # what it pays if it wins (amount * odds, rounded down)
     status: str = "pending"  # pending, won, lost, refunded
     created_at: datetime
+
+
+class ApiKey(SQLModel, table=True):
+    """A key to the stream API (routers/stream_api.py): issued, signed with a note and revoked by a super admin only.
+    The key itself is shown once, when it's made; only its SHA-256 is kept, and its first characters to tell it by."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    note: str = Field(max_length=200)  # whose it is, what it's for: the super admin's own words
+    key_hash: str = Field(unique=True, index=True)
+    prefix: str  # the key's first characters, to recognize it in the list
+    created_at: datetime
+    created_by: uuid.UUID | None = None
+    last_used_at: datetime | None = None  # refreshed at most once a minute
+    revoked_at: datetime | None = None  # revoked keys stay listed, so it's clear what happened to them

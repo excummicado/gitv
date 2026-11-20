@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router";
-import { banUser, clearSession, grantBetTester, grantOrganizer, listBetTesters, listOrganizers, revokeBetTester, memberOrganizers, NICKNAME_HINT, NICKNAME_HINT_RU, NICKNAME_PATTERN, revokeOrganizer, ROLE_LABELS, ROLE_LABELS_RU, setRole, signOutEverywhere, unbanUser, updateNickname, type AssignableRole, type OrganizerOption, type Role } from "../auth/client";
+import { banUser, clearSession, grantBetTester, issueApiKey, listApiKeys, renameApiKey, revokeApiKey, type ApiKey, grantOrganizer, listBetTesters, listOrganizers, revokeBetTester, memberOrganizers, NICKNAME_HINT, NICKNAME_HINT_RU, NICKNAME_PATTERN, revokeOrganizer, ROLE_LABELS, ROLE_LABELS_RU, setRole, signOutEverywhere, unbanUser, updateNickname, type AssignableRole, type OrganizerOption, type Role } from "../auth/client";
 import { useLang } from "../i18n";
 import { useAuth } from "../auth/useCurrentUser";
 import { Navbar } from "../components/Navbar";
@@ -292,6 +292,149 @@ function BetTestersForm() {
   );
 }
 
+// Keys to the stream API (super admin only): issued with a note saying whose they are, renamed, revoked. A new key is
+// shown once, right after it's made; the list knows keys only by their first characters.
+function ApiKeyRow({ row, onChange }: { row: ApiKey; onChange: (row: ApiKey) => void }) {
+  const { t, lang } = useLang();
+  const [editing, setEditing] = useState(false);
+  const [note, setNote] = useState(row.note);
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const when = (value: string | null) =>
+    value ? new Date(value.endsWith("Z") || value.includes("+") ? value : `${value}Z`).toLocaleString(lang === "ru" ? "ru-RU" : "en-GB", { dateStyle: "short", timeStyle: "short" }) : null;
+
+  async function save(request: () => Promise<ApiKey>) {
+    setSaving(true);
+    setError(null);
+    try {
+      onChange(await request());
+      setEditing(false);
+      setConfirming(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("Couldn't save the change. Try again.", "Не удалось сохранить изменение. Попробуйте ещё раз."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const revoked = row.revoked_at !== null;
+  return (
+    <li className={`profile-key${revoked ? " is-revoked" : ""}`}>
+      <div className="profile-key-main">
+        {editing ? (
+          <form className="profile-edit-row" onSubmit={(event) => { event.preventDefault(); save(() => renameApiKey(row.id, note.trim())); }}>
+            <input className="profile-edit-input profile-edit-input--small" value={note} maxLength={200} autoFocus
+              aria-label={t("Note", "Заметка")} onChange={(event) => setNote(event.target.value)} />
+            <button type="submit" className="profile-action" disabled={saving || !note.trim()}>{t("Save", "Сохранить")}</button>
+            <button type="button" className="profile-action profile-action--quiet" onClick={() => { setEditing(false); setNote(row.note); }}>{t("Cancel", "Отмена")}</button>
+          </form>
+        ) : (
+          <div className="profile-name-row">
+            <strong className="profile-key-note">{row.note}</strong>
+            {!revoked && (
+              <button type="button" className="profile-pen" onClick={() => setEditing(true)} aria-label={t("Edit note", "Изменить заметку")} title={t("Edit note", "Изменить заметку")}>
+                <PenIcon />
+              </button>
+            )}
+          </div>
+        )}
+        <div className="profile-key-meta">
+          <code>{row.prefix}…</code>
+          {" · "}{t("issued", "выдан")} {when(row.created_at)}{row.created_by ? ` (${row.created_by})` : ""}
+          {" · "}{row.last_used_at ? `${t("last used", "последний запрос")} ${when(row.last_used_at)}` : t("never used", "ещё не использовался")}
+          {revoked && <>{" · "}<span className="profile-key-revoked">{t("revoked", "отозван")} {when(row.revoked_at)}</span></>}
+        </div>
+        {error && <div className="profile-edit-error" role="alert">{error}</div>}
+      </div>
+      {!revoked && !editing && (confirming ? (
+        <div className="profile-key-actions">
+          <button type="button" className="profile-action profile-action--danger" disabled={saving} onClick={() => save(() => revokeApiKey(row.id))}>{t("Revoke", "Отозвать")}</button>
+          <button type="button" className="profile-action profile-action--quiet" onClick={() => setConfirming(false)}>{t("Cancel", "Отмена")}</button>
+        </div>
+      ) : (
+        <div className="profile-key-actions">
+          <button type="button" className="profile-action profile-action--quiet" onClick={() => setConfirming(true)}>{t("Revoke", "Отозвать")}</button>
+        </div>
+      ))}
+    </li>
+  );
+}
+
+function ApiKeysForm() {
+  const { t } = useLang();
+  const [keys, setKeys] = useState<ApiKey[]>([]);
+  const [note, setNote] = useState("");
+  const [fresh, setFresh] = useState<{ note: string; key: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [message, setMessage] = useState<Message>(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { listApiKeys().then(setKeys).catch(() => {}); }, []);
+
+  async function issue(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!note.trim()) return setMessage({ text: t("Write a note: whose key it is and what for.", "Напишите заметку: чей это ключ и для чего."), ok: false });
+    setSaving(true);
+    setMessage(null);
+    try {
+      const made = await issueApiKey(note.trim());
+      setFresh({ note: made.note, key: made.key });
+      setCopied(false);
+      setNote("");
+      setKeys((rows) => [made, ...rows]);
+    } catch (err) {
+      setMessage({ text: err instanceof Error ? err.message : t("Couldn't save the change. Try again.", "Не удалось сохранить изменение. Попробуйте ещё раз."), ok: false });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function copy() {
+    if (!fresh) return;
+    try {
+      await navigator.clipboard.writeText(fresh.key);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <section className="player-box profile-panel profile-panel--wide">
+      <h2 className="player-box-title">{t("Stream API keys", "API-ключи для стримов")}</h2>
+      <div className="profile-panel-body">
+        <form className="profile-edit-row" onSubmit={issue} noValidate>
+          <input className="profile-edit-input profile-edit-input--small" value={note} maxLength={200}
+            aria-label={t("Note", "Заметка")} placeholder={t("Note: whose key it is, what for", "Заметка: чей ключ, для чего")}
+            onChange={(event) => { setNote(event.target.value); setMessage(null); }} />
+          <button type="submit" className="profile-action" disabled={saving}>{t("Issue key", "Выдать ключ")}</button>
+        </form>
+        {message && <div className={message.ok ? "profile-edit-success" : "profile-edit-error"} role="status">{message.text}</div>}
+        {fresh && (
+          <div className="profile-key-fresh" role="status">
+            <div>{t(`Key for “${fresh.note}”. Copy it now: it won't be shown again.`, `Ключ «${fresh.note}». Скопируйте его сейчас — больше он показан не будет.`)}</div>
+            <div className="profile-edit-row">
+              <code className="profile-key-value">{fresh.key}</code>
+              <button type="button" className="profile-action" onClick={copy}>{copied ? t("Copied", "Скопирован") : t("Copy", "Копировать")}</button>
+              <button type="button" className="profile-action profile-action--quiet" onClick={() => setFresh(null)}>{t("Done", "Готово")}</button>
+            </div>
+          </div>
+        )}
+        <ul className="profile-keys">
+          {keys.map((row) => (
+            <ApiKeyRow key={row.id} row={row} onChange={(changed) => setKeys((rows) => rows.map((r) => (r.id === changed.id ? changed : r)))} />
+          ))}
+          {keys.length === 0 && <li className="profile-edit-hint">{t("No keys yet.", "Ключей пока нет.")}</li>}
+        </ul>
+        <div className="profile-edit-hint">
+          {t("The key goes in the X-API-Key header or as ?key= in the link. ", "Ключ передаётся в заголовке X-API-Key или параметром ?key= в ссылке. ")}
+          <Link to="/stream-api">{t("API documentation", "Документация API")}</Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // Signing out here, or on every device at once (after a confirm: it can't be undone from here).
 function SignOutButtons() {
   const { t } = useLang();
@@ -369,6 +512,7 @@ export function ProfilePage() {
                 <OrganizersForm />
                 <BansForm />
                 {user.role === "super_admin" && <BetTestersForm />}
+                {user.role === "super_admin" && <ApiKeysForm />}
               </div>
             )}
             {!ready || user ? null : (
