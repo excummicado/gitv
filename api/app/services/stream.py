@@ -17,7 +17,8 @@ House of the Hearth's (settings.hoth_telegram_channel) posts differently:
   "Болвансеры ♿️ Леха — 17:00 МСК"), each with "Комментаторы: X & Y" under it; a match whose players aren't known
   yet is "TBD VS TBD" (or "TBD VS A"): once its time comes, its players are looked up in the bracket the post
   links ("Сетка турнира", Challonge; fill_tbd), else filled in by its results post; each match's stage (final,
-  semifinal, ...) comes from that bracket too (fill_stages);
+  semifinal, ...) comes from that bracket too (fill_stages), and a nickname the bracket spells otherwise is found
+  there by its opponent and tied to that player (bracket_spelling, tie_bracket_name);
 - a match moved: "Игра A VS B переносится на 17:30 МСК";
 - its results post: "Результат (финального) матча A VS B" with both teams, not who won.
 A team event's day post also lists its teams' players under "Состав команд" ("Болвансеры — Northwar & Vell1ar"),
@@ -52,14 +53,16 @@ import re
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from difflib import SequenceMatcher
 from zoneinfo import ZoneInfo
 
 import httpx
 from sqlmodel import Session, select
 
 from ..config import settings
-from ..models import StreamMatch, StreamStatus, StreamTeam
+from ..models import ChallongeAlias, StreamMatch, StreamStatus, StreamTeam
 from .challonge import HEADERS, module_url, normalize, parse_store
+from .player_names import LOOSE_MIN, loose
 
 log = logging.getLogger(__name__)
 
@@ -780,32 +783,140 @@ def bracket_stage(store: dict, a: str, b: str) -> str | None:
     return {top: "final", top - 1: "semifinal", top - 2: "quarterfinal"}.get(r, f"of:{2 ** (top - r)}")
 
 
+def bracket_matches(store: dict) -> list[dict]:
+    """A bracket's matches whose both players are known: its groups', its main stage's and the third place match."""
+    raw = [m for ms in (store.get("matches_by_round") or {}).values() for m in ms]
+    raw += [m for g in store.get("groups") or [] for ms in (g.get("matches_by_round") or {}).values() for m in ms]
+    raw += [store["third_place_match"]] if store.get("third_place_match") else []
+    return [m for m in raw if all(side_names(m))]
+
+
+def side_names(m: dict) -> tuple[str, str]:
+    return tuple(((m.get(side) or {}).get("display_name") or "").strip() for side in ("player1", "player2"))
+
+
+# Of several opponents, the likeliest is taken when its name looks this much like the post's (difflib's ratio of the
+# loose names) and this much more than the next one's.
+OPPONENT_LIKENESS = 0.5
+OPPONENT_MARGIN = 0.2
+
+
+def bracket_name(store: dict, name: str) -> str | None:
+    """How the bracket spells a post's nickname: the same without case, punctuation or ё, else the one name in it
+    that reads the same loosely (player_names.loose: Roozie for rooziee). None when it isn't there."""
+    names = {team_key(n): n for m in bracket_matches(store) for n in side_names(m)}
+    key = team_key(name)
+    if key in names:
+        return names[key]
+    if len(loose(key)) < LOOSE_MIN:
+        return None
+    near = {n for k, n in names.items() if loose(k) == loose(key)}
+    return next(iter(near)) if len(near) == 1 else None
+
+
+def bracket_spelling(store: dict, a: str, b: str, written: set[str], open_only: bool = False) -> dict[str, str]:
+    """How the bracket spells the post's A and B, where it spells them otherwise: {post's name: bracket's}. A name
+    not in the bracket (bracket_name) is the opponent the other player has there: malin vs Panika in the post,
+    Panika vs meylin in the bracket, so malin is meylin. Opponents the channel's posts write as themselves
+    (written: their bracket names) aren't it; of several, those in an undecided match when the post's match isn't
+    over (open_only), then the one whose name looks clearly most like it. Empty when it's unclear."""
+    found = {n: bracket_name(store, n) for n in (a, b)}
+    if not any(found.values()):
+        return {}
+    if not all(found.values()):
+        known, unknown = (found[a], b) if found[a] else (found[b], a)
+        options = [
+            (other, m)
+            for m in bracket_matches(store)
+            for one, other in (side_names(m), side_names(m)[::-1])
+            if team_key(one) == team_key(known) and team_key(other) not in {team_key(w) for w in written}
+        ]
+        if open_only and len({team_key(o) for o, _ in options}) > 1:
+            undecided = [(o, m) for o, m in options if not m.get("winner_id") and m.get("state") != "complete"]
+            options = undecided or options
+        distinct = list({team_key(o): o for o, _ in options}.values())
+        if len(distinct) > 1:
+            score = {o: SequenceMatcher(None, loose(team_key(unknown)), loose(team_key(o))).ratio() for o in distinct}
+            distinct.sort(key=score.get, reverse=True)
+            best, second = score[distinct[0]], score[distinct[1]]
+            distinct = distinct[:1] if best >= OPPONENT_LIKENESS and best - second >= OPPONENT_MARGIN else []
+        if len(distinct) != 1:
+            return {}
+        found[unknown] = distinct[0]
+    return {n: found[n] for n in (a, b) if team_key(found[n]) != team_key(n)}
+
+
+def tie_bracket_name(session: Session, book, name: str, bracket: str) -> bool:
+    """Ties a post's nickname to the player the bracket's spelling of it is (a ChallongeAlias, as an admin's tie on
+    the unresolved page): when no player is found for it yet, one is for the bracket's name, and an admin hasn't said
+    it isn't them. book: player_names.NameBook. Returns whether it tied."""
+    key = normalize(name)
+    if not key or book.find(name) or (key, "") in book.rejected or session.get(ChallongeAlias, key):
+        return False
+    pid = book.find(bracket)
+    if not pid or (key, pid) in book.rejected:
+        return False
+    session.add(ChallongeAlias(name=key, user_id=pid, created_at=datetime.now(UTC)))
+    log.info("stream: %s is %s in the bracket, tied to player %s", name, bracket, pid)
+    return True
+
+
 def fill_stages(
-    session: Session, channel: str, now: datetime | None = None, fetch=fetch_bracket, stores: dict | None = None
+    session: Session,
+    channel: str,
+    now: datetime | None = None,
+    fetch=fetch_bracket,
+    stores: dict | None = None,
+    within: timedelta = SAME_DAY,
 ) -> int:
-    """Puts the day's matches' stages in, from the bracket their day post links (bracket_stage); a match whose
-    players aren't known yet waits for them. Returns how many it put in."""
+    """Puts the stages of the matches announced within this long in, from the bracket their day post links
+    (bracket_stage); a match whose players aren't known yet waits for them. A player the bracket spells otherwise is
+    looked for there (bracket_spelling), and their nickname tied to the bracket's player (tie_bracket_name). Returns
+    how many stages it put in."""
     now = now or datetime.now(UTC)
     rows = session.exec(
         select(StreamMatch).where(
             StreamMatch.channel == channel,
             StreamMatch.bracket_url.is_not(None),
             StreamMatch.stage.is_(None),
-            StreamMatch.announced_at >= now - SAME_DAY,
+            StreamMatch.announced_at >= now - within,
         )
     ).all()
     stores = {} if stores is None else stores
-    filled = 0
+    teams = {team_key(t.name) for t in session.exec(select(StreamTeam).where(StreamTeam.channel == channel))}
+    book = None
+    filled = tied = 0
     for row in rows:
-        if TBD in (row.player1_name, row.player2_name):
+        a, b = row.player1_name, row.player2_name
+        if TBD in (a, b):
             continue
         if row.bracket_url not in stores:
             stores[row.bracket_url] = fetch(row.bracket_url)
-        if stage := bracket_stage(stores[row.bracket_url], row.player1_name, row.player2_name):
-            row.stage = stage
-            session.add(row)
-            filled += 1
-    if filled:
+        store = stores[row.bracket_url]
+        spelled: dict[str, str] = {}
+        stage = bracket_stage(store, a, b)
+        if stage is None:
+            same = session.exec(select(StreamMatch).where(StreamMatch.bracket_url == row.bracket_url)).all()
+            written = {n for r in same for n in (r.player1_name, r.player2_name) if n not in (a, b, TBD)}
+            written = {found for n in written if (found := bracket_name(store, n))}
+            spelled = bracket_spelling(store, a, b, written, open_only=row.finished_at is None)
+            if spelled:
+                stage = bracket_stage(store, spelled.get(a, a), spelled.get(b, b))
+        if not stage:
+            continue
+        row.stage = stage
+        session.add(row)
+        filled += 1
+        for name, there in spelled.items():
+            if team_key(name) in teams or team_key(there) in teams:
+                continue
+            if book is None:
+                from .player_names import name_book
+                from .stats import snapshot
+
+                book = name_book(session, snapshot(session))
+            tied += tie_bracket_name(session, book, name, there)
+    if filled or tied:
         session.commit()
     return filled
 

@@ -70,6 +70,26 @@ def poll_stream() -> None:
         print(e)
 
 
+def read_stream_brackets(days: int) -> None:
+    """The stages of the streams' matches of the last days from their brackets, and their nicknames the bracket
+    spells otherwise tied to its players (services/stream.py fill_stages), as each pass does for the day's."""
+    from datetime import timedelta
+
+    from sqlalchemy import func
+
+    from ..models import ChallongeAlias
+    from ..services.stream import fill_stages, streams
+
+    with Session(engine) as session:
+        before = session.exec(select(func.count()).select_from(ChallongeAlias)).one()
+        for s in streams():
+            filled = fill_stages(session, s.telegram, within=timedelta(days=days))
+            print(f"{s.telegram}: {filled} stages")
+        after = session.exec(select(ChallongeAlias).order_by(ChallongeAlias.created_at.desc())).all()
+        for alias in after[: len(after) - before]:
+            print(f"tied {alias.name} -> {alias.user_id}")
+
+
 def set_news_translation(news_id: int, path: str, title: str | None) -> None:
     """Attaches a translated .docx to a news post, as its page's upload does (routers/news.py)."""
     from ..models import NewsPost

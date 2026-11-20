@@ -35,6 +35,7 @@ venv/bin/python -m app.cli add-manual-games brackets/abyss_cup_major_1_games.jso
 venv/bin/python -m app.cli export-aspirine abysscup_minor_24 abysscup_minor_s2 abysscup_major
 venv/bin/python -m app.cli import-aspirine
 venv/bin/python -m app.cli poll-stream
+venv/bin/python -m app.cli read-stream-brackets --days 60
 """
 
 import argparse
@@ -75,6 +76,7 @@ from .site import (
     check_site,
     import_article,
     poll_stream,
+    read_stream_brackets,
     set_news_translation,
     set_role,
 )
@@ -212,6 +214,11 @@ def main() -> None:
     site_cmd = commands.add_parser("check-site", help="Ask the tournament site what the sync asks; report fields gone")
     site_cmd.add_argument("site", nargs="?", help="Its address; else SITE_URL (the one the sync uses)")
     commands.add_parser("poll-stream", help="Read the streams' Telegram channels and Twitch status once")
+    rsb_cmd = commands.add_parser(
+        "read-stream-brackets",
+        help="Stream matches' stages from their brackets; tie nicknames the bracket spells otherwise",
+    )
+    rsb_cmd.add_argument("--days", type=int, default=60, help="Announced within this many days (default 60)")
     commands.add_parser("import-aspirine", help="Store the old tournaments export-aspirine saved as matches")
     games_cmd = commands.add_parser("add-manual-games", help="Store games of hand-entered tournaments from a JSON file")
     games_cmd.add_argument("file", help="JSON: matches with tournament, date, players, games (rooms, penalty), winner")
@@ -325,6 +332,8 @@ def main() -> None:
         check_site(args.site)
     elif args.command == "poll-stream":
         poll_stream()
+    elif args.command == "read-stream-brackets":
+        read_stream_brackets(args.days)
     elif args.command == "import-aspirine":
         import_aspirine()
     elif args.command == "add-manual-games":

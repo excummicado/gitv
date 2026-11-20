@@ -11,6 +11,7 @@ from app.database import get_session
 from app.dependencies import get_current_active_user
 from app.main import app
 from app.models import ChallongeAlias, NameRejection, Role, StreamMatch, User
+from app.services import stream
 from app.services.player_names import loose, name_book
 from app.services.stats import snapshot
 
@@ -105,3 +106,61 @@ def test_rejecting_a_suggestion_or_hiding_a_name(client, session):
     assert "Somebody Else" not in {r["name"] for r in client.get("/api/v1/schedule/stream-names").json()}
     assert session.exec(select(NameRejection)).all()
     assert client.post("/api/v1/schedule/stream-names/tie", json={"name": "x", "player": "nobody"}).status_code == 404
+
+
+def bracket_store(*pairs: tuple[str, str, bool]) -> dict:
+    """A Challonge TournamentStore, single elimination, one round: (player 1, player 2, decided)."""
+    return {
+        "matches_by_round": {
+            "1": [
+                {
+                    "identifier": n,
+                    "round": 1,
+                    "player1": {"display_name": a},
+                    "player2": {"display_name": b},
+                    "winner_id": 1 if done else None,
+                    "state": "complete" if done else "open",
+                }
+                for n, (a, b, done) in enumerate(pairs, 1)
+            ]
+        }
+    }
+
+
+def test_the_bracket_says_who_a_name_is_by_its_opponent():
+    store = bracket_store(("Panika", "meylin", False), ("rooziee", "Baam", True), ("Panika", "Baam", True))
+    # Roozie reads as rooziee; malin isn't in the bracket, but Panika's opponents are meylin and Baam, and Baam is
+    # written as himself elsewhere.
+    assert stream.bracket_spelling(store, "Roozie", "Baam", set()) == {"Roozie": "rooziee"}
+    assert stream.bracket_spelling(store, "malin", "Panika", {"Baam"}) == {"malin": "meylin"}
+    # Without that: the match not decided yet, or the name that looks clearly most like it.
+    assert stream.bracket_spelling(store, "malin", "Panika", set(), open_only=True) == {"malin": "meylin"}
+    assert stream.bracket_spelling(store, "malin", "Panika", set()) == {"malin": "meylin"}
+    assert stream.bracket_spelling(store, "xyz", "Panika", set()) == {}  # meylin or Baam: unclear
+    assert stream.bracket_spelling(store, "xyz", "qwe", set()) == {}
+    assert stream.bracket_spelling(store, "Panika", "meylin", set()) == {}
+
+
+def test_a_name_found_by_its_opponent_in_the_bracket_is_tied_to_that_player(client, session):
+    stream_match(session, "Malin", "Aether")
+    stream_match(session, "Lumine", "Dainsleif")
+    for row in session.exec(select(StreamMatch)):
+        row.bracket_url = "https://challonge.com/hoth_x"
+        session.add(row)
+    session.commit()
+    store = bracket_store(("Aether", "Paimon", False), ("Lumine", "Dainsleif", False), ("Aether", "Dainsleif", True))
+    assert stream.fill_stages(session, "hoth_abyss", fetch=lambda url: store) == 2
+    assert session.get(ChallongeAlias, "malin").user_id == "smoke-p3"  # Dainsleif plays as himself: Malin is Paimon
+    act_as(session, Role.admin)
+    assert client.get("/api/v1/schedule/stream-names").json() == []
+
+
+def test_a_bracket_name_is_not_tied_against_an_admins_word(client, session):
+    stream_match(session, "Malin", "Aether")
+    row = session.exec(select(StreamMatch)).one()
+    row.bracket_url = "https://challonge.com/hoth_x"
+    session.add(NameRejection(name="malin", user_id="smoke-p3", created_at=datetime.now(UTC)))
+    session.commit()
+    store = bracket_store(("Aether", "Paimon", False))
+    assert stream.fill_stages(session, "hoth_abyss", fetch=lambda url: store) == 1  # the stage still
+    assert session.get(ChallongeAlias, "malin") is None
