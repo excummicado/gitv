@@ -259,7 +259,7 @@ def stream_matches(
     }
 
     def player(name: str, channel: str | None = None) -> PlayerOut:
-        pid = known.get(normalize(name))
+        pid = known.find(name) if known else None
         members = [] if pid or channel is None else teams.get((channel, team_key(name)), [])
         return PlayerOut(
             id=pid, name=names.get(pid, name) if pid else name, members=[player(m) for m in members], **elo(pid)
@@ -483,10 +483,10 @@ def read_room(match_key: bet_routes.MatchKey, session: SessionDep):
             post_url=None,
         )
     rosters = roster_tournaments(session, [match.player1_id, match.player2_id], tournament_id)
-    known = bet_routes.known(session) if teams else {}
+    known = bet_routes.known(session) if teams else None
 
     def member(name: str) -> PlayerOut:
-        pid = known.get(normalize(name))
+        pid = known.find(name) if known else None
         return PlayerOut(id=pid, name=names.get(pid, name) if pid else name, **elo(pid))
 
     def player(i: int, pid: str | None, name: str) -> RoomPlayer:

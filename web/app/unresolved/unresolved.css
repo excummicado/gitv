@@ -7,3 +7,23 @@
   .unresolved-row { grid-template-columns: 1fr; gap: 2px; }
 }
 .unresolved-hint { margin: 0; padding: 6px 12px; font-size: 11px; }
+/* Streams' nicknames without a player (admins) */
+.names-row { padding: 10px 12px; border-top: 1px dotted var(--gitv-border-muted); display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
+.names-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.names-name { font-size: 14px; color: var(--gitv-text); }
+.names-meta { color: var(--gitv-muted); }
+.names-candidates { display: flex; flex-direction: column; gap: 4px; }
+.names-candidate { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 5px 8px; background: var(--gitv-surface-2); }
+.names-player { color: var(--gitv-accent); font-weight: 600; text-decoration: none; }
+.names-player:hover { text-decoration: underline; }
+.names-candidate .names-meta { flex: 1; min-width: 120px; }
+.names-btn { padding: 4px 10px; border: 1px solid var(--gitv-border); background: var(--gitv-surface); color: var(--gitv-text-soft); font: 600 11px/1.3 var(--gitv-font); cursor: pointer; }
+.names-btn:hover { border-color: var(--gitv-accent); color: var(--gitv-text); }
+.names-btn:disabled { opacity: 0.6; cursor: default; }
+.names-btn--yes { border-color: transparent; background: var(--gitv-accent-deep); color: var(--gitv-text); }
+.names-btn--yes:hover { background: var(--gitv-accent-strong); }
+.names-btn--quiet { margin-left: auto; color: var(--gitv-muted); }
+.names-other { display: flex; flex-wrap: wrap; gap: 6px; }
+.names-input { flex: 1; min-width: 160px; padding: 5px 8px; border: 1px solid var(--gitv-border); background: var(--gitv-surface); color: var(--gitv-text); font: 12px/1.4 var(--gitv-font); }
+.names-input:focus { outline: none; border-color: var(--gitv-accent); }
+.names-error { color: var(--gitv-loss); }

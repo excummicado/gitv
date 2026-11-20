@@ -22,6 +22,7 @@ from app.models import (
 from app.rate_limit import limiter
 from app.routers import bets as router
 from app.services import bets
+from app.services.player_names import NameBook
 from app.services.stream import streams
 
 ELO = {"A": 1600.0, "B": 1500.0}
@@ -279,7 +280,7 @@ def day() -> dict:
 
 
 def test_everyone_sees_the_odds_and_the_room_but_only_testers_bet(client, session, monkeypatch):
-    monkeypatch.setattr(router, "known", lambda session: {"a": "A", "b": "B"})
+    monkeypatch.setattr(router, "known", lambda session: NameBook({"a": "A", "b": "B"}, {}, set()))
     boss = member(session)
     match = announce(session, boss, soon())
     streamed = on_stream(session, starts_at=soon())
@@ -329,7 +330,7 @@ def test_everyone_sees_the_odds_and_the_room_but_only_testers_bet(client, sessio
 
 
 def test_bets_on_a_streams_match_close_when_it_goes_on_air(client, session, monkeypatch):
-    monkeypatch.setattr(router, "known", lambda session: {"a": "A", "b": "B"})
+    monkeypatch.setattr(router, "known", lambda session: NameBook({"a": "A", "b": "B"}, {}, set()))
     boss = member(session)
     act_as(boss)
     # No time of its own in the post: bets are taken until it goes on air

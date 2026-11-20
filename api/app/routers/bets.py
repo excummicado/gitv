@@ -16,7 +16,7 @@ from ..rate_limit import rate_limit
 from ..services import bets
 from ..services.bets import BetError, Fixture, aware
 from ..services.organizers import can_run_tournament
-from ..services.player_names import display_names, known_players
+from ..services.player_names import NameBook, display_names, name_book
 from ..services.stats import elo_ratings, snapshot
 
 router = APIRouter(prefix="/bets", tags=["bets"])
@@ -132,9 +132,9 @@ def may_settle(session: SessionDep, user: User, match: Fixture) -> bool:
     return row is not None and (row.created_by == user.id or can_run_tournament(session, user, row.tournament_id))
 
 
-def known(session: SessionDep) -> dict[str, str]:
-    """{normalized nickname: player id}, to tell who plays a stream's match."""
-    return known_players(session, snapshot(session))
+def known(session: SessionDep) -> NameBook:
+    """Who's who by nickname, to tell who plays a stream's match (player_names.NameBook)."""
+    return name_book(session, snapshot(session))
 
 
 def find_match(session: SessionDep, key: str, now: datetime) -> Fixture | None:

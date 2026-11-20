@@ -4,9 +4,12 @@ Players rename themselves, so their games carry several nicknames. Shown is the 
 played under (see complexity); a nickname set by hand (app.cli set-player-name) always wins.
 """
 
+import re
+from dataclasses import dataclass
+
 from sqlmodel import Session, func, select
 
-from ..models import ChallongeAlias, Match, MatchPlayer, OffsitePlayer, PlayerMerge, PlayerName
+from ..models import ChallongeAlias, Match, MatchPlayer, NameRejection, OffsitePlayer, PlayerMerge, PlayerName
 from .challonge import normalize
 
 
@@ -78,10 +81,10 @@ def shown_name(p: MatchPlayer, names: dict[str, str]) -> str:
     return names.get(p.user_id or "", p.full_name)
 
 
-def known_players(session: Session, snap) -> dict[str, str]:
-    """{normalized nickname: player id} for nicknames only one player is known under: in their games on the site,
-    in any tournament's bracket, tied by hand (set-challonge-name), or the name the site shows them under. snap:
-    the statistics snapshot (for the brackets' names)."""
+def name_owners(session: Session, snap) -> dict[str, set[str]]:
+    """{normalized nickname: every player known under it}: in their games on the site, in any tournament's bracket,
+    tied by hand (set-challonge-name, or the unresolved page's suggestions), or the name the site shows them under.
+    snap: the statistics snapshot (for the brackets' names)."""
     owners: dict[str, set[str]] = {}
     merged = dict(session.exec(select(PlayerMerge.user_id, PlayerMerge.into_id)).all())
     names = list(
@@ -91,5 +94,66 @@ def known_players(session: Session, snap) -> dict[str, str]:
     names += list(session.exec(select(ChallongeAlias.name, ChallongeAlias.user_id)))
     names += [(name, pid) for pid, name in display_names(session).items()]
     for name, pid in names:
-        owners.setdefault(normalize(name), set()).add(merged.get(pid, pid))
-    return {key: next(iter(pids)) for key, pids in owners.items() if key and len(pids) == 1}
+        if key := normalize(name):
+            owners.setdefault(key, set()).add(merged.get(pid, pid))
+    return owners
+
+
+def known_players(session: Session, snap) -> dict[str, str]:
+    """{normalized nickname: player id} for nicknames only one player is known under (see name_owners)."""
+    return {key: next(iter(pids)) for key, pids in name_owners(session, snap).items() if len(pids) == 1}
+
+
+# Digits read as the letters they stand in for: mandal1n = mandalin, r00z = rooz.
+LEET = str.maketrans("013457", "oieast")
+# Shorter keys are too easy to share by chance (day, rer, bob).
+LOOSE_MIN = 4
+
+
+def loose(key: str) -> str:
+    """A normalized nickname with digits read as letters and doubled letters single: rooziee, Roozie and rooz1ee
+    all give rozie. Not similarity: names one letter apart (Jericho, Jericho02; Hiatus, Xhiatusx) stay apart."""
+    return re.sub(r"(.)\1+", r"\1", key.translate(LEET))
+
+
+@dataclass
+class NameBook:
+    """Who a nickname written by hand (a stream's post) is: the player known under exactly that name, else the one
+    player whose names read the same loosely (see loose), unless an admin said it isn't them (NameRejection)."""
+
+    exact: dict[str, str]
+    near: dict[str, str]
+    rejected: set[tuple[str, str]]  # (normalized name, player id); player id "" hides the name altogether
+
+    def find(self, name: str | None) -> str | None:
+        key = normalize(name or "")
+        if not key:
+            return None
+        if pid := self.exact.get(key):
+            return pid
+        if (key, "") in self.rejected or len(loose(key)) < LOOSE_MIN:
+            return None
+        pid = self.near.get(loose(key))
+        return pid if pid and (key, pid) not in self.rejected else None
+
+
+_books: dict[tuple, NameBook] = {}
+
+
+def name_book(session: Session, snap) -> NameBook:
+    """The NameBook for this snapshot (ties by hand are in its key) and the rejections as they are now."""
+    rejected = set(session.exec(select(NameRejection.name, NameRejection.user_id)))
+    cache_key = (snap.key, tuple(sorted(rejected)))
+    if (book := _books.get(cache_key)) is None:
+        owners = name_owners(session, snap)
+        groups: dict[str, set[str]] = {}
+        for key, pids in owners.items():
+            groups.setdefault(loose(key), set()).update(pids)
+        book = NameBook(
+            exact={key: next(iter(pids)) for key, pids in owners.items() if len(pids) == 1},
+            near={key: next(iter(pids)) for key, pids in groups.items() if len(pids) == 1},
+            rejected=rejected,
+        )
+        _books.clear()
+        _books[cache_key] = book
+    return book

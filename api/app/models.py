@@ -312,6 +312,17 @@ class OffsitePlayer(SQLModel, table=True):
     created_at: datetime
 
 
+class NameRejection(SQLModel, table=True):
+    """A stream's spelling of a nickname that an admin said isn't this player (the unresolved page's suggestions):
+    it's neither suggested for them nor tied to them by likeness again. user_id "" hides the name altogether (a team,
+    or nobody on the site)."""
+
+    name: str = Field(primary_key=True)  # normalized (challonge.normalize)
+    user_id: str = Field(primary_key=True)
+    created_by: uuid.UUID | None = None
+    created_at: datetime
+
+
 class PlayerMerge(SQLModel, table=True):
     """One person on two site accounts (app.cli merge-players): the account user_id counts as into_id everywhere,
     in statistics, names and links. Kept apart from imported tables so re-importing never undoes it."""

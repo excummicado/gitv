@@ -6,7 +6,7 @@ import { LangSwitch, useLang } from "../i18n";
 import { CoffeeIcon } from "./CoffeeIcon";
 import { NavSearch } from "./NavSearch";
 import { SignOutIcon } from "./SignOutIcon";
-import { fetchUnresolved } from "../unresolved/api";
+import { fetchStreamNames, fetchUnresolved } from "../unresolved/api";
 import { visit, watchBalance } from "../bets/api";
 import "../unresolved/unresolved.css";
 import "./navbar.css";
@@ -46,10 +46,14 @@ export function Navbar() {
   // Organizers and admins: how many matches of their tournaments need a winner set by hand
   const editor = isPlayerEditor(user);
   const [unresolved, setUnresolved] = useState(0);
+  // Admins also count the streams' nicknames no player is found for
+  const staff = Boolean(user && STAFF_ROLES.includes(user.role));
   useEffect(() => {
     if (!editor) return;
-    fetchUnresolved().then((rows) => setUnresolved(rows.filter((m) => !m.waiting).length)).catch(() => setUnresolved(0));
-  }, [editor, pathname]);
+    const matches = fetchUnresolved().then((rows) => rows.filter((m) => !m.waiting).length).catch(() => 0);
+    const names = staff ? fetchStreamNames().then((rows) => rows.length).catch(() => 0) : Promise.resolve(0);
+    Promise.all([matches, names]).then(([a, b]) => setUnresolved(a + b));
+  }, [editor, staff, pathname]);
 
   // Bet testers: any page counts as the day's visit (it gives the daily points), and the menu shows the points
   const bettor = mayBet(user);

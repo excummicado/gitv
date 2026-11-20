@@ -27,7 +27,6 @@ from datetime import UTC, date, datetime, timedelta, timezone
 from sqlmodel import Session, select
 
 from ..models import Bet, BetBalance, BetMarket, Role, ScheduledMatch, StreamMatch, User
-from .challonge import normalize
 
 MSK = timezone(timedelta(hours=3))
 START, DAILY, STREAK_DAYS, STREAK_BONUS = 1000, 50, 7, 150
@@ -107,17 +106,17 @@ def stream_closed(row: StreamMatch, now: datetime) -> bool:
     return now - aware(row.announced_at) >= STREAM_WINDOW
 
 
-def on_stream(row: StreamMatch, known: dict[str, str], now: datetime) -> Fixture:
-    """known: {normalized nickname: player id} (player_names.known_players); a team or a player the site doesn't
+def on_stream(row: StreamMatch, known, now: datetime) -> Fixture:
+    """known: who's who by nickname (player_names.NameBook); a team or a player the site doesn't
     know has no id, so no Elo and no bets."""
     return Fixture(
         key=row.id,
         scheduled_id=None,
         stream_id=row.id,
         tournament_title=row.tournament_title,
-        player1_id=known.get(normalize(row.player1_name)),
+        player1_id=known.find(row.player1_name),
         player1_name=row.player1_name,
-        player2_id=known.get(normalize(row.player2_name)),
+        player2_id=known.find(row.player2_name),
         player2_name=row.player2_name,
         starts_at=aware(row.starts_at or row.live_at or row.announced_at),
         closed=stream_closed(row, now),

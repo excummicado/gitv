@@ -29,6 +29,7 @@ from .routers import (
     preview,
     schedule,
     stream_api,
+    stream_names,
     tournaments,
     users,
 )
@@ -168,6 +169,7 @@ app.include_router(bundles.router, prefix=settings.api_prefix)
 app.include_router(bets.router, prefix=settings.api_prefix)
 app.include_router(abyss.router, prefix=settings.api_prefix)
 app.include_router(stream_api.router, prefix=settings.api_prefix)
+app.include_router(stream_names.router, prefix=settings.api_prefix)
 
 # Spiral Abyss icons downloaded from alioth.wiki (services/abyss.py): game assets only, never uploads.
 ABYSS_ASSETS.mkdir(parents=True, exist_ok=True)

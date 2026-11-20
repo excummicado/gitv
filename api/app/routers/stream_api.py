@@ -17,7 +17,7 @@ from ..models import ApiKey
 from ..rate_limit import limiter, too_many
 from ..services import api_keys
 from ..services.challonge import normalize
-from ..services.player_names import display_names, known_players, merges
+from ..services.player_names import display_names, merges, name_book
 from ..services.player_views import major_titles
 from ..services.stats import detail, elo_ratings, head_to_head, player_tournaments, snapshot
 from ..services.stats.player import avg, frequent_opponents, pct, timed
@@ -50,16 +50,6 @@ router = APIRouter(prefix="/stream-api", tags=["stream-api"], dependencies=[Depe
 Limit = Annotated[int, Query(ge=1, le=100)]
 Days = Annotated[int, Query(ge=1, le=730, description="Count only tournaments that started in the last this many days")]
 
-_known: tuple[tuple, dict[str, str]] | None = None
-
-
-def known(session, snap: Snapshot) -> dict[str, str]:
-    """{normalized nickname: player id}, built once per snapshot (it reads every nickname ever played under)."""
-    global _known
-    if _known is None or _known[0] != snap.key:
-        _known = (snap.key, known_players(session, snap))
-    return _known[1]
-
 
 def find(session, snap: Snapshot, ref: str) -> str:
     """The player's id from their id or a nickname (any case and punctuation); 404 when nobody is known by it."""
@@ -67,7 +57,7 @@ def find(session, snap: Snapshot, ref: str) -> str:
     merged = merges(session)
     pid = merged.get(ref, ref)
     if pid not in snap.players:
-        pid = known(session, snap).get(normalize(ref))
+        pid = name_book(session, snap).find(ref)
         pid = merged.get(pid, pid) if pid else None
     if pid not in snap.players:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such player.")

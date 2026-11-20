@@ -56,6 +56,7 @@ RU = {
     "Write a note for the key.": "Подпишите ключ заметкой.",
     "This API key is already revoked.": "Этот API-ключ уже отозван.",
     "Invalid or revoked API key.": "Неверный или отозванный API-ключ.",
+    "The name has no letters or digits.": "В имени нет ни букв, ни цифр.",
     "This member isn't a bet tester.": "Участник не тестер ставок.",
     # Bets
     "Bets aren't open to you yet.": "Ставки вам пока недоступны.",
