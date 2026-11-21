@@ -755,3 +755,23 @@ def test_a_schedule_picture_read_after_the_days_post_finds_its_matches(session):
     (row,) = session.exec(select(Row)).all()
     assert row.id.startswith("abysscup-8-") and row.live_at is not None
     assert row.starts_at == local.replace(hour=18, minute=30, second=0).astimezone(UTC)
+
+
+def test_a_day_post_repeated_when_the_stream_starts_adds_no_matches(session):
+    """House of the Hearth's morning post, then the same schedule again as the stream starts: one match each, the
+    TBD one too, and a TBD the later post names takes its players."""
+    morning = (datetime.now(UTC) - timedelta(hours=5)).replace(microsecond=0)
+    at = lambda hours: (morning + timedelta(hours=hours)).astimezone(stream.MOSCOW).strftime("%H:%M")  # noqa: E731
+    day = f"♾️ Oujikun VS Bestingo — {at(1)} МСК\n\n♾️ TBD VS TBD — {at(3)} МСК\n\n♾️ TBD VS TBD — {at(4)} МСК"
+    again = f"♾️ Oujikun VS Bestingo — {at(1)} МСК\n\n♾️ TBD VS TBD — {at(3)} МСК\n\n♾️ Mandal1n VS Roozie — {at(4)} МСК"
+    page = post(61, morning, day, channel="hoth_abyss") + post(
+        62, morning + timedelta(hours=1), again, channel="hoth_abyss"
+    )
+    stream.store_posts(session, "hoth_abyss", stream.parse_page(page))
+    rows = session.exec(select(StreamMatch).order_by(StreamMatch.starts_at)).all()
+    assert [(r.player1_name, r.player2_name) for r in rows] == [
+        ("Oujikun", "Bestingo"),
+        ("TBD", "TBD"),
+        ("Mandal1n", "Roozie"),
+    ]
+    assert {r.post_url for r in rows} == {"https://t.me/hoth_abyss/61"}

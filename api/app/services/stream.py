@@ -357,8 +357,28 @@ def moscow_time(day: datetime, hour: str | int, minute: str | int, zone=MOSCOW) 
     return local.astimezone(UTC)
 
 
+def earlier_slot(
+    session: Session, channel: str, at: datetime, key: str, tbd: bool, starts_at: datetime
+) -> StreamMatch | None:
+    """The match an earlier post of the day listed already (the morning's post, repeated when the stream starts):
+    the same two players' if it hadn't begun, else, for a match whose players weren't known in one of the posts
+    (TBD), the one at the same time."""
+    if not tbd and (row := announced_row(session, channel, key, at)):
+        return row
+    rows = session.exec(
+        select(StreamMatch).where(
+            StreamMatch.channel == channel,
+            StreamMatch.announced_at < at,
+            StreamMatch.announced_at >= at - SAME_DAY,
+            StreamMatch.starts_at == starts_at,
+        )
+    ).all()
+    return next((r for r in rows if tbd or TBD in (r.player1_name, r.player2_name)), None)
+
+
 def store_slots(session: Session, source: Stream, post: Post, text: list[str]) -> int:
-    """House of the Hearth's day post: a match per line with its time, its casters under it."""
+    """House of the Hearth's day post: a match per line with its time, its casters under it. A match an earlier post
+    of the day listed is that one (earlier_slot), not another."""
     changed, row = 0, None
     bracket = next((u for u in post.links if module_url(u)), None)
     for line in text:
@@ -368,7 +388,13 @@ def store_slots(session: Session, source: Stream, post: Post, text: list[str]) -
             tbd = normalize(a) == normalize(b) == normalize(TBD)
             key = f"tbd{changed}" if tbd else pair_key(a, b)
             mid = f"{source.telegram}-{post.id}-{key}"
-            row = session.get(StreamMatch, mid) or StreamMatch(
+            starts_at = moscow_time(post.at, m["h"], m["m"])
+            row = session.get(StreamMatch, mid)
+            if row is None and (row := earlier_slot(session, source.telegram, post.at, key, tbd, starts_at)):
+                row.starts_at = starts_at  # the later post's time: it may have moved
+                if not tbd and TBD in (row.player1_name, row.player2_name):
+                    row.player1_name, row.player2_name = a, b
+            row = row or StreamMatch(
                 id=mid,
                 channel=source.telegram,
                 tournament_title=source.name,
@@ -377,7 +403,7 @@ def store_slots(session: Session, source: Stream, post: Post, text: list[str]) -
                 announced_at=post.at,
                 post_url=f"https://t.me/{source.telegram}/{post.id}",
             )
-            row.starts_at = row.starts_at or moscow_time(post.at, m["h"], m["m"])
+            row.starts_at = row.starts_at or starts_at
             row.bracket_url = row.bracket_url or bracket
             session.add(row)
             changed += 1
