@@ -16,10 +16,11 @@ House of the Hearth's (settings.hoth_telegram_channel) posts differently:
 - the day's post, in the morning: a line per match, "💰 A VS B — 17:00 МСК" (team events put an emoji for "VS":
   "Болвансеры ♿️ Леха — 17:00 МСК"), each with "Комментаторы: X & Y" under it; a match whose players aren't known
   yet is "TBD VS TBD" (or "TBD VS A"): once its time comes, or earlier once it's on air (the match before it over,
-  or the stream on), its players are looked up in the bracket the post links ("Сетка турнира", Challonge;
-  fill_tbd), else filled in by its results post; each match's stage (final, semifinal, ...) comes from that
-  bracket too (fill_stages), and a nickname the bracket spells otherwise is found
-  there by its opponent and tied to that player (bracket_spelling, tie_bracket_name);
+  or the stream on), its players are taken from the stream's Twitch title ("A vs B | Cast: …") while it's on air,
+  else looked up in the bracket the post links ("Сетка турнира", Challonge; fill_tbd), else filled in by its
+  results post; each match's stage (final, semifinal, ...) comes from that bracket too (fill_stages), and a
+  nickname the bracket spells otherwise is found there by its opponent and tied to that player
+  (bracket_spelling, tie_bracket_name);
 - a match moved: "Игра A VS B переносится на 17:30 МСК";
 - its results post: "Результат (финального) матча A VS B" with both teams, not who won.
 A team event's day post also lists its teams' players under "Состав команд" ("Болвансеры — Northwar & Vell1ar"),
@@ -469,16 +470,24 @@ def fetch_bracket(url: str) -> dict:
     return parse_store(page.text)
 
 
-def stream_live(session: Session, channel: str, now: datetime) -> bool:
-    """Whether Twitch said lately that the channel's stream is on."""
+def live_status(session: Session, channel: str, now: datetime) -> StreamStatus | None:
+    """Twitch's word on the channel's stream when it's on, as the poll refreshed it lately."""
     twitch = session.get(StreamStatus, stream_of(channel).twitch)
-    return bool(twitch and twitch.live and now - aware(twitch.checked_at) <= LIVE_FRESH)
+    return twitch if twitch and twitch.live and now - aware(twitch.checked_at) <= LIVE_FRESH else None
 
 
-def tbd_due(session: Session, channel: str, now: datetime) -> list[StreamMatch]:
-    """The channel's unfinished matches of the day that may be looked up in their bracket: those whose time has
-    come, and the day's next one (the first unfinished by time) before its time once it's on air: the match before
-    it is over (the second game on air), or the stream is on."""
+def title_pair(title: str | None) -> tuple[str, str] | None:
+    """The match a stream's title names first: "Smertikk vs rooziee | Cast: qwebob & Legangush | HotH: …"."""
+    m = PAIR.fullmatch(nick(re.split(r"[|│]", title or "")[0]).strip())
+    if not m or team_key(TBD) in (team_key(m[1]), team_key(m[2])):
+        return None
+    return nick(m[1]), nick(m[2])
+
+
+def tbd_due(session: Session, channel: str, now: datetime) -> tuple[list[StreamMatch], StreamMatch | None]:
+    """The channel's unfinished matches of the day that may be filled in: those whose time has come, and the day's
+    next one (the first unfinished by time) before its time once it's on air: the match before it is over (the
+    second game on air), or the stream is on; and that next one, the match on air, or None."""
     day = session.exec(
         select(StreamMatch)
         .where(
@@ -489,22 +498,33 @@ def tbd_due(session: Session, channel: str, now: datetime) -> list[StreamMatch]:
         )
         .order_by(StreamMatch.starts_at)
     ).all()
-    due = [r for r in day if r.bracket_url and not r.finished_at and now - TBD_LOOKUP <= aware(r.starts_at) <= now]
+    due = [r for r in day if not r.finished_at and now - TBD_LOOKUP <= aware(r.starts_at) <= now]
     up = next((r for r in day if not r.finished_at), None)
-    if up is not None and up.bracket_url and up not in due and aware(up.starts_at) > now:
-        if any(r.finished_at for r in day) or stream_live(session, channel, now):
+    if up is not None and up not in due:
+        if aware(up.starts_at) > now and (any(r.finished_at for r in day) or live_status(session, channel, now)):
             due.append(up)
-    return due
+        else:
+            up = None
+    return due, up
+
+
+def put_players(row: StreamMatch, a: str, b: str) -> None:
+    """A TBD match's players, the known one keeping their side."""
+    p1, p2 = row.player1_name, row.player2_name
+    if (p2 != TBD and team_key(a) == team_key(p2)) or (p1 != TBD and team_key(b) == team_key(p1)):
+        a, b = b, a
+    row.player1_name, row.player2_name = a, b
 
 
 def fill_tbd(
     session: Session, channel: str, now: datetime | None = None, fetch=fetch_bracket, stores: dict | None = None
 ) -> int:
-    """Puts in the players of the channel's TBD matches that have started or are on air (tbd_due), from the bracket
-    their day post links (see bracket_pair), spelled as the channel spells them; returns how many were filled in.
-    Read every poll, so a TBD fills in as soon as the bracket knows its players."""
+    """Puts in the players of the channel's TBD matches that have started or are on air (tbd_due), spelled as the
+    channel spells them; returns how many were filled in. The one on air takes the pair the stream's title names
+    ("A vs B | Cast: …"), when the day has no other match of theirs; the rest the bracket their day post links
+    (see bracket_pair). Read every poll, so a TBD fills in as soon as the stream or the bracket names its players."""
     now = now or datetime.now(UTC)
-    rows = tbd_due(session, channel, now)
+    rows, up = tbd_due(session, channel, now)
     rows = [r for r in rows if TBD in (r.player1_name, r.player2_name)]
     if not rows:
         return 0
@@ -514,9 +534,21 @@ def fill_tbd(
     teams = session.exec(select(StreamTeam).where(StreamTeam.channel == channel)).all()
     names = [n for r in recent for n in (r.player1_name, r.player2_name) if n != TBD] + [t.name for t in teams]
     spelled = {team_key(n): n for n in names}
-    stores = {} if stores is None else stores
     filled = 0
+    twitch = live_status(session, channel, now)
+    if up in rows and twitch and (pair := title_pair(twitch.title)):
+        a, b = (spelled.get(team_key(n), n) for n in pair)
+        known = {team_key(n) for n in (up.player1_name, up.player2_name) if n != TBD}
+        today = {team_pair(r.player1_name, r.player2_name) for r in recent if aware(r.announced_at) >= now - SAME_DAY}
+        if known <= {team_key(a), team_key(b)} and team_pair(a, b) not in today:
+            put_players(up, a, b)
+            session.add(up)
+            rows.remove(up)
+            filled += 1
+    stores = {} if stores is None else stores
     for row in rows:
+        if not row.bracket_url:
+            continue
         if row.bracket_url not in stores:
             stores[row.bracket_url] = fetch(row.bracket_url)
         same_day = session.exec(select(StreamMatch).where(StreamMatch.post_url == row.post_url)).all()
@@ -527,11 +559,7 @@ def fill_tbd(
         pair = bracket_pair(stores[row.bracket_url], known, day)
         if pair is None:
             continue
-        a, b = (spelled.get(team_key(n), n) for n in pair)
-        p1, p2 = row.player1_name, row.player2_name
-        if (p2 != TBD and team_key(a) == team_key(p2)) or (p1 != TBD and team_key(b) == team_key(p1)):
-            a, b = b, a  # the known player keeps their side
-        row.player1_name, row.player2_name = a, b
+        put_players(row, *(spelled.get(team_key(n), n) for n in pair))
         session.add(row)
         filled += 1
     if filled:

@@ -283,6 +283,44 @@ def test_a_tbd_match_fills_in_before_its_time_once_it_is_on_air(session):
     assert (second.player1_name, second.player2_name) == ("nod-cryo", "2z1k1")
 
 
+def test_the_tbd_match_on_air_takes_the_pair_the_stream_title_names(session):
+    """The bracket can't tell (round 2 and 3 open at once), but the stream's title names the match on air: the day's
+    TBD that's on air takes it, spelled as the channel spells them; a title naming a match of the day is left be."""
+    from app.config import settings
+
+    morning = (datetime.now(UTC) - timedelta(hours=3)).replace(microsecond=0)
+    at = lambda hours: (morning + timedelta(hours=hours)).astimezone(stream.MOSCOW).strftime("%H:%M")  # noqa: E731
+    day = post(
+        60,
+        morning,
+        f"♾️ Oujikun VS Bestingo — {at(0)} МСК\n\n♾️ TBD VS TBD — {at(2)} МСК\n\n♾️ TBD VS TBD — {at(4)} МСК",
+        channel="hoth_abyss",
+    )
+    earlier = post(59, morning - timedelta(days=2), f"♾️ Smertikk VS Roozie — {at(0)} МСК", channel="hoth_abyss")
+    stream.store_posts(session, "hoth_abyss", stream.parse_page(earlier + day))
+    now = morning + timedelta(hours=2, minutes=10)
+    status = StreamStatus(
+        channel=settings.hoth_twitch_channel,
+        live=True,
+        checked_at=now,
+        title="Oujikun vs Bestingo | Cast: qwebob & Legangush | HotH: Abyss Weekend 17",
+    )
+    session.add(status)
+    session.commit()
+    assert stream.fill_tbd(session, "hoth_abyss", now) == 0  # the title still names the first match
+    finished = post(61, morning + timedelta(hours=2), "♾️ Результат матча Oujikun VS Bestingo", channel="hoth_abyss")
+    stream.store_posts(session, "hoth_abyss", stream.parse_page(earlier + day + finished))
+    status.title = "smertikk vs ROOZIE | Cast: qwebob & Legangush | HotH: Abyss Weekend 17 | ROUND 2&3"
+    session.commit()
+    assert stream.fill_tbd(session, "hoth_abyss", now) == 1
+    second, third = session.exec(
+        select(StreamMatch).where(StreamMatch.announced_at >= morning).order_by(StreamMatch.starts_at)
+    ).all()[1:]
+    assert (second.player1_name, second.player2_name) == ("Smertikk", "Roozie")
+    assert third.player1_name == stream.TBD
+    assert stream.title_pair("Abyss Weekend 17 — day 2") is None
+
+
 def test_bracket_pair_keeps_a_known_side_and_gives_up_when_unclear():
     store = bracket(
         (1, "Peudan", "Divizor", True, (None, None)),
