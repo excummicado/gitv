@@ -18,6 +18,7 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from difflib import SequenceMatcher
 from functools import lru_cache
 from urllib.parse import urlsplit
 
@@ -260,19 +261,74 @@ class ChallongeResult:
     places_by_name: dict[str, tuple[int, int]] = field(default_factory=dict)  # Challonge name -> (best, worst)
 
 
+# Of several players an unmatched name could be by its opponents, the likeliest is taken when one of their nicknames
+# looks this much like it (difflib's ratio) and this much more than the next one's.
+OPPONENT_LIKENESS = 0.5
+OPPONENT_MARGIN = 0.2
+
+
+def match_by_opponents(
+    bracket: Bracket,
+    ids: dict[str, str],
+    unmatched: list[str],
+    opponents: dict[str, set[str]],
+    candidates: dict[str, set[str]],
+) -> list[str]:
+    """Finds unmatched names by whom they played: malin vs Panika in the bracket, and on the site Panika played
+    meylin, whom no bracket name is matched to: malin is meylin. Each of the name's bracket opponents that is matched
+    gives the players they met on the site no bracket name is matched to; the one player all of them share is it, or,
+    of several, the one whose nickname looks clearly most like it. Fills ids in; returns the names still unmatched.
+    opponents: {player id: the players they met on the site in this tournament}; candidates: {player id: names}."""
+    unmatched = list(unmatched)
+    progress = True
+    while progress and unmatched:
+        progress = False
+        taken = set(ids.values())
+        for name in list(unmatched):
+            shared: set[str] | None = None
+            for m in bracket.all_matches:
+                if name not in (m.player1, m.player2):
+                    continue
+                other = m.player2 if m.player1 == name else m.player1
+                met = {p for p in opponents.get(ids.get(other or ""), ()) if p not in taken and p in candidates}
+                if met:
+                    shared = met if shared is None else shared & met
+            options = sorted(shared or ())
+            if len(options) > 1:
+                key = normalize(name)
+                score = {
+                    p: max((SequenceMatcher(None, key, normalize(n)).ratio() for n in candidates[p]), default=0)
+                    for p in options
+                }
+                options.sort(key=score.get, reverse=True)
+                best, second = score[options[0]], score[options[1]]
+                options = options[:1] if best >= OPPONENT_LIKENESS and best - second >= OPPONENT_MARGIN else []
+            if len(options) == 1:
+                ids[name] = options[0]
+                taken.add(options[0])
+                unmatched.remove(name)
+                log.info("Challonge: %s is %s by their opponents", name, options[0])
+                progress = True
+    return unmatched
+
+
 def result_for(
     bracket: Bracket,
     candidates: dict[str, set[str]],
     everyone: dict[str, set[str]] | None = None,
     forced: dict[str, str] | None = None,
+    opponents: dict[str, set[str]] | None = None,
 ) -> ChallongeResult:
     """candidates: the tournament's players and their names; everyone: all players, tried for names the
     tournament's players don't have (someone who signed up but has no match on the site); forced: names tied by
-    hand (see match_names)."""
+    hand (see match_names); opponents: {player id: whom they met on the site in this tournament}, for the names
+    still unmatched (match_by_opponents)."""
     ids, unmatched = match_names(bracket.players, candidates, forced)
     if everyone and unmatched:
         more, unmatched = match_names(unmatched, everyone, forced)
         ids.update(more)
+    if opponents and unmatched:
+        unmatched = match_by_opponents(bracket, ids, unmatched, opponents, candidates)
     result = ChallongeResult(unmatched=unmatched, bracket=bracket, ids=ids, places_by_name=places(bracket))
     for name, place in result.places_by_name.items():
         if name in ids:
@@ -322,10 +378,14 @@ def site_match_winners(
 
 
 def stored_results(
-    session: Session, candidates: dict[str, dict[str, set[str]]], only: set[str] | None = None
+    session: Session,
+    candidates: dict[str, dict[str, set[str]]],
+    only: set[str] | None = None,
+    opponents: dict[str, dict[str, set[str]]] | None = None,
 ) -> dict[str, ChallongeResult]:
     """{tournament id: ChallongeResult} for every stored bracket (or those of the only tournaments). candidates:
-    {tournament id: {player id: names}}; each player's Discord names are added to them."""
+    {tournament id: {player id: names}}; each player's Discord names are added to them. opponents: {tournament id:
+    {player id: whom they met there on the site}}, to find the names left by whom they played (match_by_opponents)."""
     merged = dict(session.exec(select(PlayerMerge.user_id, PlayerMerge.into_id)).all())
     discord: dict[str, set[str]] = defaultdict(set)
     for user_id, name in session.exec(select(TournamentPlayer.user_id, TournamentPlayer.discord_name)):
@@ -357,7 +417,13 @@ def stored_results(
         except (ValueError, KeyError, TypeError):
             log.warning("unreadable Challonge bracket for %s", row.tournament_id)
             continue
-        results[row.tournament_id] = result_for(bracket, candidates.get(row.tournament_id, {}), everyone, forced)
+        results[row.tournament_id] = result_for(
+            bracket,
+            candidates.get(row.tournament_id, {}),
+            everyone,
+            forced,
+            (opponents or {}).get(row.tournament_id),
+        )
     return results
 
 

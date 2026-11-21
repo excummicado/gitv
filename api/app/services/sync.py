@@ -242,7 +242,12 @@ def settled_by_bracket(session: Session, fetched: dict[str, list[dict]]) -> dict
             unfinished = unfinished or not is_finished(m)
     if not unfinished:
         return fetched
-    winners = site_match_winners(stored_results(session, candidates, only=set(candidates)), meetings)
+    opponents: dict[str, dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
+    for tid, _, a, b in meetings.values():
+        opponents[tid][a].add(b)
+        opponents[tid][b].add(a)
+    results = stored_results(session, candidates, only=set(candidates), opponents=opponents)
+    winners = site_match_winners(results, meetings)
     return {
         tid: [
             {**m, "drafts": [d for d in m["drafts"] if d.get("status") == "FINISHED"]}

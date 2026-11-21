@@ -156,6 +156,23 @@ class TestResults:
         r = result_for(bracket_from_store(store(SE8)), {"1": {"A"}}, everyone=self.candidates)
         assert r.places["8"] == (5, 8)
 
+    def test_a_name_is_found_by_whom_it_played(self):
+        """B vs malin in the bracket; on the site B met player 7 (meylin), whom no bracket name is matched to."""
+        bracket = bracket_from_store(store([*SE8[:1], m(1, "B", "malin", "B"), *SE8[2:]]))
+        candidates = {**self.candidates, "7": {"meylin"}}
+        opponents = {"2": {"7", "3", "1"}, "7": {"2"}}
+        r = result_for(bracket, candidates, opponents=opponents)
+        assert r.ids["malin"] == "7" and r.unmatched == []
+        # Without the site's matches it stays unmatched
+        assert "malin" in result_for(bracket, candidates).unmatched
+
+    def test_of_several_opponents_the_name_that_looks_like_it(self):
+        bracket = bracket_from_store(store([m(1, "A", "malin", "A")]))
+        candidates = {"1": {"A"}, "7": {"Zzz"}, "8": {"meylin"}}
+        assert result_for(bracket, candidates, opponents={"1": {"7", "8"}}).ids["malin"] == "8"
+        candidates["7"] = {"mailn"}  # both look like it: unclear
+        assert result_for(bracket, candidates, opponents={"1": {"7", "8"}}).unmatched == ["malin"]
+
     def test_match_winner(self):
         r = ChallongeResult(winners={frozenset(("a", "b")): ["a"], frozenset(("a", "c")): ["a", "c"]})
         assert match_winner(r, "b", "a") == "a"

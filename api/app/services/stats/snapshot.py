@@ -576,7 +576,13 @@ def build(session: Session, key: tuple, only: set[str] | None = None) -> Snapsho
     for oid, oname in offsite.items():
         data.setdefault(oid, PlayerData(id=oid, name=oname))
         candidates[OFFSITE][oid] = {oname}
-    challonge = stored_results(session, candidates)
+    # Whom each player met in each tournament, for the bracket names found by their opponents.
+    opponents: dict[str, dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
+    for pd in data.values():
+        for g in pd.games:
+            if g.match_id in matches:
+                opponents[matches[g.match_id][0]][pd.id].add(g.opponent)
+    challonge = stored_results(session, candidates, opponents=opponents)
     unfinished = set(session.exec(select(TournamentInfo.tournament_id).where(TournamentInfo.is_finished == False)))  # noqa: E712
     if only is not None:
         unfinished &= only
