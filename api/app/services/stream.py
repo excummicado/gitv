@@ -15,9 +15,10 @@ matches by the two nicknames (any order, case and punctuation aside), within a d
 House of the Hearth's (settings.hoth_telegram_channel) posts differently:
 - the day's post, in the morning: a line per match, "💰 A VS B — 17:00 МСК" (team events put an emoji for "VS":
   "Болвансеры ♿️ Леха — 17:00 МСК"), each with "Комментаторы: X & Y" under it; a match whose players aren't known
-  yet is "TBD VS TBD" (or "TBD VS A"): once its time comes, its players are looked up in the bracket the post
-  links ("Сетка турнира", Challonge; fill_tbd), else filled in by its results post; each match's stage (final,
-  semifinal, ...) comes from that bracket too (fill_stages), and a nickname the bracket spells otherwise is found
+  yet is "TBD VS TBD" (or "TBD VS A"): once its time comes, or earlier once it's on air (the match before it over,
+  or the stream on), its players are looked up in the bracket the post links ("Сетка турнира", Challonge;
+  fill_tbd), else filled in by its results post; each match's stage (final, semifinal, ...) comes from that
+  bracket too (fill_stages), and a nickname the bracket spells otherwise is found
   there by its opponent and tied to that player (bracket_spelling, tie_bracket_name);
 - a match moved: "Игра A VS B переносится на 17:30 МСК";
 - its results post: "Результат (финального) матча A VS B" with both teams, not who won.
@@ -113,6 +114,8 @@ TOURNAMENT = re.compile(r"(?i)матчи\s+(.+?)\s*,?\s+которые")
 TBD = "TBD"
 # A TBD match is looked up in its bracket from its time until this long after (or until its results post)
 TBD_LOOKUP = timedelta(hours=3)
+# Twitch's word on a stream counts while the poll refreshed it this lately
+LIVE_FRESH = timedelta(minutes=5)
 MOSCOW = ZoneInfo("Europe/Moscow")
 WINNER = re.compile(
     r"(?:Победа достаётся|Победа достается|Победа досталась|Победу одержал[аи]?)\s+(.+?)[!.]?\s*(?:Поздрав|$)", re.I
@@ -466,23 +469,42 @@ def fetch_bracket(url: str) -> dict:
     return parse_store(page.text)
 
 
-def fill_tbd(
-    session: Session, channel: str, now: datetime | None = None, fetch=fetch_bracket, stores: dict | None = None
-) -> int:
-    """Puts in the players of the channel's TBD matches that have started, from the bracket their day post links
-    (see bracket_pair), spelled as the channel spells them; returns how many were filled in."""
-    now = now or datetime.now(UTC)
-    rows = session.exec(
+def stream_live(session: Session, channel: str, now: datetime) -> bool:
+    """Whether Twitch said lately that the channel's stream is on."""
+    twitch = session.get(StreamStatus, stream_of(channel).twitch)
+    return bool(twitch and twitch.live and now - aware(twitch.checked_at) <= LIVE_FRESH)
+
+
+def tbd_due(session: Session, channel: str, now: datetime) -> list[StreamMatch]:
+    """The channel's unfinished matches of the day that may be looked up in their bracket: those whose time has
+    come, and the day's next one (the first unfinished by time) before its time once it's on air: the match before
+    it is over (the second game on air), or the stream is on."""
+    day = session.exec(
         select(StreamMatch)
         .where(
             StreamMatch.channel == channel,
-            StreamMatch.bracket_url.is_not(None),
-            StreamMatch.finished_at.is_(None),
-            StreamMatch.starts_at <= now,
-            StreamMatch.starts_at >= now - TBD_LOOKUP,
+            StreamMatch.announced_at >= now - SAME_DAY,
+            StreamMatch.announced_at <= now,
+            StreamMatch.starts_at.is_not(None),
         )
         .order_by(StreamMatch.starts_at)
     ).all()
+    due = [r for r in day if r.bracket_url and not r.finished_at and now - TBD_LOOKUP <= aware(r.starts_at) <= now]
+    up = next((r for r in day if not r.finished_at), None)
+    if up is not None and up.bracket_url and up not in due and aware(up.starts_at) > now:
+        if any(r.finished_at for r in day) or stream_live(session, channel, now):
+            due.append(up)
+    return due
+
+
+def fill_tbd(
+    session: Session, channel: str, now: datetime | None = None, fetch=fetch_bracket, stores: dict | None = None
+) -> int:
+    """Puts in the players of the channel's TBD matches that have started or are on air (tbd_due), from the bracket
+    their day post links (see bracket_pair), spelled as the channel spells them; returns how many were filled in.
+    Read every poll, so a TBD fills in as soon as the bracket knows its players."""
+    now = now or datetime.now(UTC)
+    rows = tbd_due(session, channel, now)
     rows = [r for r in rows if TBD in (r.player1_name, r.player2_name)]
     if not rows:
         return 0
@@ -957,8 +979,8 @@ def poll_stream(session: Session) -> list[str]:
     """One pass of every stream's channels (run_stream_forever, app.cli poll-stream); returns the errors, if any."""
     errors = []
     steps = [(f"Telegram {s.telegram}", fetch_channel, s.telegram) for s in streams()]
-    steps += [(f"bracket of {s.telegram}", read_brackets, s.telegram) for s in streams()]
     steps += [(f"Twitch {s.twitch}", fetch_twitch, s.twitch) for s in streams()]
+    steps += [(f"bracket of {s.telegram}", read_brackets, s.telegram) for s in streams()]
     for name, step, channel in steps:
         try:
             step(session, channel)

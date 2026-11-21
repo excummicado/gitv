@@ -235,6 +235,54 @@ def test_a_tbd_match_gets_its_players_from_the_bracket_when_it_starts(session):
     assert final.finished_at is not None
 
 
+def test_a_tbd_match_fills_in_before_its_time_once_it_is_on_air(session):
+    """The day's next match fills in from the bracket before its time once the match before it is over (the second
+    game on air), or, for the day's first, once the stream is on; a later TBD still waits."""
+    from app.config import settings
+
+    morning = (datetime.now(UTC) - timedelta(hours=1)).replace(microsecond=0)
+    at = lambda hours: (morning + timedelta(hours=hours)).astimezone(stream.MOSCOW).strftime("%H:%M")  # noqa: E731
+    day = post(
+        50,
+        morning,
+        f"♾️ TBD VS TBD — {at(2)} МСК\n\n♾️ Тихони VS 2z1k1 — {at(3)} МСК\n\n♾️ TBD VS TBD — {at(5)} МСК"
+        "\n\n⬇️ Сетка турнира",
+        ("https://challonge.com/hoth_fast_2v2",),
+        channel="hoth_abyss",
+    )
+    stream.store_posts(session, "hoth_abyss", stream.parse_page(day))
+    first, second = session.exec(
+        select(StreamMatch).where(StreamMatch.player1_name == stream.TBD).order_by(StreamMatch.starts_at)
+    ).all()
+    store = bracket((11, "nod-cryo", "Болвансеры", False, (None, None)))
+    now = morning + timedelta(minutes=30)
+    assert stream.fill_tbd(session, "hoth_abyss", now, lambda url: store) == 0  # stream not on yet
+    session.add(StreamStatus(channel=settings.hoth_twitch_channel, live=True, checked_at=now))
+    session.commit()
+    assert stream.fill_tbd(session, "hoth_abyss", now, lambda url: store) == 1
+    session.refresh(first)
+    assert (first.player1_name, first.player2_name) == ("nod-cryo", "Болвансеры")
+    assert second.player1_name == stream.TBD  # not next yet
+    # The first two are over early: the third is on air before its time and takes the final
+    done = "\n".join(
+        [
+            post(51, now, "♾️ Результат матча nod-cryo VS Болвансеры", channel="hoth_abyss"),
+            post(52, now + timedelta(minutes=40), "♾️ Результат матча Тихони VS 2z1k1", channel="hoth_abyss"),
+        ]
+    )
+    stream.store_posts(session, "hoth_abyss", stream.parse_page(day + done))
+    store = bracket(
+        (11, "nod-cryo", "Болвансеры", True, (None, None)),
+        (12, "Тихони", "2z1k1", True, (None, None)),
+        (13, "nod-cryo", "2z1k1", False, (11, 12)),
+    )
+    later = now + timedelta(minutes=45)
+    session.get(StreamStatus, settings.hoth_twitch_channel).live = False  # even off between games
+    assert stream.fill_tbd(session, "hoth_abyss", later, lambda url: store) == 1
+    session.refresh(second)
+    assert (second.player1_name, second.player2_name) == ("nod-cryo", "2z1k1")
+
+
 def test_bracket_pair_keeps_a_known_side_and_gives_up_when_unclear():
     store = bracket(
         (1, "Peudan", "Divizor", True, (None, None)),
