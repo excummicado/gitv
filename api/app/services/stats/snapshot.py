@@ -34,6 +34,7 @@ from ...models import (
     DraftAction,
     DraftState,
     GameResult,
+    LiveMatch,
     Match,
     MatchDraft,
     MatchPick,
@@ -576,12 +577,31 @@ def build(session: Session, key: tuple, only: set[str] | None = None) -> Snapsho
     for oid, oname in offsite.items():
         data.setdefault(oid, PlayerData(id=oid, name=oname))
         candidates[OFFSITE][oid] = {oname}
-    # Whom each player met in each tournament, for the bracket names found by their opponents.
+    # Whom each player met in each tournament, for the bracket names found by their opponents: in their games, and in
+    # the matches the tournament site paired them in that weren't played there (decided on Challonge, a no-show).
     opponents: dict[str, dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
     for pd in data.values():
         for g in pd.games:
             if g.match_id in matches:
                 opponents[matches[g.match_id][0]][pd.id].add(g.opponent)
+    for tid, *sides in session.exec(
+        select(
+            LiveMatch.tournament_id,
+            LiveMatch.player1_id,
+            LiveMatch.player1_name,
+            LiveMatch.player2_id,
+            LiveMatch.player2_name,
+        )
+    ):
+        (a, a_name), (b, b_name) = ((merged.get(p, p), n) for p, n in (sides[:2], sides[2:]))
+        if not a or not b or a == b:
+            continue
+        for pid, name in ((a, a_name), (b, b_name)):
+            if pid not in candidates[tid]:
+                known = set(data[pid].names) | ({names[pid]} if pid in names else set()) if pid in data else set()
+                candidates[tid][pid] = known or {name}
+        opponents[tid][a].add(b)
+        opponents[tid][b].add(a)
     challonge = stored_results(session, candidates, opponents=opponents)
     unfinished = set(session.exec(select(TournamentInfo.tournament_id).where(TournamentInfo.is_finished == False)))  # noqa: E712
     if only is not None:

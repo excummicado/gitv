@@ -427,3 +427,33 @@ def test_snapshot_outlives_the_session_that_built_it(session):
     session.close()
     assert snap.agents["furina"].name_en == "Furina"
     assert snap.challonge_only["ch-1"].url == "https://challonge.com/x"
+
+
+def test_a_bracket_name_is_found_by_a_pairing_never_played_on_the_site(world):
+    """The tournament site paired C with B (a live match no game of which began); the bracket has B vs oROROn, decided
+    there: oROROn is C, the match counts, and it isn't shown as waiting to be played any more."""
+    from app.models import LiveMatch
+    from app.services.match_views import live_matches
+
+    site_players(world, "C", "Z")
+    tid = world.tournament("HotH: Abyss Weekend 96")
+    world.win(tid, "A", "B")
+    world.s.add(
+        LiveMatch(
+            id="live-bc",
+            tournament_id=tid,
+            tournament_title="HotH: Abyss Weekend 96",
+            created_at=START,
+            player1_id="B",
+            player1_name="B",
+            player2_id="C",
+            player2_name="C",
+            drafts=json.dumps([{"id": "d1", "status": "NOT_STARTED", "key": "k"}]),
+            updated_at=START,
+        )
+    )
+    site_bracket(world, tid, [m(1, "A", "B", "A", (1, 0)), m(1, "B", "oROROn", "B", (1, 0))])
+    snap = world.snap()
+    assert snap.challonge[tid].ids["oROROn"] == "C" and snap.challonge[tid].unmatched == []
+    assert any(frozenset(cm.games_won) == frozenset("BC") for cm in snap.challonge_matches.values())
+    assert live_matches(world.s, tid) == []
