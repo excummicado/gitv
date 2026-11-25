@@ -18,7 +18,17 @@ from sqlmodel import select
 
 from ..database import RowId, SessionDep
 from ..dependencies import get_current_player_editor
-from ..models import LiveMatch, PlayerRoster, ScheduledMatch, StreamMatch, StreamStatus, StreamTeam, Tournament, User
+from ..models import (
+    LiveMatch,
+    PlayerRoster,
+    ScheduledMatch,
+    StreamMatch,
+    StreamStatus,
+    StreamTeam,
+    Tournament,
+    TournamentFinish,
+    User,
+)
 from ..rate_limit import rate_limit
 from ..schemas.matches import LiveGame
 from ..services import bets
@@ -550,7 +560,8 @@ def own_tournaments(session: SessionDep, editor: User) -> list[dict]:
     """The running tournaments the editor may schedule matches of (organizers.can_run_tournament): all of them, or
     for a member granted organizers those their accounts created (by the site's list: a new tournament has no
     details stored yet)."""
-    running = live_tournaments()
+    finished = set(session.exec(select(TournamentFinish.tournament_id)))  # by hand
+    running = [t for t in live_tournaments() if t["_id"] not in finished]
     if editor.role.runs_any_tournament:
         return running
     own = own_organizer_filter(session, editor)

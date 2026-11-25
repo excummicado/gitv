@@ -44,6 +44,7 @@ from ...models import (
     OffsitePlayer,
     TechnicalDefeat,
     Tournament,
+    TournamentFinish,
     TournamentInfo,
     TournamentPlayer,
     TournamentWinner,
@@ -199,6 +200,7 @@ def data_key(session: Session) -> tuple:
         # The site's pairings (bracket names found by opponents) and the upcoming matches resolved by hand
         session.exec(select(func.count()).select_from(LiveMatch)).one(),
         tuple(sorted(session.exec(select(LiveMatchResult.id, LiveMatchResult.winner_id)).all())),
+        tuple(sorted(session.exec(select(TournamentFinish.tournament_id)).all())),
         tuple(
             sorted(
                 session.exec(select(GameResult.draft_id, GameResult.slot, GameResult.rooms, GameResult.restarts)).all()
@@ -611,6 +613,8 @@ def build(session: Session, key: tuple, only: set[str] | None = None) -> Snapsho
     if only is not None:
         unfinished &= only
     decided = {t for t in unfinished if t in challonge and challonge[t].bracket and challonge[t].bracket.final_decided}
+    # Finished by hand on its page (the tournament site still lists it as running): over all the same
+    decided |= unfinished & set(session.exec(select(TournamentFinish.tournament_id)))
     # A bracket-only tournament whose games were entered by hand (manual_games, aspirine_import) counts as one played
     # on the site; its bracket's matches no game was entered for still count, as matches without games.
     played = {tid for tid, *_ in matches.values()}

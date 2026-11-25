@@ -8,7 +8,7 @@ import { ApiError } from "../api";
 import { fetchLiveMatches, fetchLiveTournaments, fetchMatchesByTournament, type LiveMatch, type LiveTournament, type MatchSummary } from "../match/api";
 import { LiveMatchRow } from "../match/LiveMatches";
 import { useLang } from "../i18n";
-import { fetchTournament, type TournamentLink, type BracketRound, type BracketSide, type PoolCharacter, type PoolPlayer, type TableRow, type TournamentDetail } from "./api";
+import { fetchTournament, finishTournament, reopenTournament, type TournamentLink, type BracketRound, type BracketSide, type PoolCharacter, type PoolPlayer, type TableRow, type TournamentDetail } from "./api";
 import { DateRange, KIND_LABELS, Prize } from "./common";
 import { TournamentAbyssBox } from "../abyss/TournamentAbyss";
 import { TwitchPlayer } from "../components/TwitchPlayer";
@@ -199,6 +199,45 @@ function LiveMatches({ tournamentId, organizerId }: { tournamentId: string; orga
       <p className="player-note tourney-note">{t("Games open their draft on darte.gg. Updated every few minutes.",
         "Игры открывают драфт на darte.gg. Обновляется раз в несколько минут.")}</p>
     </Box>
+  );
+}
+
+// Finish by hand, for a tournament its organizer never closed on the tournament site: it counts as over (places, its
+// winner) and isn't followed live any more. Admins and the tournament's organizers; taken back the same way.
+// onChanged(reopened): a reopened tournament was running before it was finished, so it is again (the statistics catch
+// up in the background).
+function FinishControl({ tournament, onChanged }: { tournament: TournamentDetail; onChanged: (reopened: boolean) => void }) {
+  const { t } = useLang();
+  const editor = runsTournamentsOf(useAuth().user, tournament.organizer?.id);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  if (!editor || !(tournament.live || tournament.finished_by_hand)) return null;
+  const run = (request: Promise<unknown>, reopened = false) => {
+    setSaving(true);
+    setError("");
+    request.then(() => onChanged(reopened))
+      .catch((err) => setError(err instanceof Error ? err.message : t("Couldn't save.", "Не удалось сохранить.")))
+      .finally(() => setSaving(false));
+  };
+  const finish = () => {
+    if (!window.confirm(t(
+      `Finish ${tournament.title} by hand? It will count as over: places and the winner from what's played, and its upcoming matches go.`,
+      `Закончить ${tournament.title} вручную? Он будет считаться завершённым: места и победитель по сыгранному, предстоящие матчи уйдут.`))) return;
+    run(finishTournament(tournament.id));
+  };
+  return (
+    <div className="player-box tourney-finish">
+      {tournament.finished_by_hand ? (
+        <>
+          <span className="player-note">{t(`Finished by hand (${tournament.finished_by_hand}).`, `Завершён вручную (${tournament.finished_by_hand}).`)}</span>
+          <button type="button" className="match-input" disabled={saving} onClick={() => run(reopenTournament(tournament.id), true)}>{t("Reopen", "Вернуть в идущие")}</button>
+        </>
+      ) : (
+        <button type="button" className="match-input" disabled={saving} onClick={finish}
+          title={t("For a tournament its organizer didn't finish on the tournament site", "Для турнира, который организатор не закрыл на турнирном сайте")}>{t("Finish the tournament by hand", "Закончить турнир вручную")}</button>
+      )}
+      {error && <span className="match-result-error" role="alert">{error}</span>}
+    </div>
   );
 }
 
@@ -514,6 +553,8 @@ export function TournamentPage({ tournamentId }: { tournamentId: string }) {
                   )}
                 </header>
 
+                <FinishControl tournament={tournament} onChanged={(reopened) => fetchTournament(tournament.id)
+                  .then((fresh) => setTournament(reopened ? { ...fresh, live: true } : fresh)).catch(() => {})} />
                 <TournamentAbyssBox phases={tournament.abyss ?? []} />
                 {tournament.live && tournament.organizer && <LiveStreamBox organizer={tournament.organizer.name} />}
                 {tournament.live && <LiveMatches tournamentId={tournament.id} organizerId={tournament.organizer?.id} />}

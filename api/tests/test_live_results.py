@@ -91,3 +91,33 @@ def test_a_hand_result_yields_to_the_match_played_anyway(world, session):
     client.put("/api/v1/matches/live-matches/l3/result", json={"side": 1})
     snap = importlib.import_module("app.services.stats").snapshot(session)
     assert hand_match_id("l3") not in snap.outcomes  # A vs B is stored with its games
+
+
+def test_a_running_tournament_finished_by_hand_and_reopened(world, session, monkeypatch):
+    from app.models import TournamentInfo
+    from app.services import sync
+
+    client = TestClient(app)
+    tid = world.tournament("HotH: Abyss Weekend 93")
+    world.win(tid, "A", "B")
+    session.add(TournamentInfo(tournament_id=tid, is_finished=False))
+    session.commit()
+    page = lambda: client.get(f"/api/v1/tournaments/{tid}").json()  # noqa: E731
+    assert page()["live"] and page()["finished_by_hand"] is None
+
+    act_as(session, Role.user)
+    assert client.put(f"/api/v1/tournaments/{tid}/finish").status_code == 403
+    act_as(session, Role.event_organizer)
+    assert client.put("/api/v1/tournaments/nope/finish").status_code == 404
+    assert client.put(f"/api/v1/tournaments/{tid}/finish").status_code == 204
+    assert not page()["live"] and page()["finished_by_hand"] == "u_event_organizer"
+
+    # The live poll leaves it alone though the tournament site still lists it as running.
+    monkeypatch.setattr(sync, "live_tournaments", lambda: [{"_id": tid, "title": "HotH: Abyss Weekend 93"}])
+    asked = []
+    monkeypatch.setattr(sync.match_import, "fetch_matches", lambda client, url: asked.append(url) or [])
+    sync.poll_live(session)
+    assert asked == []
+
+    assert client.delete(f"/api/v1/tournaments/{tid}/finish").status_code == 204
+    assert page()["live"] and page()["finished_by_hand"] is None

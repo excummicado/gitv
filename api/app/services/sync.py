@@ -38,7 +38,16 @@ import httpx
 import websocket
 from sqlmodel import Session, delete, select
 
-from ..models import IgnoredTournament, LiveMatch, LiveRoster, Match, MatchPlayer, Tournament, TournamentInfo
+from ..models import (
+    IgnoredTournament,
+    LiveMatch,
+    LiveRoster,
+    Match,
+    MatchPlayer,
+    Tournament,
+    TournamentFinish,
+    TournamentInfo,
+)
 from . import match_import
 from .abyss import maybe_fetch_abyss
 from .catalog import import_catalog
@@ -264,7 +273,9 @@ def poll_live(session: Session) -> SyncResult:
     reads their Challonge brackets until the final has a winner. The list of running tournaments is the
     hourly-cached one; only their matches and brackets are asked for."""
     result = SyncResult()
+    # Finished by hand (TournamentFinish): not polled, and its upcoming matches go (update_live_matches)
     ignored = set(session.exec(select(IgnoredTournament.tournament_id)))
+    ignored |= set(session.exec(select(TournamentFinish.tournament_id)))
     running = [t for t in live_tournaments() if t["_id"] not in ignored]
     fetched: dict[str, list[dict]] = {}
     with httpx.Client(headers={"Accept": "application/json"}, timeout=60) as client:

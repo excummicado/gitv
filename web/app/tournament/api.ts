@@ -1,6 +1,7 @@
 // Tournaments (api/app/routers/tournaments.py); shapes mirror the API's.
 
 import { getJson } from "../api";
+import { authRequest } from "../auth/client";
 import type { Character, Organizer } from "../match/api";
 import type { TournamentAbyss } from "../abyss/api";
 
@@ -52,6 +53,8 @@ export type TournamentLink = { kind: "telegram" | "discord" | "twitch" | "youtub
 export type TournamentDetail = TournamentRow & {
   links: TournamentLink[];
   stages: StageRef[]; abyss: TournamentAbyss[]; table: TableRow[]; stats: TournamentStats; bracket: BracketRound[] | null; unmatched: string[];
+  // Who finished it by hand on its page while the tournament site still lists it as running
+  finished_by_hand: string | null;
   pool: TournamentPool;
 };
 
@@ -74,4 +77,14 @@ export type FeaturedTournament = {
 // Every tournament the banner can show: the running ones, those with a banner first; else the latest finished one.
 export function fetchFeaturedTournaments(signal?: AbortSignal) {
   return getJson<FeaturedTournament[]>("/api/v1/tournaments/featured/all", { signal });
+}
+
+// Finish a running tournament by hand (the tournament site still lists it as running), or take that back: an admin or
+// the tournament's organizer only.
+export function finishTournament(id: string) {
+  return authRequest<null>("PUT", `/tournaments/${encodeURIComponent(id)}/finish`);
+}
+
+export function reopenTournament(id: string) {
+  return authRequest<null>("DELETE", `/tournaments/${encodeURIComponent(id)}/finish`);
 }

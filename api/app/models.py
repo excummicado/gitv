@@ -370,6 +370,17 @@ class TournamentInfo(SQLModel, table=True):
     links: str | None = None
 
 
+class TournamentFinish(SQLModel, table=True):
+    """A running tournament an admin or its organizer finished by hand on its page, when the tournament site still
+    lists it as running (its organizer never closed it there): it counts as over (places, its winner), isn't polled
+    any more, and its matches leave the upcoming ones. Kept apart from tournamentinfo, which the sync rewrites; once
+    the site finishes it too, the sync imports what's left as for any finished tournament."""
+
+    tournament_id: str = Field(primary_key=True)
+    finished_by: str  # the editor's nickname
+    finished_at: datetime
+
+
 class OrganizerAlias(SQLModel, table=True):
     """How an organizer is shown, set by hand (app.cli set-organizer): a name of their own (a league or brand,
     e.g. "House of the Hearth") and/or another organizer they count as, so two site accounts running one series

@@ -2,16 +2,29 @@
 
 import json
 from datetime import UTC, datetime
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, TypeAdapter
 from sqlmodel import func, select
 
 from ..database import SessionDep
-from ..models import Agent, ChallongeTournament, IgnoredTournament, Match, MatchPlayer, Tournament, TournamentInfo
+from ..dependencies import get_current_result_editor
+from ..models import (
+    Agent,
+    ChallongeTournament,
+    IgnoredTournament,
+    Match,
+    MatchPlayer,
+    Tournament,
+    TournamentFinish,
+    TournamentInfo,
+    User,
+)
 from ..services.banners import banner_for
 from ..services.events import Event, TournamentDates, group_label, site_events, stage_of, tournament_events
 from ..services.match_checks import MAJOR_SYSTEM, MAJOR_TITLE, tidy_title
+from ..services.organizers import can_run_tournament
 from ..services.player_names import display_names
 from ..services.roster_stats import tournament_pool
 from ..services.stats import (
@@ -227,6 +240,8 @@ class TournamentDetail(TournamentRow):
     pool: TournamentPool
     # Challonge names that couldn't be matched to a player
     unmatched: list[str]
+    # Who finished it by hand on this page while the tournament site still lists it as running (TournamentFinish)
+    finished_by_hand: str | None = None
 
 
 def rows(session: SessionDep, ids: list[str] | None = None) -> list[TournamentRow]:
@@ -524,8 +539,10 @@ def read_tournament(tournament_id: str, session: SessionDep):
         titles = dict(session.exec(select(Tournament.id, Tournament.title).where(Tournament.id.in_(members))).all())
         for row in table:
             row["group"] = group_label(titles.get(row["group_id"], "")) if row["group_id"] else None
+    # Read here, not from the snapshot: a finish made a moment ago is in it only once it's rebuilt (in the background)
+    by_hand = (f := session.get(TournamentFinish, tournament_id)) and f.finished_by
     return TournamentDetail(
-        **found[0].model_dump(),
+        **{**found[0].model_dump(), "live": found[0].live and not by_hand},
         links=tournament_links(session, tournament_id, found[0].title, found[0].organizer),
         stages=stages,
         abyss=tournament_abyss(session, tournament_id),
@@ -534,4 +551,40 @@ def read_tournament(tournament_id: str, session: SessionDep):
         bracket=None if members else tournament_bracket(snap, tournament_id),
         pool=pool,
         unmatched=ch.unmatched if ch else [],
+        finished_by_hand=by_hand,
     )
+
+
+def runnable(session: SessionDep, tournament_id: str, editor: User) -> None:
+    if session.get(Tournament, tournament_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such tournament.")
+    if not can_run_tournament(session, editor, tournament_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only finish your own tournaments.")
+
+
+@router.put("/{tournament_id}/finish", status_code=status.HTTP_204_NO_CONTENT)
+def finish_tournament(
+    tournament_id: str, session: SessionDep, editor: Annotated[User, Depends(get_current_result_editor)]
+):
+    """Finishes a running tournament by hand, when the tournament site still lists it as running: it counts as over
+    (places, its winner), isn't polled any more and its upcoming matches go. An admin or its organizer only."""
+    runnable(session, tournament_id, editor)
+    row = session.get(TournamentFinish, tournament_id) or TournamentFinish(
+        tournament_id=tournament_id, finished_by="", finished_at=datetime.now(UTC)
+    )
+    row.finished_by, row.finished_at = editor.nickname, datetime.now(UTC)
+    session.add(row)
+    session.commit()
+
+
+@router.delete("/{tournament_id}/finish", status_code=status.HTTP_204_NO_CONTENT)
+def reopen_tournament(
+    tournament_id: str, session: SessionDep, editor: Annotated[User, Depends(get_current_result_editor)]
+):
+    """Takes a finish by hand back: running again while the tournament site lists it so."""
+    runnable(session, tournament_id, editor)
+    row = session.get(TournamentFinish, tournament_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="This tournament wasn't finished by hand.")
+    session.delete(row)
+    session.commit()
