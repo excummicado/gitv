@@ -35,6 +35,7 @@ from ...models import (
     DraftState,
     GameResult,
     LiveMatch,
+    LiveMatchResult,
     Match,
     MatchDraft,
     MatchPick,
@@ -195,6 +196,9 @@ def data_key(session: Session) -> tuple:
         tuple(sorted(merges(session).items())),
         tuple(sorted(session.exec(select(TournamentWinner.tournament_id, TournamentWinner.player_id)).all())),
         tuple(sorted(session.exec(select(MatchWinner.match_id, MatchWinner.player_id)).all())),
+        # The site's pairings (bracket names found by opponents) and the upcoming matches resolved by hand
+        session.exec(select(func.count()).select_from(LiveMatch)).one(),
+        tuple(sorted(session.exec(select(LiveMatchResult.id, LiveMatchResult.winner_id)).all())),
         tuple(
             sorted(
                 session.exec(select(GameResult.draft_id, GameResult.slot, GameResult.rooms, GameResult.restarts)).all()
@@ -644,6 +648,7 @@ def build(session: Session, key: tuple, only: set[str] | None = None) -> Snapsho
     challonge_matches = add_challonge_only(
         data, match_games, only_rows | entered_rows | site_rows, challonge, tournaments, covered
     )
+    challonge_matches.update(add_hand_results(session, data, match_games, matches, challonge_matches, merged, only))
     pairs = {}
     for match_id, rows in match_games.items():
         sides = list(dict.fromkeys(g.side for g in rows))
@@ -716,6 +721,59 @@ def build(session: Session, key: tuple, only: set[str] | None = None) -> Snapsho
     )
 
 
+def hand_match_id(live_id: str) -> str:
+    """A hand-resolved upcoming match's id: "ch-" like a bracket's, so its page is read the same way."""
+    return f"ch-hand-{live_id}"
+
+
+def add_hand_results(
+    session: Session,
+    data: dict[str, PlayerData],
+    match_games: dict[str, list[SideGame]],
+    matches: dict[str, tuple],
+    found: dict[str, "ChallongeOnlyMatch"],
+    merged: dict[str, str],
+    only: set[str] | None,
+) -> dict[str, "ChallongeOnlyMatch"]:
+    """The upcoming matches an editor gave a winner by hand (LiveMatchResult), as technical wins without games, like a
+    forfeit marked on Challonge. Left out once the two met in that tournament anyway: a match stored with its games, or
+    one the bracket decided."""
+    met: set[tuple[str, frozenset]] = {(cm.tournament_id, frozenset(cm.games_won)) for cm in found.values()}
+    for mid, rows in match_games.items():
+        if mid in matches:
+            met.add((matches[mid][0], frozenset(g.side for g in rows)))
+    out = {}
+    for r in session.exec(select(LiveMatchResult).where(LiveMatchResult.winner_id.is_not(None))):
+        if only is not None and r.tournament_id not in only:
+            continue
+        a, b = (
+            merged.get(p, p) if p else f"?{n}"
+            for p, n in ((r.player1_id, r.player1_name), (r.player2_id, r.player2_name))
+        )
+        winner = merged.get(r.winner_id, r.winner_id)
+        if a == b or winner not in (a, b) or (r.tournament_id, frozenset((a, b))) in met:
+            continue
+        mid = hand_match_id(r.id)
+        for side in (a, b):
+            won = side == winner
+            match_games[mid].append(SideGame(side, "W" if won else "L", not won, 0, tech_by_hand=not won))
+            if side in data:
+                data[side].tournaments.add(r.tournament_id)
+        created = r.created_at if r.created_at.tzinfo else r.created_at.replace(tzinfo=UTC)
+        out[mid] = ChallongeOnlyMatch(
+            tournament_id=r.tournament_id,
+            created_at=created,
+            winner=winner,
+            games_won={a: int(a == winner), b: int(b == winner)},
+            names={a: r.player1_name, b: r.player2_name},
+            technical=True,
+            group=None,
+            round=0,
+            by_hand=r.set_by,
+        )
+    return out
+
+
 # The candidates key of people added by hand (not a tournament): only there for the names they're tried against.
 OFFSITE = "__offsite__"
 
@@ -766,6 +824,7 @@ class ChallongeOnlyMatch:
     technical: bool  # a forfeit marked on Challonge
     group: str | None  # the group of a group-stage match
     round: int
+    by_hand: str | None = None  # an upcoming match resolved by hand (add_hand_results): who resolved it
 
 
 def is_stored(stored: tuple[frozenset[str], frozenset[str]], m: BracketMatch, ids: dict[str, str]) -> bool:

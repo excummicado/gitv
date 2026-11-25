@@ -269,6 +269,10 @@ class WinnerIn(BaseModel):
     side: int  # index into the match's sides
 
 
+class LiveResultIn(BaseModel):
+    side: int | None  # index into the upcoming match's players, the winner; None: it won't be played
+
+
 class RefetchOut(BaseModel):
     """A match read again from the draft site: how many games were, the numbers of those kept for their times filled
     in by hand, how many couldn't be read, and the match as it is now."""

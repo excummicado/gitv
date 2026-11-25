@@ -20,3 +20,4 @@ a.live-game.is-discord:hover, a.live-game.is-discord:focus-visible { background:
 .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gitv-win); animation: live-dot 1.6s ease-in-out infinite; }
 @keyframes live-dot { 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
+.live-match-resolve { position: relative; z-index: 1; display: flex; flex-basis: 100%; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }

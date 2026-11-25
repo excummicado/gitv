@@ -121,6 +121,16 @@ export function fetchLiveMatches(tournament?: string, signal?: AbortSignal) {
   return getJson<LiveMatch[]>(`/api/v1/matches/live-matches${query}`, { signal });
 }
 
+// An upcoming match that won't be played on the tournament site, resolved by an admin or the tournament's organizer:
+// side wins technically (counted like a forfeit on Challonge), or null, "won't be played". It leaves the list.
+export function resolveLiveMatch(liveId: string, side: number | null) {
+  return authRequest<null>("PUT", `/matches/live-matches/${encodeURIComponent(liveId)}/result`, { side });
+}
+
+export function unresolveLiveMatch(liveId: string) {
+  return authRequest<null>("DELETE", `/matches/live-matches/${encodeURIComponent(liveId)}/result`);
+}
+
 // Results filled in by hand by event organizers and admins (api/app/services/manual_results.py).
 export type RoomEntry = { slot: number; rooms: number[]; restarts: number };
 

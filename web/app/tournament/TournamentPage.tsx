@@ -16,6 +16,8 @@ import { fetchLiveStreams, type LiveStream } from "../schedule/api";
 import "../character/characters.css";
 import "./tournaments.css";
 import { Nick } from "../components/PlayerNick";
+import { useAuth } from "../auth/useCurrentUser";
+import { runsTournamentsOf } from "../auth/client";
 
 type Tab = "standings" | "bracket" | "matches" | "stats";
 const TAB_LABELS: Record<Tab, [string, string]> = {
@@ -178,8 +180,10 @@ function Matches({ tournamentId }: { tournamentId: string }) {
 
 // The tournament's unfinished matches while it runs, each game linking to its draft on the tournament site;
 // nothing once it's over. Checked again every minute (the API refreshes them every five).
-function LiveMatches({ tournamentId }: { tournamentId: string }) {
+function LiveMatches({ tournamentId, organizerId }: { tournamentId: string; organizerId?: string | null }) {
   const { t } = useLang();
+  // Admins and event organizers anywhere, a member running this organizer's tournaments here: resolve by hand
+  const editor = runsTournamentsOf(useAuth().user, organizerId);
   const [items, setItems] = useState<LiveMatch[]>([]);
   useEffect(() => {
     const controller = new AbortController();
@@ -191,7 +195,7 @@ function LiveMatches({ tournamentId }: { tournamentId: string }) {
   if (!items.length) return null;
   return (
     <Box title={t("Being played and upcoming", "Идут и предстоят")}>
-      {items.map((m) => <LiveMatchRow match={m} key={m.id} />)}
+      {items.map((m) => <LiveMatchRow match={m} editor={editor} key={m.id} />)}
       <p className="player-note tourney-note">{t("Games open their draft on darte.gg. Updated every few minutes.",
         "Игры открывают драфт на darte.gg. Обновляется раз в несколько минут.")}</p>
     </Box>
@@ -512,7 +516,7 @@ export function TournamentPage({ tournamentId }: { tournamentId: string }) {
 
                 <TournamentAbyssBox phases={tournament.abyss ?? []} />
                 {tournament.live && tournament.organizer && <LiveStreamBox organizer={tournament.organizer.name} />}
-                {tournament.live && <LiveMatches tournamentId={tournament.id} />}
+                {tournament.live && <LiveMatches tournamentId={tournament.id} organizerId={tournament.organizer?.id} />}
 
                 <div className="player-tabs" role="tablist" style={{ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }} aria-label={t("Tournament sections", "Разделы турнира")}>
                   {tabs.map((name) => (

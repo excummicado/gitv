@@ -133,6 +133,24 @@ class LiveMatch(SQLModel, table=True):
     changed_at: datetime | None = None
 
 
+class LiveMatchResult(SQLModel, table=True):
+    """A match the tournament site paired that wasn't played there, resolved by hand from the upcoming matches by an
+    admin or the tournament's organizer: a technical win (counted like a forfeit marked on Challonge; services/stats/
+    snapshot.py add_hand_results), or "won't be played" (winner_id None). Either way it leaves the upcoming matches.
+    Kept apart from LiveMatch, which goes once the tournament ends."""
+
+    id: str = Field(primary_key=True)  # the LiveMatch's
+    tournament_id: str = Field(index=True)
+    created_at: datetime  # the live match's
+    player1_id: str | None = None
+    player1_name: str
+    player2_id: str | None = None
+    player2_name: str
+    winner_id: str | None = None
+    set_by: str  # the editor's nickname
+    set_at: datetime
+
+
 class LiveRoster(SQLModel, table=True):
     """A player's roster in a running tournament, read by the live poll from a draft of theirs not played yet
     (LiveMatch), so the tournament's character pool counts players before their first finished game. Dropped with

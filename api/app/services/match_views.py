@@ -17,6 +17,7 @@ from ..models import (
     Engine,
     GameResult,
     LiveMatch,
+    LiveMatchResult,
     Match,
     MatchDraft,
     MatchPick,
@@ -366,18 +367,19 @@ STALLED = timedelta(minutes=30)
 
 
 def live_matches(session: Session, tournament: str | None) -> list[LiveMatchOut]:
-    """Unfinished matches of the tournaments running now, the ones being played first; stalled ones and those the
-    tournament's Challonge bracket decided left out."""
+    """Unfinished matches of the tournaments running now, the ones being played first; stalled ones, those the
+    tournament's Challonge bracket decided and those resolved by hand (LiveMatchResult) left out."""
     query = select(LiveMatch)
     if tournament:
         query = query.where(LiveMatch.tournament_id == tournament)
     merged, names = merges(session), display_names(session)
     # Matches the tournament's Challonge bracket decided though they weren't played here aren't waiting any more.
     decided = {(cm.tournament_id, frozenset(cm.games_won)) for cm in snapshot(session).challonge_matches.values()}
+    resolved = set(session.exec(select(LiveMatchResult.id)))  # by hand, whatever the result
     out = []
     for m in session.exec(query):
         pair = frozenset(merged.get(u, u) for u in (m.player1_id, m.player2_id) if u)
-        if (m.tournament_id, pair) in decided:
+        if m.id in resolved or (m.tournament_id, pair) in decided:
             continue
         drafts = json.loads(m.drafts)
         begun = any(d["status"] not in (None, NOT_STARTED, "FINISHED") for d in drafts)
@@ -438,7 +440,8 @@ def challonge_match_detail(session: Session, match_id: str) -> MatchDetail | Non
         ],
         winner=order.index(cm.winner),
         technical=cm.technical,
-        result_source="challonge",
+        result_source="manual" if cm.by_hand else "challonge",
+        winner_set_by=cm.by_hand,
         games=[],
         challonge_only=True,
         challonge_url=(info := session.get(TournamentInfo, cm.tournament_id)) and info.challonge_url,

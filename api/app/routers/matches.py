@@ -10,7 +10,7 @@ from sqlmodel import func, select
 
 from ..database import MAX_ROW_ID, SessionDep
 from ..dependencies import get_current_result_editor
-from ..models import IgnoredTournament, Match, MatchDraft, MatchWinner, Tournament, User
+from ..models import IgnoredTournament, LiveMatch, LiveMatchResult, Match, MatchDraft, MatchWinner, Tournament, User
 from ..rate_limit import rate_limit
 from ..schemas.matches import (
     Character,  # noqa: F401 -- other routers import it from here
@@ -18,6 +18,7 @@ from ..schemas.matches import (
     GameResultIn,
     GroupedPage,
     LiveMatchOut,
+    LiveResultIn,
     LiveTournament,
     MatchDetail,
     MatchPage,
@@ -162,6 +163,69 @@ def list_live_matches(session: SessionDep, tournament: str | None = None):
     ones being played first, then by when they were set up; each game links to its draft on the tournament site.
     A match begun that hasn't moved on for STALLED is left out."""
     return live_matches(session, tournament)
+
+
+@router.put("/live-matches/{live_id}/result", status_code=status.HTTP_204_NO_CONTENT)
+def resolve_live_match(
+    live_id: str, data: LiveResultIn, session: SessionDep, editor: Annotated[User, Depends(get_current_result_editor)]
+):
+    """Resolves an upcoming match that won't be played on the tournament site by hand: a technical win for one of
+    them (counted like a forfeit marked on Challonge), or side None, "won't be played". It leaves the upcoming
+    matches; an admin or the tournament's organizer only."""
+    m = session.get(LiveMatch, live_id)
+    row = session.get(LiveMatchResult, live_id)
+    if m is None and row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such match.")
+    tournament_id = m.tournament_id if m else row.tournament_id
+    if not can_run_tournament(session, editor, tournament_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="You can only fill in results of your own tournaments."
+        )
+    if m is not None:
+        row = row or LiveMatchResult(
+            id=live_id,
+            tournament_id=m.tournament_id,
+            created_at=m.created_at,
+            player1_name="",
+            player2_name="",
+            set_by="",
+            set_at=datetime.now(UTC),
+        )
+        row.player1_id, row.player1_name, row.player2_id, row.player2_name = (
+            m.player1_id,
+            m.player1_name,
+            m.player2_id,
+            m.player2_name,
+        )
+    winner = None
+    if data.side is not None:
+        if data.side not in (0, 1):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No such side in this match.")
+        winner = (row.player1_id, row.player2_id)[data.side]
+        if winner is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This player has no page on the site, so they can't be set as the winner.",
+            )
+    row.winner_id, row.set_by, row.set_at = winner, editor.nickname, datetime.now(UTC)
+    session.add(row)
+    session.commit()
+
+
+@router.delete("/live-matches/{live_id}/result", status_code=status.HTTP_204_NO_CONTENT)
+def unresolve_live_match(
+    live_id: str, session: SessionDep, editor: Annotated[User, Depends(get_current_result_editor)]
+):
+    """Takes the result set by hand back: the match is upcoming again (while the tournament site still has it)."""
+    row = session.get(LiveMatchResult, live_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="This match wasn't resolved by hand.")
+    if not can_run_tournament(session, editor, row.tournament_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="You can only fill in results of your own tournaments."
+        )
+    session.delete(row)
+    session.commit()
 
 
 @router.get("/tournaments", response_model=list[TournamentItem])
